@@ -1,50 +1,53 @@
-/// parameters: s0,r,vol,T,timestep,N
-
-/maths setting
+//general math settings
 pi:acos -1
 
+// generate n normal variables with mean m, standard deviation sd
+rnorm: {[n;m;sd]
+    u1: n?1f;
+    u2: n?1f;
+    m + sd * sqrt[-2*log u1] * cos 2*u2*pi};
 
-/normal rv N~[0,1]
-/https://wiki.thalesians.com/index.php/Programming/Kdb/Labs/Option_pricing
-/or kx stat.q
-nrv: {$[x=2*n:x div 2;raze sqrt[-2*log n?1f]*/:(sin;cos)@\:(2*pi)*n?1f;-1_.z.s 1+x]}
-
-/ normal cdf
-normal_cdf:{abs(x>0)-(exp[-.5*x*x]%sqrt 2*pi)*t*.31938153+t*-.356563782+t*1.781477937+t*-1.821255978+1.330274429*t:1%1+.2316419*abs x};
-
-gbm:{[s0;r;vol;T;timestep;N]
-
-	s0:s0;
-	r:r;
-	vol:vol;
-	T:T;
-	timestep:timestep;
-	N:N;
-	
+/// parameters: s0,r,vol,T,timestep,N, monte-carlo method, default general solution path
+/// usage example - gbm[100f;0.1;0.2;1;252;10;`]
+.gbm.path:{[s0;mu;vol;T;timestep;N;method]
 	dt:T % timestep;
+	drift:dt * mu - vol*vol % 2;
+	diffusion: vol * rnorm[timestep*N;0;1] * sqrt dt;
+	euler_term:1 + (mu*dt) + vol * rnorm[timestep*N;0;1] * sqrt dt;
 	
-	f:{[s] s * exp (dt * r - (vol*vol % 2)) + vol * (nrv 1)[0] * sqrt dt};	
-	s_0:N#s0;
-	s:s_0;
-	do[timestep;s_0:{f x} each s_0;s:s,'s_0];f:{[s] s * exp (dt * r - (vol*vol % 2)) + vol * (nrv 1)[0] * sqrt dt};
-	s
- }
+	if[not method in ``general`euler;'"No path options available"];
 
-/analytical mean
-/a_mean:s0 * exp r*T
+	//default general solution
+	// path options
+	if[method in ``general;
+		path: (enlist N#s0),s0 *\ N cut exp drift + diffusion];
+	if[method in `euler;
+		path: (enlist N#s0),s0 *\ N cut euler_term];
+	
+	path}
 
-/analytical variance
-/a_variance: (s0 * s0 * exp 2*r*T) * (-1 +exp vol*vol*T)
+// analytical mean and variance
+.gbm.am:{[s0;mu;T] s0 * exp mu*T};                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+.gbm.av:{[s0;mu;vol;T](s0 * s0 * exp 2*mu*T) * (-1 +exp vol*vol*T)};
 
+// summary for numerical and analytical values of path
+.gbm.stat:{[path]
 
-bs_call:{[S0; K; r; T; volatility; dividend]
+	/numerical mean, variance
+	nm:avg last path;
+	nv:var last path;
 
-	d1: (1 % volatility * sqrt T) * (log S0 % K) + T * r + 0.5 * volatility * volatility;
+	flip `type`mean`variance!(`Numerical`Analytical;(nm;.gbm.am); (nv;.gbm.av))}
 
-	d2: d1 - volatility * sqrt T;(S0 * normal_cdf[d1] * exp neg dividend * T) - K * normal_cdf[d2] * exp neg r*T}
-
-
-
-
-
-
+\
+//test case:
+s0:100f
+mu:0.1
+vol:0.2
+T:1
+timestep:252
+N:10
+.gbm.path[100f;0.1;0.2;1;252;10;`]
+.gbm.am[100f;0.1;1]
+.gbm.av[100f;0.1;0.2;1]
+/
