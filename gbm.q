@@ -1,7 +1,8 @@
-//general math settings
+// general math settings
 pi:acos -1
 
 // generate n normal variables with mean m, standard deviation sd
+// reference: https://armantee.github.io/sampling-with-kdb-p1/
 rnorm: {[n;m;sd]
     u1: n?1f;
     u2: n?1f;
@@ -40,7 +41,7 @@ rnorm: {[n;m;sd]
 	flip `type`mean`variance!(`Numerical`Analytical;(nm;.gbm.am); (nv;.gbm.av))}
 
 \
-//test case:
+// test case:
 s0:100f
 mu:0.1
 vol:0.2
