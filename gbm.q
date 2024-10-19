@@ -8,7 +8,10 @@ rnorm: {[n;m;sd]
     u2: n?1f;
     m + sd * sqrt[-2*log u1] * cos 2*u2*pi};
 
-/// parameters: s0,r,vol,T,timestep,N, monte-carlo method, default general solution path
+// tracking table schema
+.gbm.tab:([] method:`$() ;s0:`float$(); mu:`float$(); vol:`float$(); T:(); timestep:`int$(); N:`int$();Amean:`float$();Avar:`float$();Nmean:`float$();Nvar:`float$())
+
+/// parameters: s0,mu,vol,T,timestep,N, monte-carlo method, default general solution path
 /// usage example - gbm[100f;0.1;0.2;1;252;10;`]
 .gbm.path:{[s0;mu;vol;T;timestep;N;method]
 	dt:T % timestep;
@@ -20,25 +23,25 @@ rnorm: {[n;m;sd]
 
 	//default general solution
 	// path options
-	if[method in ``general;
+	if[method in ``general; 
+		method:`general;
 		path: (enlist N#s0),s0 *\ N cut exp drift + diffusion];
 	if[method in `euler;
 		path: (enlist N#s0),s0 *\ N cut euler_term];
-	
+
+	// analytical mean and variance
+	am:s0 * exp mu*T;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+	av:(s0 * s0 * exp 2*mu*T) * (-1 +exp vol*vol*T);
+	nm:avg last path;
+	nv:var last path;
+	`.gbm.tab upsert (method;s0;mu;vol;T;timestep;N;am;av;nm;nv);
 	path}
 
 // analytical mean and variance
-.gbm.am:{[s0;mu;T] s0 * exp mu*T};                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-.gbm.av:{[s0;mu;vol;T](s0 * s0 * exp 2*mu*T) * (-1 +exp vol*vol*T)};
+.gbm.a:{[s0;mu;vol;T]`mean`variance!(s0 * exp mu*T; (s0 * s0 * exp 2*mu*T) * (-1 +exp vol*vol*T))}
 
-// summary for numerical and analytical values of path
-.gbm.stat:{[path]
-
-	/numerical mean, variance
-	nm:avg last path;
-	nv:var last path;
-
-	flip `type`mean`variance!(`Numerical`Analytical;(nm;.gbm.am); (nv;.gbm.av))}
+// numerical mean and variance
+.gbm.n:{[path]`mean`variance!(avg last path;var last path)}
 
 \
 // test case:
@@ -51,4 +54,8 @@ N:10
 .gbm.path[100f;0.1;0.2;1;252;10;`]
 .gbm.am[100f;0.1;1]
 .gbm.av[100f;0.1;0.2;1]
+.gbm.tab:([] method:`$() ;s0:`float$(); mu:`float$(); vol:`float$(); T:(); timestep:`int$(); N:`int$();Amean:`float$();Avar:`float$();Nmean:`float$();Nvar:`float$())
 /
+
+
+
