@@ -1,1 +1,1 @@
-# option-pricing-q
+# qPricer
