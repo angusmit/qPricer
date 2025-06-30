@@ -1,23 +1,16 @@
-// general math settings
-pi:acos -1
-
-// generate n normal variables with mean m, standard deviation sd
-// reference: https://armantee.github.io/sampling-with-kdb-p1/
-rnorm: {[n;m;sd]
-    u1: n?1f;
-    u2: n?1f;
-    m + sd * sqrt[-2*log u1] * cos 2*u2*pi};
+// load required script
+\l constant.q
 
 // tracking table schema
 .gbm.tab:([] method:`$() ;s0:`float$(); mu:`float$(); vol:`float$(); T:(); timestep:`int$(); N:`int$();Amean:`float$();Avar:`float$();Nmean:`float$();Nvar:`float$())
 
 /// parameters: s0,mu,vol,T,timestep,N, monte-carlo method, default general solution path
-/// usage example - gbm[100f;0.1;0.2;1;252;10;`]
+/// usage example - .gbm.path[100f;0.1;0.2;1;252;10;`]
 .gbm.path:{[s0;mu;vol;T;timestep;N;method]
 	dt:T % timestep;
 	drift:dt * mu - vol*vol % 2;
-	diffusion: vol * rnorm[timestep*N;0;1] * sqrt dt;
-	euler_term:1 + (mu*dt) + vol * rnorm[timestep*N;0;1] * sqrt dt;
+	diffusion: vol * .const.norm01[timestep*N] * sqrt dt;
+	euler_term:1 + (mu*dt) + vol * .const.norm01[timestep*N] * sqrt dt;
 	
 	if[not method in ``general`euler;'"No path options available"];
 
@@ -43,7 +36,7 @@ rnorm: {[n;m;sd]
 // numerical mean and variance
 .gbm.n:{[path]`mean`variance!(avg last path;var last path)}
 
-\
+/
 // test case:
 s0:100f
 mu:0.1
@@ -55,7 +48,4 @@ N:10
 .gbm.am[100f;0.1;1]
 .gbm.av[100f;0.1;0.2;1]
 .gbm.tab:([] method:`$() ;s0:`float$(); mu:`float$(); vol:`float$(); T:(); timestep:`int$(); N:`int$();Amean:`float$();Avar:`float$();Nmean:`float$();Nvar:`float$())
-/
-
-
-
+\
