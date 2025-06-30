@@ -1,53 +1,40 @@
-# ⚡ qPricer — Option Pricing in q/kdb+
+# qPricer — Option Pricing in q/kdb+
 
-A high-performance financial pricing engine written in `q` — purpose-built for fast, expressive modelling of derivatives.
+A high-performance financial pricing engine written in `q`, designed for expressive modeling and real-time analytics in derivatives pricing.
 
-> 🚧 **Work in Progress** — Bringing classic and exotic option pricing to kdb+/q with real-time analytics in mind.
-
----
-
-## ✨ Planned Features
-
-- 🔍 **Greeks**  
-  Sensitivity measures — delta, gamma, vega, theta, rho — calculated in pure q
-
-- 📈 **Jump Diffusion Models**  
-  Incorporate discontinuities in asset paths (e.g. Merton, Kou models)
-
-- 📊 **Asian Option Pricing**  
-  Support for geometric and arithmetic averages (analytic + Monte Carlo)
-
-- 🧠 **Implied Volatility Solver**  
-  Invert Black-Scholes and other models to back out implied volatility
+Work in Progress — Bringing classic and exotic option pricing models to kdb+/q.
 
 ---
 
-## 🔗 Related Work
+## Planned Features
 
-Explore the analytical Python method for geometric Asian options here:  
+- Greeks  
+  Sensitivity measures: delta, gamma, vega, theta, rho — computed in pure q
+
+- Jump Diffusion Models  
+  Support for discontinuous asset price models such as Merton or Kou processes
+
+- Asian Option Pricing  
+  Implementation of geometric and arithmetic average pricing (analytical and simulation-based)
+
+- Implied Volatility Solver  
+  Numerical solver to infer market-implied volatility from observed prices
+
+---
+
+## Reference
+
+For analytical solutions to geometric Asian options in Python:  
 [Geometric Asian Option – Analytical Solution](https://github.com/JynxC98/quantitative_finance/blob/main/geometric-asian-option/python_method/analytical_solution.py)
 
----
 
-## 🧭 Vision
+## Technology Stack
 
-To create a modular, blazing-fast toolkit for:
-
-- ⚙️ Quantitative researchers building models in kdb+/q  
-- 💼 Trading and risk desks seeking custom pricing tools  
-- 📚 Students learning derivatives and functional data pipelines  
+- Core Logic: `q` (kdb+)  
+- Future Extensions: Integration with Python using `embedPy` or `PyQ`  
 
 ---
 
-## 🛠️ Tech Stack
+## Contributing
 
-- 🧠 Core Logic: `q` (kdb+)  
-- 📡 Future Extensions: Python interoperability via `PyQ` or `embedPy`
-
----
-
-## ⭐ Stay Tuned
-
-Star the repo, fork it, or open an issue to get involved.  
-Contributions welcome from quant devs, kdb engineers, and financial modellers!
-
+The project is in early development. Star the repository, fork it, or open an issue to get involved. Contributions and feedback are welcome.
