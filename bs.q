@@ -1,17 +1,18 @@
 // load required script
 \l constant.q
+\l impliedVol.q
 
 .bs.tab:([] strike:(); option:(); impliedvol:());
 .bs.greekstab:([] insertTime:`timestamp$();optionType:`$();payoff:`float$();stock:`float$();strike:`float$(); rfRate:`float$(); maturity:`float$(); volatility:`float$();
 	delta:`float$(); gamma:`float$(); theta:`float$(); rho:`float$(); vega:`float$(); vanna:`float$(); vomma:`float$(); zomma:`float$());
 
-.bs.Call:{[S0;K;r;T;vol]
+.bs.call:{[S0;K;r;T;vol]
 
 	d1: (1 % vol * sqrt T) * (log S0 % K) + T * r + 0.5 * vol * vol;
 	d2: d1 - vol * sqrt T;
-	(S0 * .const.normal_cdf[d1] * exp neg T) - K * .const.normal_cdf[d2] * exp neg r*T};
+	(S0 * .const.normal_cdf[d1]) - K * .const.normal_cdf[d2] * exp neg r*T};
 
-.bs.Put:{[S0;K;r;T;vol]
+.bs.put:{[S0;K;r;T;vol]
 
 	d1: (1 % vol * sqrt T) * (log S0 % K) + T * r  + 0.5 * vol * vol;
 	d2: d1 - vol * sqrt T;
@@ -29,66 +30,61 @@
   cdf_d2:.const.normal_cdf[d2];
   cdf_neg_d2:.const.normal_cdf[neg[d2]];
 
-  gamma: pdf_d1 % s0 * vol * sqrt T;
-  vega: s0 * pdf_d1 * sqrt T;
+  gamma: pdf_d1 % S0 * vol * sqrt T;
+  vega: S0 * pdf_d1 * sqrt T;
 
-  vanna: vega * 1 - d1 % vol * sqrt T;
+  vanna: 0.01 * vega * 1 - d1 % vol * sqrt T;
   vomma: vega * d1 * d2 % vol;
-  zomma: vega * (-1 + d1 * d2)  % vol;
+  zomma: 0.001 * vega * (-1 + d1 * d2)  % vol;
 
   $[opt in `put;
 	// Put option payoff
 	[delta:neg[cdf_neg_d1]; 
+	  // annual theta
 	  theta: (neg[S0] * pdf_d1 * vol % 2 * sqrt T) + r * K * cdf_neg_d2 * exp neg r*T;
-	  rho: 0.01 * neg[K] * T * cdf_neg_d2 * exp neg r*T;
-	  payoff:(K * cdf_neg_d2  * exp neg r*T) - S0 * cdf_neg_d1];
+	  rho: neg[K] * T * cdf_neg_d2 * exp neg r*T;
+	  payoff:.bs.put[S0;K;r;T;vol]
+	  ];
 
 	// Call option payoff
 	[opt:`call;delta: cdf_d1;	
+	  // annual theta
 	  theta: (neg[S0] * pdf_d1 * vol % 2 * sqrt T) - r * K * cdf_d2 * exp neg r*T;
-	  rho: 0.01 * K * T * cdf_d2 * exp neg r*T ;
+	  rho: K * T * cdf_d2 * exp neg r*T ;
 	  // (S0 * normal_cdf[d1] * exp neg dividend * T) - K * normal_cdf[d2] * exp neg r*T
-	  payoff:(S0 * cdf_d1) - K * cdf_d2 * exp neg r*T]
-    ]; 
+	  payoff:.bs.call[S0;K;r;T;vol]
+    ]]; 
 	`.bs.greekstab insert (.z.p;opt;payoff; S0; K; r; T; vol; delta; gamma; theta; rho; vega; vanna; vomma; zomma);
 	:payoff
   }
 
-// IV for call option
-.bs.IV:{[call_price; S0; K; r; T; dividend; tol; max_iter]
-	sigma_res:`;
-	sigma_min:0.001;
-	sigma_max:3;
-	if[tol~`; tol: 10 xexp -6];
-	if[max_iter~`; max_iter:1000];
-	do[max_iter; sigma_mid:0.5 * sigma_min + sigma_max;
-		price_mid: .bs.Call[S0;K;r;T;sigma_mid;dividend];
-			$[tol>abs(price_mid - call_price); sigma_res:sigma_mid; $[price_mid > call_price; sigma_max:sigma_mid; sigma_min:sigma_mid]]];
-	if[sigma_res~`;sigma_res:sigma_mid];sigma_res}
-	
-// GREEKS
+// edge cases
+// At-The-Money (ATM): S = K
+/ expected 
+//S0:100f;K:100f;T:0.5;r:0.05; vol: 0.2;opt:`call
+//.bs.option[S0;K;r;T;vol;opt]
+// Very Short Time to Maturity (T ≈ 0)
+// Deep In-The-Money Call (S ≫ K)
+// Deep Out-of-The-Money Put (S ≫ K)
+// Zero Volatility (σ → 0)
+// Zero Risk-Free Rate (r = 0)
+// Negative Interest Rate (r < 0)
+// Very High Volatility (σ ≫ 1)
+
+
 
 /
-def find_vol_by_bisection(call_price, S0, K, r, T, dividend, tol=1e-6, max_iter=1000):
-    sigma_min, sigma_max = 0.001, 2
-    for _ in range(max_iter):
-        sigma_mid = (sigma_min + sigma_max) / 2
-        price_mid = bs_call(S0, K, r, T, sigma_mid, dividend)
-        if abs(price_mid - call_price) < tol:
-            return sigma_mid
-        elif price_mid > call_price:
-            sigma_max = sigma_mid
-        else:
-            sigma_min = sigma_mid
-    return sigma_mid
-S0:100;K:90;r:0.5;T:1;vol:0.2;dividend:0
-
-
+// testing area
 params
 S0:s0:100f;mu:0.1;vol:0.2;T:1f;timestep:252f;N:10
-K:90f;r:0.5%100;dividend:0
+K:90f;r:0.5;dividend:0
 .bs.option[S0;K;r;T;vol;`opt]
 .bs.greekstab
+optprice: .bs.call[S0;K;r;T;vol] 
+.bs.IVCall[optprice; s0; K; r; T;`;`]
+
+
+// edge cases
 
 .bs.IV:[call_price; S0; K; r; T; dividend; tol; max_iter]
 optprice:.bs.Call[s0;K;r;T;vol]
@@ -116,6 +112,7 @@ t:([] strike:kl; option:cl; impliedvol:ivl)
 linspace:{[s;e;n] step:(1%n) *e-s; s+step* til n+1}
 \
 
+// GREEKS
 /
 Delta: Measures Impact of a Change in the Price of Underlying- the speed of option pps change.
 
