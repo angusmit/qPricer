@@ -21,6 +21,13 @@
 
 // cdf not matching with python
 .bs.option:{[S0;K;r;T;vol;opt]
+  // Validate input assumptions
+  if[S0 < 0;'"stock price must be positive"];
+  if[K <= 0; '"K must be > 0"];
+  if[vol <= 0; '"volatility must be > 0"];
+  if[T < 0; '"T must be >= 0"];
+  if[not opt in `call`put; '"option type must be `call or `put"];
+
   d1: (1 % vol * sqrt T) * (log S0 % K) + T * r + 0.5 * vol * vol;
   d2: d1 - vol * sqrt T;
 
@@ -47,7 +54,7 @@
 	  ];
 
 	// Call option payoff
-	[opt:`call;delta: cdf_d1;	
+	[delta: cdf_d1;	
 	  // annual theta
 	  theta: (neg[S0] * pdf_d1 * vol % 2 * sqrt T) - r * K * cdf_d2 * exp neg r*T;
 	  rho: K * T * cdf_d2 * exp neg r*T ;
@@ -58,20 +65,63 @@
 	:payoff
   }
 
+//default 
+/ S0:100f;K:90f;T:0.5;r:0.05; vol: 0.2;opt:`call
 // edge cases
 // At-The-Money (ATM): S = K
+S0:100f;K:100f;T:0.5;r:0.05; vol: 0.2;opt:`call
 / expected 
-//S0:100f;K:100f;T:0.5;r:0.05; vol: 0.2;opt:`call
-//.bs.option[S0;K;r;T;vol;opt]
+S0:100f;K:90f;T:0.5;r:0.05; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// S=0
+S0:0f;K:90f;T:0.5;r:0.05; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
 // Very Short Time to Maturity (T ≈ 0)
-// Deep In-The-Money Call (S ≫ K)
-// Deep Out-of-The-Money Put (S ≫ K)
+S0:100f;K:90f;T:0.00001;r:0.05; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// Deep In-The-Money Call (S >> K)
+S0:1000f;K:90f;T:0.5;r:0.05; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// Deep Out-of-The-Money Put (S >> K)
+S0:100f;K:90f;T:0.5;r:0.05; vol: 0.2;opt:`put
+.bs.option[S0;K;r;T;vol;opt]
+// Zero Volatility (σ → 0)
+S0:100f;K:90f;T:0.5;r:0.05; vol: 0.00001;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// Zero Risk-Free Rate (r = 0)
+S0:100f;K:90f;T:0.5;r:0f; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// Negative Interest Rate (r < 0)
+S0:100f;K:90f;T:0.5;r:-0.05; vol: 0.2;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+// Very High Volatility (σ >> 1)
+S0:100f;K:90f;T:0.5;r:0.05; vol: 5f;opt:`call
+.bs.option[S0;K;r;T;vol;opt]
+
+/
+// S=0
+// Very Short Time to Maturity (T ≈ 0)
+// Deep In-The-Money Call (S >> K)
+// Deep Out-of-The-Money Put (S >> K)
 // Zero Volatility (σ → 0)
 // Zero Risk-Free Rate (r = 0)
 // Negative Interest Rate (r < 0)
-// Very High Volatility (σ ≫ 1)
+// Very High Volatility (σ >> 1)
 
+Summary Table
 
+| Scenario         | Test Case                      | Expected Call Price Behavior     | Delta   | Gamma   | Vega    | Theta   | Rho       |
+|------------------|--------------------------------|----------------------------------|---------|---------|---------|---------|-----------|
+| S = 0            | S0=0                           | 0                                | 0       | 0       | 0       | 0       | 0         |
+| T ≈ 0            | T=0.00001                      | Intrinsic value                  | 1/0     | High/0  | 0       | High/0  | 0         |
+| Deep ITM Call    | S0=1000, K=90                  | S0 - K e^{-rT}                   | 1       | 0       | 0       | 0       | Small +   |
+| Deep OTM Put     | S0=1000, K=90, opt=put         | 0                                | 0       | 0       | 0       | 0       | Small -   |
+| σ → 0            | vol=0.00001                    | Discounted intrinsic value       | 1/0     | 0       | 0       | 0       | 0         |
+| r = 0            | r=0                            | Slightly higher than r>0         | ≈default| ≈default| ≈default| ≈default| 0         |
+| r < 0            | r=-0.05                        | Higher than r=0                  | ≈default| ≈default| ≈default| ≈default| Unusual   |
+| σ >> 1           | vol=5                          | Approaches S0                    | ~0.5    | High    | High    | High    | ≈default  |
+
+\
 
 /
 // testing area
