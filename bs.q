@@ -2,7 +2,7 @@
 \l constant.q
 
 .bs.tab:([] strike:(); option:(); impliedvol:());
-.bs.greeks:([] insertTime:`timestamp$();optionType:`$();stock:`float$();strike:`float$(); rfRate:`float$(); maturity:`float$(); volatility:`float$();
+.bs.greekstab:([] insertTime:`timestamp$();optionType:`$();stock:`float$();strike:`float$(); rfRate:`float$(); maturity:`float$(); volatility:`float$();
 	delta:`float$(); gamma:`float$(); theta:`float$(); rho:`float$(); vega:`float$(); vanna:`float$(); vomma:`float$(); zomma:`float$());
 
 .bs.Call:{[S0;K;r;T;vol]
@@ -49,8 +49,7 @@
 	  rho: 0.01 * K * T * cdf_d2 * exp neg r*T ;
 	  payoff:(S0 * cdf_d1 * exp neg dividend * T) - K * cdf_d2 * exp neg r*T]
     ]; 
-	0N!gamma;
-	`.bs.greeks insert (.z.p;opt; S0; K; r; T; vol; delta; gamma; theta; rho; vega; vanna; vomma; zomma);
+	`.bs.greekstab insert (.z.p;opt; S0; K; r; T; vol; delta; gamma; theta; rho; vega; vanna; vomma; zomma);
 	:payoff
   }
 
