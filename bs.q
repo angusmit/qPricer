@@ -2,7 +2,7 @@
 \l constant.q
 
 .bs.tab:([] strike:(); option:(); impliedvol:());
-.bs.greekstab:([] insertTime:`timestamp$();optionType:`$();stock:`float$();strike:`float$(); rfRate:`float$(); maturity:`float$(); volatility:`float$();
+.bs.greekstab:([] insertTime:`timestamp$();optionType:`$();payoff:`float$();stock:`float$();strike:`float$(); rfRate:`float$(); maturity:`float$(); volatility:`float$();
 	delta:`float$(); gamma:`float$(); theta:`float$(); rho:`float$(); vega:`float$(); vanna:`float$(); vomma:`float$(); zomma:`float$());
 
 .bs.Call:{[S0;K;r;T;vol]
@@ -41,15 +41,16 @@
 	[delta:neg[cdf_neg_d1]; 
 	  theta: (neg[S0] * pdf_d1 * vol % 2 * sqrt T) + r * K * cdf_neg_d2 * exp neg r*T;
 	  rho: 0.01 * neg[K] * T * cdf_neg_d2 * exp neg r*T;
-	  payoff:(K * cdf_neg_d2  * exp neg r*T) - S0 * cdf_neg_d1 * exp neg dividend * T];
+	  payoff:(K * cdf_neg_d2  * exp neg r*T) - S0 * cdf_neg_d1];
 
 	// Call option payoff
 	[opt:`call;delta: cdf_d1;	
 	  theta: (neg[S0] * pdf_d1 * vol % 2 * sqrt T) - r * K * cdf_d2 * exp neg r*T;
 	  rho: 0.01 * K * T * cdf_d2 * exp neg r*T ;
-	  payoff:(S0 * cdf_d1 * exp neg dividend * T) - K * cdf_d2 * exp neg r*T]
+	  // (S0 * normal_cdf[d1] * exp neg dividend * T) - K * normal_cdf[d2] * exp neg r*T
+	  payoff:(S0 * cdf_d1) - K * cdf_d2 * exp neg r*T]
     ]; 
-	`.bs.greekstab insert (.z.p;opt; S0; K; r; T; vol; delta; gamma; theta; rho; vega; vanna; vomma; zomma);
+	`.bs.greekstab insert (.z.p;opt;payoff; S0; K; r; T; vol; delta; gamma; theta; rho; vega; vanna; vomma; zomma);
 	:payoff
   }
 
@@ -87,8 +88,9 @@ params
 S0:s0:100f;mu:0.1;vol:0.2;T:1f;timestep:252f;N:10
 K:90f;r:0.5%100;dividend:0
 .bs.option[S0;K;r;T;vol;`opt]
-.bs.greeks
+.bs.greekstab
 
+.bs.IV:[call_price; S0; K; r; T; dividend; tol; max_iter]
 optprice:.bs.Call[s0;K;r;T;vol]
 .bs.IV[optprice; s0; K; r; T;`;`;`]
 case with gbm
