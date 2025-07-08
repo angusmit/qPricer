@@ -1,6 +1,7 @@
 /maths setting
 .const.pi:acos -1;
-.const.linspace:{[s;e;n] step:(1%n) *e-s; s+step* til n+1};
+.const.linspace:{[start;end;n] step:(1%n) *end-start; start+step* til n+1};
+.const.arange:{[start;end;n] add:n+; end-:n; add\[end>;start]};
 
 /normal rv N~[0,1]
 .const.nrv: {$[x=2*n:x div 2;raze sqrt[-2*log n?1f]*/:(sin;cos)@\:(2*.const.pi)*n?1f;-1_.z.s 1+x]};
