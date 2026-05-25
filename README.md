@@ -2,18 +2,20 @@
 
 qFDM is a modular kdb+/q pricing framework for equity options using finite-difference methods.
 
-## Current Scope (v0.6)
+## Current Scope (v0.7)
 
 **Supported:**
 - European call and put (explicit + Crank-Nicolson)
 - American put (explicit only)
 - Up-and-out call, down-and-out put (explicit only)
+- Local volatility sigma(S,t) for European vanilla (explicit only)
 - Greeks, scenario risk, exercise boundary extraction
 - Black-Scholes analytical validation
 
 **Not yet supported:**
-- CN for American/barrier options
-- Implicit method, local volatility, portfolio pricing
+- CN/American/barrier with local vol
+- Dupire calibration, implied vol surface
+- Implicit method, portfolio pricing
 
 ## Quick Start
 
@@ -25,39 +27,58 @@ trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`not
 marketData:`underlying`spot`riskFreeRate`dividendYield`volatility!(
     `AAPL;100f;0.05;0f;0.2);
 model:.model.createBlackScholesModel[];
-
-/ Explicit
-explicitCfg:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTimeSteps`maximumSpot!(
+config:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTimeSteps`maximumSpot!(
     `explicit;200;2000;300f)];
 
-/ Crank-Nicolson (fewer time steps needed)
-cnCfg:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTimeSteps`maximumSpot!(
-    `crankNicolson;200;500;300f)];
-
-show .engine.priceOption[trade;marketData;model;explicitCfg]
-show .engine.priceOption[trade;marketData;model;cnCfg]
+show .engine.priceOption[trade;marketData;model;config]
 ```
 
-## Crank-Nicolson Solver (v0.6)
+## Local Volatility (v0.7)
 
-CN averages explicit and implicit time stepping, requiring a tridiagonal solve at each step. It is unconditionally stable, so fewer time steps are needed compared to the explicit method.
+The solver supports sigma(S,t) at each grid point via a user-supplied q function.
 
-### Supported in v0.6
-- European call and put under Black-Scholes with flat market data
+### PDE
 
-### Not supported in v0.6
-- American options, barrier options, local volatility
+```
+dV/dt + 0.5*sigma(S,t)^2*S^2*gamma + (r-q)*S*delta - r*V = 0
+```
 
 ### Usage
-Set `method:\`crankNicolson` in config. Everything else is the same API.
 
-### Comparison
-| Method | Spot Steps | Time Steps | Call Price | BS Price | Error |
-|--------|-----------|-----------|-----------|---------|-------|
-| Explicit | 200 | 2000 | 10.455 | 10.451 | 0.004 |
-| CN | 200 | 500 | ~10.451 | 10.451 | ~0.001 |
+```q
+/ Define local vol function
+localVolFn:{[spotValue;timePoint] 0.2};
 
-CN achieves comparable or better accuracy with 4x fewer time steps.
+/ Create local vol market data
+localVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;localVolFn];
+
+/ Use local vol model
+lvModel:.model.createLocalVolatilityModel[];
+
+/ Price (explicit only)
+config:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTimeSteps`maximumSpot!(
+    `explicit;200;2000;300f)];
+show .engine.priceOption[trade;localVolMkt;lvModel;config]
+```
+
+### Flat Equivalence
+
+If the local vol function returns a constant, the price matches the flat Black-Scholes explicit FDM price exactly.
+
+### Skew Example
+
+```q
+skewVolFn:{[spotValue;timePoint]
+    0.05 | 0.2 + 0.0005 * 100f - spotValue
+ };
+```
+
+### Limitations (v0.7)
+
+- Explicit FDM only (no CN)
+- European vanilla only (no American/barrier)
+- No Dupire calibration
+- Function must be vectorized over spot (standard q math is)
 
 ## Public API
 
@@ -66,9 +87,8 @@ CN achieves comparable or better accuracy with 4x fewer time steps.
 | `.engine.priceOption[trade;mkt;model;cfg]` | Price dictionary |
 | `.engine.priceOptionWithGrid[trade;mkt;model;cfg]` | Price + full grid |
 | `.greeks.calculateGreeks[trade;mkt;model;cfg]` | Greeks table |
-| `.risk.generateScenarioReport[trade;mkt;model;cfg]` | Scenario risk table |
+| `.risk.generateScenarioReport[trade;mkt;model;cfg]` | Scenario risk |
 | `.american.extractEarlyExerciseBoundary[trade;mkt;model;cfg]` | Exercise boundary |
-| `.american.analyzeAmericanPut[trade;mkt;model;cfg]` | Price + premium + boundary |
 | `.validation.validateEuropeanOption[trade;mkt;model;cfg]` | FDM vs BS price |
 | `.validation.validateGreeks[trade;mkt;model;cfg]` | FDM vs BS Greeks |
 
@@ -80,12 +100,12 @@ lib/
   utilities.q     Validation, interpolation
   config.q        FDM configuration (explicit + CN)
   product.q       Trade definition (vanilla + barrier)
-  market.q        Market data + bumping
-  model.q         Black-Scholes model
+  market.q        Market data (flat + local vol)
+  model.q         BS + local vol model
   grid.q          Grid construction
   payoff.q        Terminal payoff
   boundary.q      European boundaries + barrier
-  solver.q        Explicit + Crank-Nicolson + Thomas algorithm
+  solver.q        Explicit (flat+localvol) + CN + Thomas
   engine.q        Pricing engine (method routing)
   greeks.q        Greeks
   validation.q    BS closed form + validation
@@ -100,9 +120,10 @@ q examples/smoke_test_european_call.q       # European call
 q examples/compare_explicit_crank_nicolson.q # Explicit vs CN
 q examples/price_american_put.q             # American put
 q examples/price_barrier_options.q          # Barrier options
+q examples/price_local_volatility.q         # Local volatility
 q examples/calculate_greeks.q               # Greeks
 q examples/generate_scenario_report.q       # Scenario risk
-q tests/run_all_tests.q                     # full suite (16 tests)
+q tests/run_all_tests.q                     # full suite (19 tests)
 ```
 
 ## Version History
@@ -115,11 +136,11 @@ q tests/run_all_tests.q                     # full suite (16 tests)
 | v0.4 | Early exercise boundary extraction |
 | v0.5 | Up-and-out call, down-and-out put |
 | v0.6 | Crank-Nicolson for European vanilla |
+| v0.7 | Local volatility for European vanilla (explicit) |
 
 ## Roadmap
 
 | Version | Planned |
 |---------|---------|
-| v0.7 | CN for American options, or local volatility |
-| v0.8 | Knock-in barriers, rebates |
+| v0.8 | Benchmarking, or CN for American options |
 | v0.9 | Portfolio-level pricing |

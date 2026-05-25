@@ -26,7 +26,7 @@
 
 .engine.__validateInputs:{[trade;marketData;model;config]
     .product.validateOptionTrade[trade];
-    .market.validateFlatMarketData[marketData];
+    .market.validateMarketData[marketData;model];
     .model.validateModel[model];
     .config.validateFiniteDifferenceConfig[config];
     if[not trade[`underlying] ~ marketData`underlying;

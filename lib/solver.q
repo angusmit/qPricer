@@ -1,24 +1,32 @@
 / solver.q - FDM solvers for the Black-Scholes PDE
-/ Explicit: forward-in-time, supports European/American/barrier
-/ Crank-Nicolson: unconditionally stable, European vanilla only (v0.6)
+/ Explicit: European/American/barrier, flat or local vol
+/ Crank-Nicolson: European vanilla, flat vol only
 
 / ============================================================================
-/ Explicit solver (unchanged from v0.5)
+/ Explicit solver
 / ============================================================================
 
 .solver.solveExplicitFiniteDifference:{[trade;marketData;model;config]
     .product.validateOptionTrade trade;
-    .market.validateFlatMarketData marketData;
+    .market.validateMarketData[marketData;model];
     .model.validateModel model;
     .config.validateFiniteDifferenceConfig config;
+    / Local vol scope restriction
+    if[.model.isLocalVolatility model;
+        if[not trade[`exerciseStyle]~`european;
+            '"Local volatility v0.7 only supports European vanilla options with explicit FDM"];
+        if[.product.isBarrierOption trade;
+            '"Local volatility v0.7 only supports European vanilla options with explicit FDM"]];
     solverInputs:.solver.__buildSolverInputs[trade;marketData;model;config];
     stable:1b;
-    if[config`stabilityCheck; stable:.solver.__checkExplicitStability solverInputs];
+    if[config`stabilityCheck;
+        if[.model.isBlackScholes model; stable:.solver.__checkExplicitStability solverInputs]];
     gridDict:solverInputs`grid;
     nTime:config`numberOfTimeSteps;
     expiry:trade`expiry;
     tGrid:gridDict`timeGrid;
     sGrid:gridDict`spotGrid;
+    interiorSpot:solverInputs`interiorSpotGrid;
     currentValues:.payoff.calculateIntrinsicValue[trade;sGrid];
     currentValues:.boundary.applyBarrierCondition[trade;sGrid;currentValues];
     isAmerican:trade[`exerciseStyle]~`american;
@@ -29,7 +37,9 @@
     accumulator:enlist currentValues;
     stepIdx:nTime-1;
     while[stepIdx>=0;
-        currentValues:.solver.__stepExplicit[currentValues;solverInputs];
+        currentTimePoint:tGrid stepIdx;
+        volVector:.solver.__getVolatilityVector[trade;marketData;model;interiorSpot;currentTimePoint];
+        currentValues:.solver.__stepExplicit[currentValues;solverInputs;volVector];
         currentValues:.boundary.applyEuropeanBoundary[trade;marketData;gridDict;currentValues;expiry-tGrid stepIdx];
         if[hasBarrier; currentValues:.boundary.applyBarrierCondition[trade;sGrid;currentValues]];
         if[isAmerican; currentValues:currentValues|intrinsicValues];
@@ -44,7 +54,7 @@
  };
 
 / ============================================================================
-/ Crank-Nicolson solver (v0.6 - European vanilla only)
+/ Crank-Nicolson solver (European vanilla + flat vol only)
 / ============================================================================
 
 .solver.solveCrankNicolson:{[trade;marketData;model;config]
@@ -57,14 +67,11 @@
     sGrid:gridDict`spotGrid;
     spotStep:gridDict`spotStep;
     timeStep:gridDict`timeStep;
-    / Build CN coefficients (constant for flat BS)
     cnCoeffs:.solver.__buildCrankNicolsonCoefficients[solverInputs];
-    / Terminal payoff
     currentValues:.payoff.calculateIntrinsicValue[trade;sGrid];
     doFullGrid:0b;
     if[config`returnFullGrid; doFullGrid:1b];
     accumulator:enlist currentValues;
-    / Step backward from expiry to t=0
     stepIdx:nTime-1;
     while[stepIdx>=0;
         remainingTime:expiry-tGrid stepIdx;
@@ -86,31 +93,43 @@
 .solver.__buildSolverInputs:{[trade;marketData;model;config]
     gridDict:.grid.buildFiniteDifferenceGrid[trade;marketData;config];
     sGrid:gridDict`spotGrid;
+    riskFreeRate:.market.getRiskFreeRate[marketData;trade`expiry];
+    dividendYield:.market.getDividendYield[marketData;trade`underlying;trade`expiry];
+    / Scalar vol for BS (used by stability check + CN), null for local vol
+    scalarVol:0Nf;
+    if[.model.isBlackScholes model;
+        scalarVol:.market.getVolatility[marketData;trade`underlying;trade`strike;trade`expiry]];
     `grid`riskFreeRate`dividendYield`volatility`spotStep`timeStep`interiorSpotGrid!(
-        gridDict;
-        .market.getRiskFreeRate[marketData;trade`expiry];
-        .market.getDividendYield[marketData;trade`underlying;trade`expiry];
-        .market.getVolatility[marketData;trade`underlying;trade`strike;trade`expiry];
+        gridDict;riskFreeRate;dividendYield;scalarVol;
         gridDict`spotStep; gridDict`timeStep; (-1)_1_sGrid)
  };
 
+/ Get volatility vector for interior nodes at a given time point
+.solver.__getVolatilityVector:{[trade;marketData;model;interiorSpotGrid;timePoint]
+    if[.model.isBlackScholes model;
+        flatVol:.market.getVolatility[marketData;trade`underlying;trade`strike;trade`expiry];
+        :(count interiorSpotGrid)#flatVol];
+    if[.model.isLocalVolatility model;
+        :.market.getLocalVolatility[marketData;interiorSpotGrid;timePoint]];
+    '"Unsupported model for volatility: ",string model`modelName
+ };
+
 / ============================================================================
-/ Explicit step
+/ Explicit step (accepts volatility vector)
 / ============================================================================
 
-.solver.__stepExplicit:{[vals;solverInputs]
+.solver.__stepExplicit:{[vals;solverInputs;volVector]
     vUp:2_vals;
     vAt:(-1)_1_vals;
     vDn:(-2)_vals;
     dS:solverInputs`spotStep;
     dt:solverInputs`timeStep;
-    vol:solverInputs`volatility;
     rate:solverInputs`riskFreeRate;
     divY:solverInputs`dividendYield;
     interiorSpot:solverInputs`interiorSpotGrid;
     delta:(vUp-vDn)%2f*dS;
     gamma:(vUp+vDn-2f*vAt)%(dS*dS);
-    diffusion:0.5*vol*vol*interiorSpot*interiorSpot*gamma;
+    diffusion:0.5*volVector*volVector*interiorSpot*interiorSpot*gamma;
     convection:(rate-divY)*interiorSpot*delta;
     discount:rate*vAt;
     continuation:vAt+dt*(diffusion+convection-discount);
@@ -137,16 +156,17 @@
 
 .solver.__validateCrankNicolsonInputs:{[trade;marketData;model;config]
     .product.validateOptionTrade trade;
-    .market.validateFlatMarketData marketData;
+    .market.validateMarketData[marketData;model];
     .model.validateModel model;
     .config.validateFiniteDifferenceConfig config;
     if[not trade[`exerciseStyle]~`european;
         '"Crank-Nicolson v0.6 only supports European vanilla options"];
     if[.product.isBarrierOption trade;
         '"Crank-Nicolson v0.6 only supports European vanilla options"];
+    if[.model.isLocalVolatility model;
+        '"Crank-Nicolson v0.7 does not support local volatility"];
  };
 
-/ Build CN operator coefficients for interior nodes (constant for flat BS)
 .solver.__buildCrankNicolsonCoefficients:{[solverInputs]
     vol:solverInputs`volatility;
     rate:solverInputs`riskFreeRate;
@@ -158,50 +178,39 @@
     spotSq:interiorSpot*interiorSpot;
     dsSq:dS*dS;
     driftRate:rate-divY;
-    / Spatial operator coefficients per interior node
     diffusionCoeff:0.5*volSq*spotSq%dsSq;
     driftCoeff:driftRate*interiorSpot%(2f*dS);
     lowerOp:diffusionCoeff-driftCoeff;
     mainOp:neg[2f*diffusionCoeff]-rate;
     upperOp:diffusionCoeff+driftCoeff;
     halfDt:0.5*dt;
-    / A matrix coefficients (implicit side): I - 0.5*dt*L
     aLowerFull:neg halfDt*lowerOp;
     aMainFull:1f-halfDt*mainOp;
     aUpperFull:neg halfDt*upperOp;
-    / B coefficients (explicit side): I + 0.5*dt*L
     bLowerFull:halfDt*lowerOp;
     bMainFull:1f+halfDt*mainOp;
     bUpperFull:halfDt*upperOp;
-    / Extract tridiagonal diagonals for A
     triLower:1_aLowerFull;
     triUpper:(-1)_aUpperFull;
     `aLowerFull`aMainFull`aUpperFull`bLowerFull`bMainFull`bUpperFull`triLower`triMain`triUpper!(
         aLowerFull;aMainFull;aUpperFull;bLowerFull;bMainFull;bUpperFull;triLower;aMainFull;triUpper)
  };
 
-/ One CN backward step: solve for previous-time values given next-time values
 .solver.__stepCrankNicolson:{[trade;marketData;gridDict;nextFullValues;cnCoeffs;remainingTime]
     sGrid:gridDict`spotGrid;
     interiorNodeCount:(-2)+count sGrid;
-    / Compute boundary values at the previous (earlier) time
     lowBoundary:.solver.__cnLowBoundary[trade;marketData;remainingTime];
     highBoundary:.solver.__cnHighBoundary[trade;marketData;gridDict;remainingTime];
-    / Build RHS from next (later) time values
     nextBelow:(-2)_nextFullValues;
     nextAt:(-1)_1_nextFullValues;
     nextAbove:2_nextFullValues;
     rhsVector:(cnCoeffs[`bLowerFull]*nextBelow)+(cnCoeffs[`bMainFull]*nextAt)+cnCoeffs[`bUpperFull]*nextAbove;
-    / Adjust RHS for known boundaries at previous time
     rhsVector:@[rhsVector;0;-;cnCoeffs[`aLowerFull][0]*lowBoundary];
     rhsVector:@[rhsVector;interiorNodeCount-1;-;cnCoeffs[`aUpperFull][interiorNodeCount-1]*highBoundary];
-    / Solve tridiagonal system
     interiorSolution:.solver.__solveTridiagonalSystem[cnCoeffs`triLower;cnCoeffs`triMain;cnCoeffs`triUpper;rhsVector];
-    / Assemble full vector
     (enlist lowBoundary),interiorSolution,enlist highBoundary
  };
 
-/ European boundary values for CN
 .solver.__cnLowBoundary:{[trade;marketData;remainingTime]
     rDisc:exp neg marketData[`riskFreeRate]*remainingTime;
     if[trade[`optionType]~`call; :0f];
@@ -219,16 +228,9 @@
 / ============================================================================
 / Thomas algorithm tridiagonal solver
 / ============================================================================
-/ Solves Ax = d where A is tridiagonal.
-/ lowerDiag: length m-1 (sub-diagonal)
-/ mainDiag:  length m   (main diagonal)
-/ upperDiag: length m-1 (super-diagonal)
-/ rhsVector: length m   (right-hand side)
-/ Returns:   length m   (solution)
 
 .solver.__solveTridiagonalSystem:{[lowerDiag;mainDiag;upperDiag;rhsVector]
     systemSize:count mainDiag;
-    / Forward sweep
     modUpper:(systemSize-1)#0f;
     modRhs:systemSize#0f;
     modUpper[0]:upperDiag[0]%mainDiag[0];
@@ -239,7 +241,6 @@
         if[sweepIdx<systemSize-1; modUpper[sweepIdx]:upperDiag[sweepIdx]%denom];
         modRhs[sweepIdx]:(rhsVector[sweepIdx]-lowerDiag[sweepIdx-1]*modRhs[sweepIdx-1])%denom;
         sweepIdx+:1];
-    / Back substitution
     solution:systemSize#0f;
     solution[systemSize-1]:modRhs[systemSize-1];
     backIdx:systemSize-2;

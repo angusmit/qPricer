@@ -17,7 +17,10 @@
     "tests/test_barrier_validation.q";
     "tests/test_crank_nicolson_call.q";
     "tests/test_crank_nicolson_put.q";
-    "tests/test_crank_nicolson_vs_explicit.q"
+    "tests/test_crank_nicolson_vs_explicit.q";
+    "tests/test_local_vol_flat_equivalence_call.q";
+    "tests/test_local_vol_flat_equivalence_put.q";
+    "tests/test_local_vol_validation.q"
     );
 
 .test.pass:0;

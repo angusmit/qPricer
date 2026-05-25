@@ -1,26 +1,62 @@
-/ market.q — flat market data: creation, access, bumping
+/ market.q - market data: creation, access, bumping
+/ Supports flat (BS) and local volatility market data
 
-.market.__requiredFields:`underlying`spot`riskFreeRate`dividendYield`volatility;
+.market.__flatRequiredFields:`underlying`spot`riskFreeRate`dividendYield`volatility;
+.market.__localVolRequiredFields:`underlying`spot`riskFreeRate`dividendYield`localVolatilityFunction;
+
+/ --- Creation ---
 
 .market.createFlatMarketData:{[underlying;spot;riskFreeRate;dividendYield;volatility]
-    md:`underlying`spot`riskFreeRate`dividendYield`volatility!(underlying;spot;riskFreeRate;dividendYield;volatility);
-    .market.validateFlatMarketData md; md
+    flatMkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(underlying;spot;riskFreeRate;dividendYield;volatility);
+    .market.validateFlatMarketData flatMkt; flatMkt
  };
 
-.market.validateFlatMarketData:{[md]
-    .utilities.requireKeys[md;.market.__requiredFields;"marketData"];
-    .utilities.assertPositive[md`spot;"spot"];
-    .utilities.assertPositive[md`volatility;"volatility"];
-    .utilities.assertNonNegative[md`dividendYield;"dividendYield"];
+.market.createLocalVolatilityMarketData:{[underlying;spot;riskFreeRate;dividendYield;localVolFunction]
+    localMkt:`underlying`spot`riskFreeRate`dividendYield`localVolatilityFunction!(
+        underlying;spot;riskFreeRate;dividendYield;localVolFunction);
+    .market.validateLocalVolatilityMarketData localMkt; localMkt
  };
 
-/ Accessors — extra params ignored in v1, present for future API compatibility
-.market.getSpot:{[md;underlying] md`spot};
-.market.getRiskFreeRate:{[md;expiry] md`riskFreeRate};
-.market.getDividendYield:{[md;underlying;expiry] md`dividendYield};
-.market.getVolatility:{[md;underlying;strike;expiry] md`volatility};
+/ --- Validation ---
 
-/ Bumpers
-.market.bumpSpot:{[md;underlying;bump] @[md;`spot;*;1f+bump]};
-.market.bumpVolatility:{[md;bump] @[md;`volatility;+;bump]};
-.market.bumpRiskFreeRate:{[md;bump] @[md;`riskFreeRate;+;bump]};
+.market.validateFlatMarketData:{[marketData]
+    .utilities.requireKeys[marketData;.market.__flatRequiredFields;"marketData"];
+    .utilities.assertPositive[marketData`spot;"spot"];
+    .utilities.assertPositive[marketData`volatility;"volatility"];
+    .utilities.assertNonNegative[marketData`dividendYield;"dividendYield"];
+ };
+
+.market.validateLocalVolatilityMarketData:{[marketData]
+    .utilities.requireKeys[marketData;.market.__localVolRequiredFields;"localVolatilityMarketData"];
+    .utilities.assertPositive[marketData`spot;"spot"];
+    .utilities.assertNonNegative[marketData`dividendYield;"dividendYield"];
+    / Test that the function is callable and returns positive vol
+    testVol:marketData[`localVolatilityFunction][marketData`spot;0f];
+    if[not testVol>0f; '"localVolatilityFunction must return positive volatility"];
+ };
+
+.market.validateMarketData:{[marketData;model]
+    if[model[`modelName]~`blackScholes; :.market.validateFlatMarketData marketData];
+    if[model[`modelName]~`localVolatility; :.market.validateLocalVolatilityMarketData marketData];
+    '"Unsupported model for market data validation: ",string model`modelName
+ };
+
+/ --- Accessors (extra params for future API compat) ---
+
+.market.getSpot:{[marketData;underlying] marketData`spot};
+.market.getRiskFreeRate:{[marketData;expiry] marketData`riskFreeRate};
+.market.getDividendYield:{[marketData;underlying;expiry] marketData`dividendYield};
+.market.getVolatility:{[marketData;underlying;strike;expiry] marketData`volatility};
+
+/ Local vol accessor: returns volatility vector for spot vector at given time
+.market.getLocalVolatility:{[marketData;spotValues;timePoint]
+    if[not `localVolatilityFunction in key marketData;
+        '"Local volatility function not found in marketData"];
+    marketData[`localVolatilityFunction][spotValues;timePoint]
+ };
+
+/ --- Bumpers ---
+
+.market.bumpSpot:{[marketData;underlying;bumpFraction] @[marketData;`spot;*;1f+bumpFraction]};
+.market.bumpVolatility:{[marketData;absoluteBump] @[marketData;`volatility;+;absoluteBump]};
+.market.bumpRiskFreeRate:{[marketData;absoluteBump] @[marketData;`riskFreeRate;+;absoluteBump]};
