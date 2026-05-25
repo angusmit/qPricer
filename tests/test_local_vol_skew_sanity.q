@@ -1,4 +1,6 @@
 / test_local_vol_skew_sanity.q - non-flat local vol changes prices sensibly
+/ Uses a downside-only local volatility uplift: vol >= 0.2 everywhere,
+/ with higher volatility below strike and flat volatility above strike.
 \l lib/init.q
 
 callTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
@@ -8,14 +10,21 @@ putTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`
 
 flatMarketData:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);
 
-downsideSkewFunction:{[spotValue;timePoint]
-    baseVolatility:0.2;
-    skewAdjustment:0.001*(100f-spotValue);
-    candidateVolatility:baseVolatility+skewAdjustment;
-    0.05|candidateVolatility&0.80
+downsideOnlySkewFunction:{[spotValue;timePoint]
+    extraVol:0f|0.001*(100f-spotValue);
+    0.2+extraVol
  };
 
-localVolMarketData:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;downsideSkewFunction];
+/ Verify function shape before pricing
+lowSpotVolatility:downsideOnlySkewFunction[80f;0f];
+atTheMoneyVolatility:downsideOnlySkewFunction[100f;0f];
+highSpotVolatility:downsideOnlySkewFunction[120f;0f];
+
+if[lowSpotVolatility<=atTheMoneyVolatility; '"FAIL: lower spot should have higher local volatility"];
+if[highSpotVolatility<>atTheMoneyVolatility; '"FAIL: higher spot should equal flat volatility in downside-only skew"];
+if[atTheMoneyVolatility<>0.2; '"FAIL: ATM local volatility should equal flat volatility"];
+
+localVolMarketData:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;downsideOnlySkewFunction];
 
 blackScholesModel:.model.createBlackScholesModel[];
 localVolModel:.model.createLocalVolatilityModel[];
@@ -40,5 +49,9 @@ putPriceDifference:abs localVolPutPrice-flatPutPrice;
 
 if[callPriceDifference<differenceTolerance; '"FAIL: local-vol call price did not change versus flat vol"];
 if[putPriceDifference<differenceTolerance; '"FAIL: local-vol put price did not change versus flat vol"];
+
+/ 3. Vol >= flat everywhere, so both prices should increase
+if[localVolCallPrice<flatCallPrice; '"FAIL: vol >= flat everywhere so call should not decrease"];
+if[localVolPutPrice<flatPutPrice; '"FAIL: vol >= flat everywhere so put should not decrease"];
 
 -1 "PASS test_local_vol_skew_sanity: flatCall=",string[flatCallPrice],", lvCall=",string[localVolCallPrice],", flatPut=",string[flatPutPrice],", lvPut=",string localVolPutPrice;

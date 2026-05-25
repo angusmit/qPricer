@@ -7,21 +7,16 @@
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);
 
-/ Flat BS market data
 flatMkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);
 
-/ Local vol (constant) - should match flat BS exactly
 constLocalVolFn:{[spotValue;timePoint] 0.2};
 constLocalVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;constLocalVolFn];
 
-/ Local vol with skew
-skewLocalVolFn:{[spotValue;timePoint]
-    baseVol:0.2;
-    skewAdj:0.0005*100f-spotValue;
-    candidateVol:baseVol+skewAdj;
-    0.05|candidateVol
+downsideOnlySkewFn:{[spotValue;timePoint]
+    extraVol:0f|0.001*(100f-spotValue);
+    0.2+extraVol
  };
-skewLocalVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;skewLocalVolFn];
+skewLocalVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;downsideOnlySkewFn];
 
 bsModel:.model.createBlackScholesModel[];
 lvModel:.model.createLocalVolatilityModel[];
@@ -34,9 +29,13 @@ constLvPrice:(.engine.priceOption[trade;constLocalVolMkt;lvModel;config])`unitPr
 skewLvPrice:(.engine.priceOption[trade;skewLocalVolMkt;lvModel;config])`unitPrice;
 
 -1 "European call (S=100, K=100, T=1, r=5%):";
--1 "  Flat BS (vol=20%):         ",string bsPrice;
--1 "  Constant local vol (20%):  ",string constLvPrice;
--1 "  Skew local vol:            ",string skewLvPrice;
+-1 "  Flat BS explicit FDM (vol=20%): ",string bsPrice;
+-1 "  Constant local vol (20%):       ",string constLvPrice;
+-1 "  Downside-only local vol uplift: ",string skewLvPrice;
 -1 "";
--1 "Flat equivalence diff:       ",string abs bsPrice-constLvPrice;
--1 "Skew vs flat diff:           ",string skewLvPrice-bsPrice;
+-1 "Flat-equivalence difference:      ",string abs bsPrice-constLvPrice;
+-1 "Skew-vs-flat difference:          ",string skewLvPrice-bsPrice;
+-1 "";
+-1 "Constant local volatility reproduces the flat-vol explicit FDM price.";
+-1 "The non-flat local-vol function changes the price while remaining positive";
+-1 "and bounded.";

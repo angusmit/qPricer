@@ -54,15 +54,16 @@ If the local vol function returns a constant, the price matches the flat Black-S
 
 v0.7.1 adds non-flat local volatility behaviour tests proving the solver correctly uses sigma(S,t):
 
-**Downside skew** increases vol for lower spot and decreases it for higher spot:
+**Downside-only skew** adds vol below strike while keeping flat vol at and above strike:
 
 ```q
-downsideSkewFn:{[spotValue;timePoint]
-    0.05 | (0.2 + 0.001 * (100f - spotValue)) & 0.80
+downsideOnlySkewFn:{[spotValue;timePoint]
+    extraVol:0f | 0.001 * (100f - spotValue);
+    0.2 + extraVol
  };
 ```
 
-Under this skew, both call and put prices differ materially from flat vol, confirming the solver correctly applies position-dependent volatility. This is not Dupire calibration; it is a controlled toy function validating the framework.
+Since vol is >= 0.2 everywhere (and strictly higher for S < 100), both call and put prices increase. The put increases more because the extra vol is concentrated in the put exercise region.
 
 **Time dependence** confirms the solver passes the time coordinate:
 

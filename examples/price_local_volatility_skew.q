@@ -11,12 +11,11 @@ putTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`
 
 flatMkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);
 
-downsideSkewFn:{[spotValue;timePoint]
-    baseVol:0.2;
-    skewAdj:0.001*(100f-spotValue);
-    0.05|(baseVol+skewAdj)&0.80
+downsideOnlySkewFn:{[spotValue;timePoint]
+    extraVol:0f|0.001*(100f-spotValue);
+    0.2+extraVol
  };
-skewMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;downsideSkewFn];
+skewMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;downsideOnlySkewFn];
 
 bsModel:.model.createBlackScholesModel[];
 lvModel:.model.createLocalVolatilityModel[];
@@ -28,12 +27,20 @@ skewCallPrice:(.engine.priceOption[callTrade;skewMkt;lvModel;config])`unitPrice;
 flatPutPrice:(.engine.priceOption[putTrade;flatMkt;bsModel;config])`unitPrice;
 skewPutPrice:(.engine.priceOption[putTrade;skewMkt;lvModel;config])`unitPrice;
 
--1 "Downside-skew local volatility: higher vol for lower spot levels.";
--1 "  sigma(S,t) = max(0.05, min(0.80, 0.2 + 0.001*(100 - S)))";
+-1 "Downside-only local volatility uplift:";
+-1 "  vol = 0.2 + max(0, 0.001 * (100 - S))";
+-1 "";
+-1 "Examples:";
+-1 "  S=100: vol=20%";
+-1 "  S=50:  vol=25%";
+-1 "  S>100: vol=20%";
 -1 "";
 -1 "optionType  flatVolPrice  localVolPrice  priceDifference";
 -1 "---------- ------------- -------------- ----------------";
 -1 "call       ",("  " sv string each (flatCallPrice;skewCallPrice;skewCallPrice-flatCallPrice));
 -1 "put        ",("  " sv string each (flatPutPrice;skewPutPrice;skewPutPrice-flatPutPrice));
 -1 "";
--1 "Non-flat local vol changes prices versus flat BS - confirms solver uses sigma(S,t).";
+-1 "The local-vol function is never below the flat 20% volatility, so both call";
+-1 "and put prices increase versus the flat-vol benchmark. The same local-vol";
+-1 "surface is used for both products, so the call-put relationship remains";
+-1 "consistent under the shared model assumptions.";
