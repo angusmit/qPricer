@@ -1,225 +1,126 @@
-/ =============================================================================
-/ validation.q — Validation against Black-Scholes closed form
-/ =============================================================================
-/ Provides Black-Scholes closed-form pricing for European options and
-/ validation tools to compare FDM results against analytical solutions.
-/ All functions live in the .validation namespace.
-/ =============================================================================
+/ validation.q — Black-Scholes closed form, Greeks, and validation tools
+/ Normal CDF: Abramowitz & Stegun 26.2.17, accuracy < 7.5e-8
 
-/ -----------------------------------------------------------------------------
-/ Public functions — closed-form pricing
-/ -----------------------------------------------------------------------------
+/ --- Normal distribution ---
 
-/ Black-Scholes closed-form price for a European option with dividends.
-/ Call = S*exp(-q*T)*N(d1) - K*exp(-r*T)*N(d2)
-/ Put  = K*exp(-r*T)*N(-d2) - S*exp(-q*T)*N(-d1)
-/ Parameters:
-/   optionType    - `call or `put
-/   spot          - current spot price
-/   strike        - strike price
-/   expiry        - time to expiry in years
-/   riskFreeRate  - annualised risk-free rate
-/   dividendYield - annualised continuous dividend yield
-/   volatility    - annualised volatility
-/ Returns: option price (float)
-.validation.blackScholesClosedForm:{[optionType;spot;strike;expiry;riskFreeRate;dividendYield;volatility]
-    d1:.validation.__blackScholesD1[spot;strike;expiry;riskFreeRate;dividendYield;volatility];
-    d2:.validation.__blackScholesD2[d1;volatility;expiry];
-
-    rateDiscount:exp neg riskFreeRate * expiry;
-    dividendDiscount:exp neg dividendYield * expiry;
-
-    $[optionType ~ `call;
-        (spot * dividendDiscount * .validation.__normalCdf[d1]) - strike * rateDiscount * .validation.__normalCdf[d2];
-      optionType ~ `put;
-        (strike * rateDiscount * .validation.__normalCdf[neg d2]) - spot * dividendDiscount * .validation.__normalCdf[neg d1];
-      '"Unsupported optionType for closed form: ",string optionType
-    ]
+.validation.__normalCdf:{[x]
+    if[x<0f; :1f-.validation.__normalCdf neg x];
+    t:1f%(1f+0.2316419*x);
+    pdf:exp[neg 0.5*x*x]%sqrt 2f*acos neg 1f;
+    t2:t*t; t3:t2*t; t4:t3*t; t5:t4*t;
+    1f-pdf*(0.31938153*t)+(-0.356563782*t2)+(1.781477937*t3)+(-1.821255978*t4)+1.330274429*t5
  };
 
-/ -----------------------------------------------------------------------------
-/ Public functions — validation
-/ -----------------------------------------------------------------------------
+.validation.__normalPdf:{[x]
+    exp[neg 0.5*x*x]%sqrt 2f*acos neg 1f
+ };
 
-/ Validate FDM price against Black-Scholes closed form for a European option.
-/ Parameters:
-/   trade      - trade dictionary
-/   marketData - market data dictionary
-/   model      - model dictionary
-/   config     - finite-difference config dictionary
-/ Returns: one-row table with fdmUnitPrice, closedFormUnitPrice,
-/          absoluteError, relativeError
+/ --- Black-Scholes helpers ---
+
+.validation.__d1:{[spot;strike;expiry;rate;divY;vol]
+    sqrtT:sqrt expiry;
+    (log[spot%strike]+((rate-divY)+0.5*vol*vol)*expiry)%(vol*sqrtT)
+ };
+
+.validation.__d2:{[d1Val;vol;expiry] d1Val-vol*sqrt expiry};
+
+/ --- Closed-form price ---
+
+.validation.blackScholesClosedForm:{[optType;spot;strike;expiry;rate;divY;vol]
+    d1Val:.validation.__d1[spot;strike;expiry;rate;divY;vol];
+    d2Val:.validation.__d2[d1Val;vol;expiry];
+    rDisc:exp neg rate*expiry;
+    qDisc:exp neg divY*expiry;
+    isCall:optType~`call;
+    if[isCall; :(spot*qDisc*.validation.__normalCdf d1Val)-strike*rDisc*.validation.__normalCdf d2Val];
+    (strike*rDisc*.validation.__normalCdf neg d2Val)-spot*qDisc*.validation.__normalCdf neg d1Val
+ };
+
+/ --- Analytical Greeks ---
+/ Conventions: delta per 1 spot, gamma per 1 spot^2,
+/ theta annual, vega per 1.00 vol, rho per 1.00 rate
+
+.validation.blackScholesGreeks:{[optType;spot;strike;expiry;rate;divY;vol]
+    d1Val:.validation.__d1[spot;strike;expiry;rate;divY;vol];
+    d2Val:.validation.__d2[d1Val;vol;expiry];
+    sqrtT:sqrt expiry;
+    rDisc:exp neg rate*expiry;
+    qDisc:exp neg divY*expiry;
+    nd1:.validation.__normalCdf d1Val;
+    nd2:.validation.__normalCdf d2Val;
+    pdf1:.validation.__normalPdf d1Val;
+    isCall:optType~`call;
+    / Delta
+    delta:$[isCall; qDisc*nd1; neg qDisc*.validation.__normalCdf neg d1Val];
+    / Gamma (same for call and put)
+    gamma:qDisc*pdf1%(spot*vol*sqrtT);
+    / Theta (annual)
+    thetaTerm1:neg spot*qDisc*pdf1*vol%(2f*sqrtT);
+    callTheta:thetaTerm1 - (rate*strike*rDisc*nd2) - divY*spot*qDisc*nd1;
+    putTheta:thetaTerm1 + (rate*strike*rDisc*.validation.__normalCdf neg d2Val) - divY*spot*qDisc*.validation.__normalCdf neg d1Val;
+    theta:$[isCall;callTheta;putTheta];
+    / Vega (per 1.00 absolute vol)
+    vega:spot*qDisc*pdf1*sqrtT;
+    / Rho (per 1.00 absolute rate)
+    rho:$[isCall; strike*expiry*rDisc*nd2; neg strike*expiry*rDisc*.validation.__normalCdf neg d2Val];
+    `delta`gamma`theta`vega`rho!(delta;gamma;theta;vega;rho)
+ };
+
+/ --- Validation: price ---
 
 .validation.validateEuropeanOption:{[trade;marketData;model;config]
-    / FDM price
-    priceResult:.engine.priceOption[trade;marketData;model;config];
-    fdmUnitPrice:priceResult`unitPrice;
-
-    / Closed-form price
-    closedFormUnitPrice:.validation.blackScholesClosedForm[
-        trade`optionType;
-        marketData`spot;
-        trade`strike;
-        trade`expiry;
-        marketData`riskFreeRate;
-        marketData`dividendYield;
-        marketData`volatility
-    ];
-
-    absError:abs fdmUnitPrice - closedFormUnitPrice;
-    relError:.utilities.relativeError[fdmUnitPrice;closedFormUnitPrice];
-
-    ([]
-        tradeId:enlist trade`tradeId;
-        optionType:enlist trade`optionType;
-        fdmUnitPrice:enlist fdmUnitPrice;
-        closedFormUnitPrice:enlist closedFormUnitPrice;
-        absoluteError:enlist absError;
-        relativeError:enlist relError
-    )
+    fdm:(.engine.priceOption[trade;marketData;model;config])`unitPrice;
+    bs:.validation.blackScholesClosedForm[trade`optionType;marketData`spot;trade`strike;
+        trade`expiry;marketData`riskFreeRate;marketData`dividendYield;marketData`volatility];
+    ([] tradeId:enlist trade`tradeId; optionType:enlist trade`optionType;
+        fdmUnitPrice:enlist fdm; closedFormUnitPrice:enlist bs;
+        absoluteError:enlist abs fdm-bs; relativeError:enlist .utilities.relativeError[fdm;bs])
  };
 
-/ Check put-call parity: C - P = S*exp(-q*T) - K*exp(-r*T)
-/ Parameters:
-/   callTrade  - trade dictionary for the call
-/   putTrade   - trade dictionary for the put
-/   marketData - market data dictionary
-/   model      - model dictionary
-/   config     - finite-difference config dictionary
-/ Returns: dictionary with actual difference, theoretical difference,
-/          absolute error
+/ --- Validation: Greeks ---
+
+.validation.validateGreeks:{[trade;marketData;model;config]
+    fdmGreeks:.greeks.calculateGreeks[trade;marketData;model;config];
+    bsGreeks:.validation.blackScholesGreeks[trade`optionType;marketData`spot;trade`strike;
+        trade`expiry;marketData`riskFreeRate;marketData`dividendYield;marketData`volatility];
+    greekNames:`delta`gamma`theta`vega`rho;
+    fdmVals:(first each fdmGreeks greekNames);
+    bsVals:bsGreeks greekNames;
+    absErrs:abs fdmVals - bsVals;
+    relErrs:{.utilities.relativeError[x;y]}'[fdmVals;bsVals];
+    ([] tradeId:(count greekNames)#trade`tradeId;
+        optionType:(count greekNames)#trade`optionType;
+        greek:greekNames;
+        fdmValue:fdmVals;
+        closedFormValue:bsVals;
+        absoluteError:absErrs;
+        relativeError:relErrs)
+ };
+
+/ --- Put-call parity ---
+
 .validation.checkPutCallParity:{[callTrade;putTrade;marketData;model;config]
-    callResult:.engine.priceOption[callTrade;marketData;model;config];
-    putResult:.engine.priceOption[putTrade;marketData;model;config];
-
-    callPrice:callResult`unitPrice;
-    putPrice:putResult`unitPrice;
-    actualDifference:callPrice - putPrice;
-
-    spot:marketData`spot;
-    strike:callTrade`strike;
-    expiry:callTrade`expiry;
-    riskFreeRate:marketData`riskFreeRate;
-    dividendYield:marketData`dividendYield;
-
-    rateDiscount:exp neg riskFreeRate * expiry;
-    dividendDiscount:exp neg dividendYield * expiry;
-    theoreticalDifference:(spot * dividendDiscount) - strike * rateDiscount;
-
-    absError:abs actualDifference - theoreticalDifference;
-
+    cP:(.engine.priceOption[callTrade;marketData;model;config])`unitPrice;
+    pP:(.engine.priceOption[putTrade;marketData;model;config])`unitPrice;
+    actual:cP-pP;
+    rDisc:exp neg marketData[`riskFreeRate]*callTrade`expiry;
+    qDisc:exp neg marketData[`dividendYield]*callTrade`expiry;
+    theoretical:(marketData[`spot]*qDisc)-callTrade[`strike]*rDisc;
     `callPrice`putPrice`actualDifference`theoreticalDifference`absoluteError!(
-        callPrice;
-        putPrice;
-        actualDifference;
-        theoreticalDifference;
-        absError
-    )
+        cP;pP;actual;theoretical;abs actual-theoretical)
  };
 
-/ Run a grid convergence test across multiple configurations.
-/ Shows how FDM price converges to the closed-form as grid resolution increases.
-/ Parameters:
-/   trade      - trade dictionary
-/   marketData - market data dictionary
-/   model      - model dictionary
-/   configList - list of config dictionaries with increasing resolution
-/ Returns: table with numberOfSpotSteps, numberOfTimeSteps, fdmPrice,
-/          closedFormPrice, absoluteError, relativeError
+/ --- Grid convergence ---
+
 .validation.runGridConvergenceTest:{[trade;marketData;model;configList]
-    / Closed-form price (constant across all configs)
-    closedFormPrice:.validation.blackScholesClosedForm[
-        trade`optionType;
-        marketData`spot;
-        trade`strike;
-        trade`expiry;
-        marketData`riskFreeRate;
-        marketData`dividendYield;
-        marketData`volatility
-    ];
-
-    / Run FDM for each config
-    results:{[trade;marketData;model;closedFormPrice;config]
-        priceResult:.engine.priceOption[trade;marketData;model;config];
-        fdmPrice:priceResult`unitPrice;
-        absError:abs fdmPrice - closedFormPrice;
-        relError:.utilities.relativeError[fdmPrice;closedFormPrice];
+    bs:.validation.blackScholesClosedForm[trade`optionType;marketData`spot;trade`strike;
+        trade`expiry;marketData`riskFreeRate;marketData`dividendYield;marketData`volatility];
+    results:{[trade;marketData;model;bs;cfg]
+        fdm:(.engine.priceOption[trade;marketData;model;cfg])`unitPrice;
         `numberOfSpotSteps`numberOfTimeSteps`fdmPrice`closedFormPrice`absoluteError`relativeError!(
-            config`numberOfSpotSteps;
-            config`numberOfTimeSteps;
-            fdmPrice;
-            closedFormPrice;
-            absError;
-            relError
-        )
-    }[trade;marketData;model;closedFormPrice] each configList;
-
-    / Convert list of dictionaries to table
-    resultKeys:`numberOfSpotSteps`numberOfTimeSteps`fdmPrice`closedFormPrice`absoluteError`relativeError;
-    flip resultKeys!flip value each results
+            cfg`numberOfSpotSteps; cfg`numberOfTimeSteps; fdm; bs;
+            abs fdm-bs; .utilities.relativeError[fdm;bs])
+    }[trade;marketData;model;bs] each configList;
+    columns:`numberOfSpotSteps`numberOfTimeSteps`fdmPrice`closedFormPrice`absoluteError`relativeError;
+    flip columns!flip value each results
  };
-
-/ -----------------------------------------------------------------------------
-/ Internal functions — normal CDF and Black-Scholes helpers
-/ -----------------------------------------------------------------------------
-
-/ Approximate the standard normal cumulative distribution function N(x).
-/ Uses the Abramowitz and Stegun approximation (equation 26.2.17).
-/ Accuracy: absolute error < 7.5e-8.
-/ Parameters:
-/   x - input value
-/ Returns: N(x) (float between 0 and 1)
-.validation.__normalCdf:{[x]
-    / Handle negative x by symmetry: N(x) = 1 - N(-x)
-    if[x < 0f; :1f - .validation.__normalCdf[neg x]];
-
-    / Polynomial coefficients (Abramowitz and Stegun 26.2.17)
-    a1:0.319381530;
-    a2:-0.356563782;
-    a3:1.781477937;
-    a4:-1.821255978;
-    a5:1.330274429;
-    p:0.2316419;
-
-    / Transform variable
-    t:1f % (1f + p * x);
-
-    / Standard normal PDF: n(x) = exp(-x^2/2) / sqrt(2*pi)
-    twoPi:2f * acos neg 1f;
-    pdf:exp[neg 0.5 * x * x] % sqrt twoPi;
-
-    / Polynomial in t (powers computed explicitly for clarity)
-    t2:t * t;
-    t3:t2 * t;
-    t4:t3 * t;
-    t5:t4 * t;
-    poly:(a1 * t) + (a2 * t2) + (a3 * t3) + (a4 * t4) + a5 * t5;
-
-    / N(x) = 1 - n(x) * poly(t)
-    1f - pdf * poly
- };
-
-/ Calculate Black-Scholes d1 parameter.
-/ d1 = (log(S/K) + (r - q + 0.5*vol^2)*T) / (vol * sqrt(T))
-/ Parameters:
-/   spot, strike, expiry, riskFreeRate, dividendYield, volatility
-/ Returns: d1 (float)
-.validation.__blackScholesD1:{[spot;strike;expiry;riskFreeRate;dividendYield;volatility]
-    sqrtExpiry:sqrt expiry;
-    volSqrt:volatility * sqrtExpiry;
-    logMoneyness:log spot % strike;
-    driftTerm:((riskFreeRate - dividendYield) + 0.5 * volatility * volatility) * expiry;
-    (logMoneyness + driftTerm) % volSqrt
- };
-
-/ Calculate Black-Scholes d2 parameter.
-/ d2 = d1 - vol * sqrt(T)
-/ Parameters:
-/   d1         - d1 value from __blackScholesD1
-/   volatility - annualised volatility
-/   expiry     - time to expiry in years
-/ Returns: d2 (float)
-.validation.__blackScholesD2:{[d1;volatility;expiry]
-    d1 - volatility * sqrt expiry
- };
-

@@ -1,6 +1,4 @@
 / init.q — silent library loader
-/ Usage: \l lib/init.q
-
 \l lib/utilities.q
 \l lib/config.q
 \l lib/product.q
@@ -13,6 +11,7 @@
 \l lib/engine.q
 \l lib/greeks.q
 \l lib/validation.q
+\l lib/risk.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"1.0";
+.qfdm.version:"0.2";
