@@ -11,7 +11,10 @@
     "tests/test_greeks_put.q";
     "tests/test_scenario_risk.q";
     "tests/test_american_put.q";
-    "tests/test_early_exercise_boundary.q"
+    "tests/test_early_exercise_boundary.q";
+    "tests/test_barrier_up_and_out_call.q";
+    "tests/test_barrier_down_and_out_put.q";
+    "tests/test_barrier_validation.q"
     );
 
 .test.pass:0;

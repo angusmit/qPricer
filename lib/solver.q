@@ -1,6 +1,6 @@
-/ solver.q — explicit finite-difference solver for the Black-Scholes PDE
-/ Supports European and American exercise styles.
-/ American: after each backward step, apply max(continuation, intrinsic)
+/ solver.q - explicit FDM solver for BS PDE
+/ Supports European, American, and barrier options
+/ Backward step: V(t) = V(t+dt) + dt*(0.5*vol^2*S^2*gamma + (r-q)*S*delta - r*V)
 
 .solver.solveExplicitFiniteDifference:{[trade;marketData;model;config]
     .product.validateOptionTrade trade;
@@ -15,9 +15,13 @@
     expiry:trade`expiry;
     tGrid:gridDict`timeGrid;
     sGrid:gridDict`spotGrid;
+    / Terminal payoff
     currentValues:.payoff.calculateIntrinsicValue[trade;sGrid];
+    / Apply barrier condition to terminal payoff
+    currentValues:.boundary.applyBarrierCondition[trade;sGrid;currentValues];
     isAmerican:trade[`exerciseStyle]~`american;
     intrinsicValues:currentValues;
+    hasBarrier:.product.isBarrierOption trade;
     doFullGrid:0b;
     if[config`returnFullGrid; doFullGrid:1b];
     accumulator:enlist currentValues;
@@ -25,7 +29,9 @@
     while[stepIdx>=0;
         currentValues:.solver.__stepExplicit[currentValues;solverInputs];
         currentValues:.boundary.applyEuropeanBoundary[trade;marketData;gridDict;currentValues;expiry-tGrid stepIdx];
-        / American early exercise: option worth at least intrinsic value
+        / Barrier knock-out condition
+        if[hasBarrier; currentValues:.boundary.applyBarrierCondition[trade;sGrid;currentValues]];
+        / American early exercise
         if[isAmerican; currentValues:currentValues|intrinsicValues];
         if[doFullGrid; accumulator:accumulator,enlist currentValues];
         stepIdx-:1];
