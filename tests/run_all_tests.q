@@ -14,7 +14,10 @@
     "tests/test_early_exercise_boundary.q";
     "tests/test_barrier_up_and_out_call.q";
     "tests/test_barrier_down_and_out_put.q";
-    "tests/test_barrier_validation.q"
+    "tests/test_barrier_validation.q";
+    "tests/test_crank_nicolson_call.q";
+    "tests/test_crank_nicolson_put.q";
+    "tests/test_crank_nicolson_vs_explicit.q"
     );
 
 .test.pass:0;

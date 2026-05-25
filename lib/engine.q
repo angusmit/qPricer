@@ -1,6 +1,4 @@
-/ engine.q — pricing engine
-
-/ --- Public ---
+/ engine.q - pricing engine
 
 .engine.priceOption:{[trade;marketData;model;config]
     .engine.__validateInputs[trade;marketData;model;config];
@@ -26,8 +24,6 @@
     `priceResult`solverResult!(priceResult;solverResult)
  };
 
-/ --- Internal ---
-
 .engine.__validateInputs:{[trade;marketData;model;config]
     .product.validateOptionTrade[trade];
     .market.validateFlatMarketData[marketData];
@@ -38,12 +34,13 @@
  };
 
 .engine.__runSolver:{[trade;marketData;model;config]
-    solver:.engine.__selectSolver[config];
+    solver:.engine.__selectSolver config;
     solver[trade;marketData;model;config]
  };
 
 .engine.__selectSolver:{[config]
     if[config[`method]~`explicit; :.solver.solveExplicitFiniteDifference];
+    if[config[`method]~`crankNicolson; :.solver.solveCrankNicolson];
     '"Unsupported solver method: ",string config`method
  };
 
