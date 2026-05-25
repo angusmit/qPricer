@@ -2,7 +2,7 @@
 
 qFDM is a modular kdb+/q pricing framework for equity options using finite-difference methods.
 
-## Current Scope (v0.7)
+## Current Scope (v0.7.1)
 
 **Supported:**
 - European call and put (explicit + Crank-Nicolson)
@@ -37,27 +37,12 @@ show .engine.priceOption[trade;marketData;model;config]
 
 The solver supports sigma(S,t) at each grid point via a user-supplied q function.
 
-### PDE
-
-```
-dV/dt + 0.5*sigma(S,t)^2*S^2*gamma + (r-q)*S*delta - r*V = 0
-```
-
 ### Usage
 
 ```q
-/ Define local vol function
 localVolFn:{[spotValue;timePoint] 0.2};
-
-/ Create local vol market data
 localVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;localVolFn];
-
-/ Use local vol model
 lvModel:.model.createLocalVolatilityModel[];
-
-/ Price (explicit only)
-config:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTimeSteps`maximumSpot!(
-    `explicit;200;2000;300f)];
 show .engine.priceOption[trade;localVolMkt;lvModel;config]
 ```
 
@@ -65,20 +50,32 @@ show .engine.priceOption[trade;localVolMkt;lvModel;config]
 
 If the local vol function returns a constant, the price matches the flat Black-Scholes explicit FDM price exactly.
 
-### Skew Example
+### Sanity Checks (v0.7.1)
+
+v0.7.1 adds non-flat local volatility behaviour tests proving the solver correctly uses sigma(S,t):
+
+**Downside skew** increases vol for lower spot and decreases it for higher spot:
 
 ```q
-skewVolFn:{[spotValue;timePoint]
-    0.05 | 0.2 + 0.0005 * 100f - spotValue
+downsideSkewFn:{[spotValue;timePoint]
+    0.05 | (0.2 + 0.001 * (100f - spotValue)) & 0.80
  };
 ```
 
-### Limitations (v0.7)
+Under this skew, both call and put prices differ materially from flat vol, confirming the solver correctly applies position-dependent volatility. This is not Dupire calibration; it is a controlled toy function validating the framework.
+
+**Time dependence** confirms the solver passes the time coordinate:
+
+```q
+timeDependentFn:{[spotValue;timePoint] 0.15 + 0.10 * timePoint};
+```
+
+### Limitations
 
 - Explicit FDM only (no CN)
-- European vanilla only (no American/barrier)
-- No Dupire calibration
-- Function must be vectorized over spot (standard q math is)
+- European vanilla only
+- No Dupire calibration or implied vol surface
+- Function must be vectorized over spot
 
 ## Public API
 
@@ -90,7 +87,6 @@ skewVolFn:{[spotValue;timePoint]
 | `.risk.generateScenarioReport[trade;mkt;model;cfg]` | Scenario risk |
 | `.american.extractEarlyExerciseBoundary[trade;mkt;model;cfg]` | Exercise boundary |
 | `.validation.validateEuropeanOption[trade;mkt;model;cfg]` | FDM vs BS price |
-| `.validation.validateGreeks[trade;mkt;model;cfg]` | FDM vs BS Greeks |
 
 ## Architecture
 
@@ -116,14 +112,13 @@ lib/
 ## Running
 
 ```
-q examples/smoke_test_european_call.q       # European call
-q examples/compare_explicit_crank_nicolson.q # Explicit vs CN
-q examples/price_american_put.q             # American put
-q examples/price_barrier_options.q          # Barrier options
-q examples/price_local_volatility.q         # Local volatility
-q examples/calculate_greeks.q               # Greeks
-q examples/generate_scenario_report.q       # Scenario risk
-q tests/run_all_tests.q                     # full suite (19 tests)
+q examples/smoke_test_european_call.q         # European call
+q examples/compare_explicit_crank_nicolson.q  # Explicit vs CN
+q examples/price_american_put.q               # American put
+q examples/price_barrier_options.q            # Barrier options
+q examples/price_local_volatility.q           # Local vol flat equivalence
+q examples/price_local_volatility_skew.q      # Local vol with skew
+q tests/run_all_tests.q                       # full suite (21 tests)
 ```
 
 ## Version History
@@ -137,10 +132,11 @@ q tests/run_all_tests.q                     # full suite (19 tests)
 | v0.5 | Up-and-out call, down-and-out put |
 | v0.6 | Crank-Nicolson for European vanilla |
 | v0.7 | Local volatility for European vanilla (explicit) |
+| v0.7.1 | Local vol skew sanity + time dependence tests |
 
 ## Roadmap
 
 | Version | Planned |
 |---------|---------|
-| v0.8 | Benchmarking, or CN for American options |
-| v0.9 | Portfolio-level pricing |
+| v0.8 | Benchmarking and memory estimation |
+| v0.9 | Portfolio-level pricing or real market data |

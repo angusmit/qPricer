@@ -20,7 +20,9 @@
     "tests/test_crank_nicolson_vs_explicit.q";
     "tests/test_local_vol_flat_equivalence_call.q";
     "tests/test_local_vol_flat_equivalence_put.q";
-    "tests/test_local_vol_validation.q"
+    "tests/test_local_vol_validation.q";
+    "tests/test_local_vol_skew_sanity.q";
+    "tests/test_local_vol_time_dependence.q"
     );
 
 .test.pass:0;
