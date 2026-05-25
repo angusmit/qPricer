@@ -11,9 +11,11 @@
 \l lib/engine.q
 \l lib/greeks.q
 \l lib/validation.q
+\l lib/iv.q
+\l lib/surface.q
 \l lib/risk.q
 \l lib/american.q
 \l lib/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.8.1";
+.qfdm.version:"0.9";

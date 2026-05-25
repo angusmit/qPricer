@@ -25,7 +25,12 @@
     "tests/test_local_vol_time_dependence.q";
     "tests/test_portfolio_pricing.q";
     "tests/test_portfolio_greeks.q";
-    "tests/test_portfolio_scenario_risk.q"
+    "tests/test_portfolio_scenario_risk.q";
+    "tests/test_implied_vol_call.q";
+    "tests/test_implied_vol_put.q";
+    "tests/test_option_chain_implied_vols.q";
+    "tests/test_vol_surface_lookup.q";
+    "tests/test_surface_market_data_pricing.q"
     );
 
 .test.pass:0;

@@ -36,9 +36,19 @@
  };
 
 .market.validateMarketData:{[marketData;model]
+    / Vol surface market data is valid for BS model
+    if[(`marketDataType in key marketData) and marketData[`marketDataType]~`volSurface;
+        :.market.validateSurfaceMarketData marketData];
     if[model[`modelName]~`blackScholes; :.market.validateFlatMarketData marketData];
     if[model[`modelName]~`localVolatility; :.market.validateLocalVolatilityMarketData marketData];
     '"Unsupported model for market data validation: ",string model`modelName
+ };
+
+.market.validateSurfaceMarketData:{[marketData]
+    .utilities.requireKeys[marketData;`underlying`spot`riskFreeRate`dividendYield`volSurface;"surfaceMarketData"];
+    .utilities.assertPositive[marketData`spot;"spot"];
+    .utilities.assertNonNegative[marketData`dividendYield;"dividendYield"];
+    .surface.validateVolSurface marketData`volSurface;
  };
 
 / --- Accessors (extra params for future API compat) ---
@@ -46,7 +56,11 @@
 .market.getSpot:{[marketData;underlying] marketData`spot};
 .market.getRiskFreeRate:{[marketData;expiry] marketData`riskFreeRate};
 .market.getDividendYield:{[marketData;underlying;expiry] marketData`dividendYield};
-.market.getVolatility:{[marketData;underlying;strike;expiry] marketData`volatility};
+.market.getVolatility:{[marketData;underlying;strike;expiry]
+    if[(`marketDataType in key marketData) and marketData[`marketDataType]~`volSurface;
+        :.surface.getSurfaceVolatility[marketData`volSurface;strike;expiry]];
+    marketData`volatility
+ };
 
 / Local vol accessor: returns volatility vector for spot vector at given time
 .market.getLocalVolatility:{[marketData;spotValues;timePoint]
