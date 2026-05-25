@@ -30,7 +30,11 @@
     "tests/test_implied_vol_put.q";
     "tests/test_option_chain_implied_vols.q";
     "tests/test_vol_surface_lookup.q";
-    "tests/test_surface_market_data_pricing.q"
+    "tests/test_surface_market_data_pricing.q";
+    "tests/test_implied_vol_invalid_prices.q";
+    "tests/test_option_chain_partial_failures.q";
+    "tests/test_vol_surface_validation.q";
+    "tests/test_vol_surface_nearest_lookup.q"
     );
 
 .test.pass:0;
