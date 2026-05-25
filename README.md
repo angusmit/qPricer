@@ -2,20 +2,22 @@
 
 qFDM is a modular kdb+/q pricing framework for equity options using finite-difference methods.
 
-## Current Scope (v0.7.1)
+## Current Scope (v0.8)
 
 **Supported:**
 - European call and put (explicit + Crank-Nicolson)
 - American put (explicit only)
 - Up-and-out call, down-and-out put (explicit only)
 - Local volatility sigma(S,t) for European vanilla (explicit only)
+- Portfolio batch pricing, Greeks, and scenario risk
 - Greeks, scenario risk, exercise boundary extraction
 - Black-Scholes analytical validation
 
 **Not yet supported:**
+- Multi-underlying portfolios, parallel pricing
 - CN/American/barrier with local vol
 - Dupire calibration, implied vol surface
-- Implicit method, portfolio pricing
+- HDB, IPC, persistence
 
 ## Quick Start
 
@@ -33,50 +35,58 @@ config:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTi
 show .engine.priceOption[trade;marketData;model;config]
 ```
 
-## Local Volatility (v0.7)
+## Portfolio Pricing (v0.8)
 
-The solver supports sigma(S,t) at each grid point via a user-supplied q function.
+A portfolio is a q table of trades. Each row is priced through the single-trade engine with per-trade error handling.
 
-### Usage
-
-```q
-localVolFn:{[spotValue;timePoint] 0.2};
-localVolMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;localVolFn];
-lvModel:.model.createLocalVolatilityModel[];
-show .engine.priceOption[trade;localVolMkt;lvModel;config]
-```
-
-### Flat Equivalence
-
-If the local vol function returns a constant, the price matches the flat Black-Scholes explicit FDM price exactly.
-
-### Sanity Checks (v0.7.1)
-
-v0.7.1 adds non-flat local volatility behaviour tests proving the solver correctly uses sigma(S,t):
-
-**Downside-only skew** adds vol below strike while keeping flat vol at and above strike:
+### Trade Table
 
 ```q
-downsideOnlySkewFn:{[spotValue;timePoint]
-    extraVol:0f | 0.001 * (100f - spotValue);
-    0.2 + extraVol
- };
+tradeTable:([]
+    tradeId:1 2 3 4;
+    underlying:`AAPL`AAPL`AAPL`AAPL;
+    productType:`equityOption`equityOption`equityOption`equityOption;
+    exerciseStyle:`european`european`american`european;
+    optionType:`call`put`put`call;
+    strike:100 100 100 100f;
+    expiry:1 1 1 1f;
+    notional:1000000 1000000 1000000 1000000f;
+    barrierType:`none`none`none`upAndOut;
+    barrierLevel:0Nf 0Nf 0Nf 130f;
+    rebate:0 0 0 0f);
 ```
 
-Since vol is >= 0.2 everywhere (and strictly higher for S < 100), both call and put prices increase. The put increases more because the extra vol is concentrated in the put exercise region.
-
-**Time dependence** confirms the solver passes the time coordinate:
+### Batch Pricing
 
 ```q
-timeDependentFn:{[spotValue;timePoint] 0.15 + 0.10 * timePoint};
+portfolioPrices:.portfolio.priceTrades[tradeTable;marketData;model;config]
 ```
 
-### Limitations
+Returns one row per trade with unitPrice, notionalPrice, status, statusMessage. Failed trades return status:\`ERROR without crashing the batch.
 
-- Explicit FDM only (no CN)
-- European vanilla only
-- No Dupire calibration or implied vol surface
-- Function must be vectorized over spot
+### Portfolio Greeks
+
+```q
+portfolioGreeks:.portfolio.calculatePortfolioGreeks[tradeTable;marketData;model;config]
+```
+
+Returns delta/gamma/theta/vega/rho for European vanilla trades. American and barrier trades return status:\`UNSUPPORTED with null Greeks.
+
+### Portfolio Scenario Risk
+
+```q
+portfolioScenarios:.portfolio.generatePortfolioScenarioReport[tradeTable;marketData;model;config]
+```
+
+Returns 9 scenarios per trade (36 rows for 4 trades): base, spot +/-1%/+/-5%, vol +/-1pp, rate +/-25bp. Each row includes unitPnL and notionalPnL.
+
+### Scenario Summary
+
+```q
+summary:.portfolio.summarizePortfolioRisk[portfolioScenarios]
+```
+
+Aggregates notional price and PnL by scenario across all trades.
 
 ## Public API
 
@@ -86,6 +96,10 @@ timeDependentFn:{[spotValue;timePoint] 0.15 + 0.10 * timePoint};
 | `.engine.priceOptionWithGrid[trade;mkt;model;cfg]` | Price + full grid |
 | `.greeks.calculateGreeks[trade;mkt;model;cfg]` | Greeks table |
 | `.risk.generateScenarioReport[trade;mkt;model;cfg]` | Scenario risk |
+| `.portfolio.priceTrades[tbl;mkt;model;cfg]` | Portfolio prices |
+| `.portfolio.calculatePortfolioGreeks[tbl;mkt;model;cfg]` | Portfolio Greeks |
+| `.portfolio.generatePortfolioScenarioReport[tbl;mkt;model;cfg]` | Portfolio scenarios |
+| `.portfolio.summarizePortfolioRisk[scenarioTbl]` | Scenario summary |
 | `.american.extractEarlyExerciseBoundary[trade;mkt;model;cfg]` | Exercise boundary |
 | `.validation.validateEuropeanOption[trade;mkt;model;cfg]` | FDM vs BS price |
 
@@ -108,18 +122,20 @@ lib/
   validation.q    BS closed form + validation
   risk.q          Scenario risk
   american.q      American put analysis
+  portfolio.q     Portfolio batch pricing and risk
 ```
 
 ## Running
 
 ```
 q examples/smoke_test_european_call.q         # European call
+q examples/price_portfolio.q                  # Portfolio pricing
 q examples/compare_explicit_crank_nicolson.q  # Explicit vs CN
 q examples/price_american_put.q               # American put
 q examples/price_barrier_options.q            # Barrier options
-q examples/price_local_volatility.q           # Local vol flat equivalence
-q examples/price_local_volatility_skew.q      # Local vol with skew
-q tests/run_all_tests.q                       # full suite (21 tests)
+q examples/price_local_volatility.q           # Local vol
+q examples/price_local_volatility_skew.q      # Local vol skew
+q tests/run_all_tests.q                       # full suite (24 tests)
 ```
 
 ## Version History
@@ -134,10 +150,11 @@ q tests/run_all_tests.q                       # full suite (21 tests)
 | v0.6 | Crank-Nicolson for European vanilla |
 | v0.7 | Local volatility for European vanilla (explicit) |
 | v0.7.1 | Local vol skew sanity + time dependence tests |
+| v0.8 | Portfolio pricing and batch risk |
 
 ## Roadmap
 
 | Version | Planned |
 |---------|---------|
-| v0.8 | Benchmarking and memory estimation |
-| v0.9 | Portfolio-level pricing or real market data |
+| v0.9 | Multi-underlying portfolios or real market data |
+| v1.0 | Production hardening, HDB integration |

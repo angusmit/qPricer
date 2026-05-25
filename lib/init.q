@@ -13,6 +13,7 @@
 \l lib/validation.q
 \l lib/risk.q
 \l lib/american.q
+\l lib/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.7.1";
+.qfdm.version:"0.8";

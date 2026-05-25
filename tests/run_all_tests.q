@@ -22,7 +22,10 @@
     "tests/test_local_vol_flat_equivalence_put.q";
     "tests/test_local_vol_validation.q";
     "tests/test_local_vol_skew_sanity.q";
-    "tests/test_local_vol_time_dependence.q"
+    "tests/test_local_vol_time_dependence.q";
+    "tests/test_portfolio_pricing.q";
+    "tests/test_portfolio_greeks.q";
+    "tests/test_portfolio_scenario_risk.q"
     );
 
 .test.pass:0;
