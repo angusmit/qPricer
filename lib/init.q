@@ -17,6 +17,8 @@
 \l lib/risk.q
 \l lib/american.q
 \l lib/portfolio.q
+\l lib/report.q
+\l lib/pnl.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.10";
+.qfdm.version:"0.11";

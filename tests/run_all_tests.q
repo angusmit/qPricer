@@ -38,7 +38,9 @@
     "tests/test_market_data_book.q";
     "tests/test_portfolio_multi_symbol_pricing.q";
     "tests/test_portfolio_multi_symbol_scenario_risk.q";
-    "tests/test_market_data_book_missing_symbol.q"
+    "tests/test_market_data_book_missing_symbol.q";
+    "tests/test_report.q";
+    "tests/test_pnl_explain.q"
     );
 
 .test.pass:0;
