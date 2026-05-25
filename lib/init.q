@@ -19,6 +19,12 @@
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
+\l lib/audit.q
+\l lib/regression.q
+\l lib/batch.q
+\l lib/result.q
+\l lib/timing.q
+\l lib/testutil.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.11";
+.qfdm.version:"0.13";

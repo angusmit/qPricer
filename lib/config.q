@@ -27,3 +27,26 @@
     .utilities.assertBoolean[cfg`returnFullGrid;"returnFullGrid"];
     .utilities.assertBoolean[cfg`stabilityCheck;"stabilityCheck"];
  };
+
+/ --- Default configs (v0.13) ---
+
+.config.defaultPricingConfig:{[]
+    `method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(
+        `explicit;200;2000;0f;300f;`linear;1b;1b)
+ };
+
+.config.defaultScenarioConfig:{[]
+    .config.defaultPricingConfig[]
+ };
+
+.config.defaultImpliedVolConfig:{[]
+    `lowerVolatilityBound`upperVolatilityBound`tolerance`maximumIterations!(0.0001;5.0;1e-8;100)
+ };
+
+.config.validatePricingConfig:{[configDict]
+    .config.validateFiniteDifferenceConfig configDict
+ };
+
+.config.mergeConfig:{[defaultConfig;overrideConfig]
+    defaultConfig,overrideConfig
+ };

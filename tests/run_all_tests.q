@@ -40,7 +40,14 @@
     "tests/test_portfolio_multi_symbol_scenario_risk.q";
     "tests/test_market_data_book_missing_symbol.q";
     "tests/test_report.q";
-    "tests/test_pnl_explain.q"
+    "tests/test_pnl_explain.q";
+    "tests/test_batch.q";
+    "tests/test_audit.q";
+    "tests/test_regression.q";
+    "tests/test_result.q";
+    "tests/test_config.q";
+    "tests/test_timing.q";
+    "tests/test_testutil.q"
     );
 
 .test.pass:0;

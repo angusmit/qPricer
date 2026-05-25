@@ -1,8 +1,8 @@
-/ run_daily_pricing.q - daily pricing, risk, and PnL explain workflow
+/ run_daily_pricing.q - full daily batch: pricing, risk, PnL, audit, regression
 / Usage: q examples/run_daily_pricing.q
 
 \l lib/init.q
--1 "qFDM v",.qfdm.version," - Daily Pricing and PnL Explain\n";
+-1 "qFDM v",.qfdm.version," - Daily Batch Run\n";
 
 / --- Trade book ---
 tradeTable:([]
@@ -18,50 +18,56 @@ tradeTable:([]
     barrierLevel:0N 0N 0N;
     rebate:0 0 0f);
 
-/ --- Yesterday (t0) market data ---
-spotTable0:([] underlying:`AAPL`MSFT; spot:100 250f);
-volTable0:([] underlying:`AAPL`MSFT; volatility:0.20 0.25);
-rateTable0:([] expiry:enlist 1f; riskFreeRate:enlist 0.05);
-divTable0:([] underlying:`AAPL`MSFT; dividendYield:0 0.01f);
-book0:.marketbook.createMarketDataBook[spotTable0;volTable0;rateTable0;divTable0];
+/ --- Yesterday (t0) ---
+spotT0:([] underlying:`AAPL`MSFT; spot:100 250f);
+volT0:([] underlying:`AAPL`MSFT; volatility:0.20 0.25);
+rateT0:([] expiry:enlist 1f; riskFreeRate:enlist 0.05);
+divT0:([] underlying:`AAPL`MSFT; dividendYield:0 0.01f);
+book0:.marketbook.createMarketDataBook[spotT0;volT0;rateT0;divT0];
 
-/ --- Today (t1) market data: AAPL up 2%, MSFT down 1%, vol up 1pp ---
-spotTable1:([] underlying:`AAPL`MSFT; spot:102 247.5f);
-volTable1:([] underlying:`AAPL`MSFT; volatility:0.21 0.26);
-rateTable1:([] expiry:enlist 1f; riskFreeRate:enlist 0.0505);
-divTable1:([] underlying:`AAPL`MSFT; dividendYield:0 0.01f);
-book1:.marketbook.createMarketDataBook[spotTable1;volTable1;rateTable1;divTable1];
+/ --- Today (t1): AAPL +2%, MSFT -1%, vol +1pp ---
+spotT1:([] underlying:`AAPL`MSFT; spot:102 247.5f);
+volT1:([] underlying:`AAPL`MSFT; volatility:0.21 0.26);
+rateT1:([] expiry:enlist 1f; riskFreeRate:enlist 0.0505);
+divT1:([] underlying:`AAPL`MSFT; dividendYield:0 0.01f);
+book1:.marketbook.createMarketDataBook[spotT1;volT1;rateT1;divT1];
 
 bsModel:.model.createBlackScholesModel[];
 cnConfig:`method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(
     `crankNicolson;200;500;0f;750f;`linear;1b;1b);
 
-/ --- Price portfolio at t1 ---
--1 "Portfolio prices (today):";
-pricingResult:.portfolio.priceTradesWithMarketDataBook[tradeTable;book1;bsModel;cnConfig];
-show pricingResult;
--1 "";
+configDict:`model`fdmConfig`timeStepYears`bookName`valuationDate`runLabel!(
+    bsModel;cnConfig;1%252;"equityDesk";2025.01.02;"eodRun");
 
--1 "Portfolio summary:";
-show .report.portfolioSummary pricingResult;
--1 "";
+/ --- Run batch ---
+-1 "Running daily batch...";
+runResult:.batch.runDailyPricing[tradeTable;book1;book0;configDict];
 
-/ --- Greeks ---
--1 "Portfolio Greeks:";
-greekResult:.portfolio.calculatePortfolioGreeks[tradeTable;
-    `underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;102f;0.0505;0f;0.21);
-    bsModel;cnConfig];
--1 "Risk summary:";
-show .report.riskSummary greekResult;
--1 "";
+/ --- Reports ---
+-1 "\nPortfolio summary:";
+show runResult`portfolioSummary;
 
-/ --- PnL explain ---
-pnlConfig:`model`fdmConfig`timeStepYears`bookName!(bsModel;cnConfig;1%252;"equityDesk");
+-1 "\nRisk summary:";
+show runResult`riskSummary;
 
--1 "PnL explain:";
-explainResult:.pnl.explainPortfolio[tradeTable;book0;book1;pnlConfig];
-show explainResult;
--1 "";
+-1 "\nPnL explain:";
+show runResult`pnlExplainResult;
 
--1 "PnL aggregate:";
-show .pnl.aggregateExplain explainResult;
+-1 "\nPnL aggregate:";
+show .pnl.aggregateExplain runResult`pnlExplainResult;
+
+-1 "\nAudit record:";
+show runResult`auditRecord;
+
+-1 "\nScenario summary:";
+show runResult`scenarioSummary;
+
+/ --- Regression ---
+-1 "\nRegression check (tolerance 0.5):";
+previousPricing:.portfolio.priceTradesWithMarketDataBook[tradeTable;book0;bsModel;cnConfig];
+regressionResult:.regression.comparePricingRuns[runResult`pricingResult;previousPricing;0.5];
+show regressionResult;
+
+/ --- Write CSVs ---
+.batch.writeDailyReports[runResult;"/home/claude";"2025.01.02"];
+-1 "\nDone.";
