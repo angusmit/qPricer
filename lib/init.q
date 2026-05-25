@@ -16,4 +16,4 @@
 \l lib/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.8";
+.qfdm.version:"0.8.1";
