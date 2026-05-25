@@ -34,7 +34,11 @@
     "tests/test_implied_vol_invalid_prices.q";
     "tests/test_option_chain_partial_failures.q";
     "tests/test_vol_surface_validation.q";
-    "tests/test_vol_surface_nearest_lookup.q"
+    "tests/test_vol_surface_nearest_lookup.q";
+    "tests/test_market_data_book.q";
+    "tests/test_portfolio_multi_symbol_pricing.q";
+    "tests/test_portfolio_multi_symbol_scenario_risk.q";
+    "tests/test_market_data_book_missing_symbol.q"
     );
 
 .test.pass:0;

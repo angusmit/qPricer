@@ -3,6 +3,7 @@
 \l lib/config.q
 \l lib/product.q
 \l lib/market.q
+\l lib/marketbook.q
 \l lib/model.q
 \l lib/grid.q
 \l lib/payoff.q
@@ -18,4 +19,4 @@
 \l lib/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.9.1";
+.qfdm.version:"0.10";
