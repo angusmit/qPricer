@@ -1,4 +1,4 @@
-/ run_all_tests.q — test runner
+/ run_all_tests.q - test runner
 \l lib/init.q
 
 .test.files:(
@@ -10,7 +10,8 @@
     "tests/test_greeks_call.q";
     "tests/test_greeks_put.q";
     "tests/test_scenario_risk.q";
-    "tests/test_american_put.q"
+    "tests/test_american_put.q";
+    "tests/test_early_exercise_boundary.q"
     );
 
 .test.pass:0;

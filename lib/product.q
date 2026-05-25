@@ -17,9 +17,6 @@
     .utilities.assertPositive[trade`strike;"strike"];
     .utilities.assertPositive[trade`expiry;"expiry"];
     .utilities.assertPositive[trade`notional;"notional"];
-    / American call on non-dividend stock = European call; allow but warn
-    if[(trade[`exerciseStyle]~`american) and trade[`optionType]~`call;
-        -1 "WARNING: American call on non-dividend stock has no early exercise premium"];
  };
 
 .product.isCallOption:{[trade] trade[`optionType]~`call};
