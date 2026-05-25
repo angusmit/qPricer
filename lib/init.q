@@ -14,4 +14,4 @@
 \l lib/risk.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.2";
+.qfdm.version:"0.3";

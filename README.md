@@ -1,11 +1,12 @@
 # qFDM: kdb+/q Finite Difference Pricing Framework
 
-qFDM is a modular kdb+/q pricing framework for European equity options using finite-difference methods, with Greeks calculation and scenario risk reporting.
+qFDM is a modular kdb+/q pricing framework for equity options using finite-difference methods, with Greeks calculation and scenario risk reporting.
 
-## Current Scope (v0.2)
+## Current Scope (v0.3)
 
 **Supported:**
 - European call and put options
+- **American put option** (early exercise via explicit FDM)
 - Black-Scholes PDE with explicit finite-difference method
 - Flat spot / rate / dividend / volatility inputs
 - Greeks: delta, gamma, theta (grid), vega and rho (bump-and-reprice)
@@ -14,7 +15,7 @@ qFDM is a modular kdb+/q pricing framework for European equity options using fin
 - Put-call parity, grid convergence, input validation
 
 **Not yet supported:**
-- American exercise, barrier options
+- Barrier options
 - Local volatility / volatility surfaces
 - Implicit FDM, Crank-Nicolson
 - Portfolio pricing
@@ -24,8 +25,14 @@ qFDM is a modular kdb+/q pricing framework for European equity options using fin
 ```q
 \l lib/init.q
 
+/ European call
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
-    1;`AAPL;`equityOption;`european;`call;100f;1f;1000000f);
+    1;`AAPL;`equityOption;`european;`call;100f;1f;1f);
+
+/ American put — just change exerciseStyle and optionType
+americanPut:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
+    2;`AAPL;`equityOption;`american;`put;100f;1f;1f);
+
 marketData:`underlying`spot`riskFreeRate`dividendYield`volatility!(
     `AAPL;100f;0.05;0f;0.2);
 model:.model.createBlackScholesModel[];
@@ -33,8 +40,7 @@ config:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfTi
     `explicit;200;2000;300f)];
 
 show .engine.priceOption[trade;marketData;model;config]
-show .greeks.calculateGreeks[trade;marketData;model;config]
-show .risk.generateScenarioReport[trade;marketData;model;config]
+show .engine.priceOption[americanPut;marketData;model;config]
 ```
 
 ## Public API
@@ -50,73 +56,60 @@ show .risk.generateScenarioReport[trade;marketData;model;config]
 | `.validation.checkPutCallParity[call;put;mkt;model;cfg]` | Parity check |
 | `.validation.runGridConvergenceTest[trade;mkt;model;cfgList]` | Convergence table |
 
+## American Put (v0.3)
+
+American puts can be exercised at any time before expiry. The explicit FDM handles this by applying, at each backward time step:
+
+```
+optionValue = max(continuationValue, intrinsicValue)
+```
+
+where `intrinsicValue = max(K - S, 0)` for a put.
+
+### Usage
+
+To price an American put, set `exerciseStyle:\`american` and `optionType:\`put`:
+
+```q
+trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
+    1;`AAPL;`equityOption;`american;`put;100f;1f;1f);
+show .engine.priceOption[trade;marketData;model;config]
+```
+
+### Early Exercise Premium
+
+The American put price is always >= the European put price. The difference is the early exercise premium, which is positive when interest rates are positive (exercising early captures the time value of the strike proceeds).
+
+For ATM options (S=100, K=100, T=1y, r=5%, vol=20%):
+
+| Metric | Value |
+|--------|-------|
+| European put | ~5.578 |
+| American put | ~5.8-6.1 (grid dependent) |
+| Early exercise premium | > 0 |
+
+### Limitations
+
+- Only American **put** has meaningful early exercise premium with zero dividends
+- American call on non-dividend stock = European call (no premium)
+- Uses explicit FDM only (Crank-Nicolson would be more accurate, planned for future)
+
 ## Scenario Risk Reports
 
-qFDM v0.2 generates risk reports by bumping market data and repricing through the engine.
-
-### Scenarios
-
-| Scenario | Bump Type | Bump Size |
-|----------|-----------|-----------|
-| `base` | none | — |
-| `spotUp1Pct` | spot relative | +1% |
-| `spotDown1Pct` | spot relative | -1% |
-| `spotUp5Pct` | spot relative | +5% |
-| `spotDown5Pct` | spot relative | -5% |
-| `volatilityUp1Point` | vol absolute | +1pp |
-| `volatilityDown1Point` | vol absolute | -1pp |
-| `rateUp25Bp` | rate absolute | +25bp |
-| `rateDown25Bp` | rate absolute | -25bp |
-
-### Output columns
-
-`tradeId`, `underlying`, `optionType`, `scenario`, `spot`, `riskFreeRate`, `dividendYield`, `volatility`, `unitPrice`, `unitPnL`, `notionalPrice`, `notionalPnL`
-
-### Conventions
-
-- `unitPnL` = scenario unit price - base unit price
-- `notionalPnL` = unitPnL * notional
-- Spot bumps are relative (0.01 = +1%)
-- Vol bumps are absolute (0.01 = +1 vol point)
-- Rate bumps are absolute (0.0025 = +25bp)
+9 scenarios: base, spot ±1%/±5%, vol ±1pp, rate ±25bp. See v1.2 documentation.
 
 ## Greeks
 
-### Conventions
-
-| Greek | Convention | Example |
-|-------|-----------|---------|
-| Delta | Per 1 unit spot move | delta=0.637: +$1 spot -> +$0.637 price |
-| Gamma | Per 1 unit spot squared | gamma=0.019 |
-| Theta | Annual (dV/dt) | theta=-6.41: loses $6.41/year |
-| Vega | Per 1.00 absolute vol | vega=37.5: +1pp vol -> +$0.375 price |
-| Rho | Per 1.00 absolute rate | rho=53.2: +1bp rate -> +$0.00532 price |
-
-### Reference (S=100, K=100, T=1y, r=5%, q=0%, vol=20%)
-
-| Greek | Call | Put |
-|-------|------|-----|
-| Delta | 0.6368 | -0.3632 |
-| Gamma | 0.0188 | 0.0188 |
-| Theta | -6.414 | -1.658 |
-| Vega | 37.524 | 37.524 |
-| Rho | 53.233 | -41.891 |
+Delta, gamma, theta from FDM grid. Vega, rho by bump-and-reprice. See v1.1 documentation.
 
 ## Validation
 
-### Price (200 spot steps, 2000 time steps, [0,300])
+### European Price (200 spot, 2000 time, [0,300])
 
 | Option | FDM | BS | Error |
 |--------|-----|----|-------|
 | Call | 10.45496 | 10.45058 | 0.00438 |
 | Put | 5.57784 | 5.57352 | 0.00432 |
-
-### Grid Convergence
-
-| Spot Steps | Time Steps | Error |
-|-----------|-----------|-------|
-| 50 | 250 | 0.06717 |
-| 200 | 2000 | 0.00438 |
 
 ## Architecture
 
@@ -125,13 +118,13 @@ lib/
   init.q          Silent loader
   utilities.q     Validation, interpolation
   config.q        FDM configuration
-  product.q       Trade definition
+  product.q       Trade definition (european + american)
   market.q        Market data + bumping
   model.q         Black-Scholes model
   grid.q          Grid construction
   payoff.q        Terminal payoff
   boundary.q      Boundary conditions
-  solver.q        Explicit FDM solver
+  solver.q        Explicit FDM solver + early exercise
   engine.q        Pricing engine
   greeks.q        Greeks (grid + bump)
   validation.q    BS closed form + validation
@@ -141,19 +134,19 @@ lib/
 ## Running
 
 ```
-q examples/smoke_test_european_call.q       # price + validate
-q examples/calculate_greeks.q               # Greeks + validate
-q examples/generate_scenario_report.q       # price + Greeks + risk
-q tests/run_all_tests.q                     # full suite (8 tests)
+q examples/smoke_test_european_call.q       # European call
+q examples/price_american_put.q             # American put vs European
+q examples/calculate_greeks.q               # Greeks
+q examples/generate_scenario_report.q       # Scenario risk
+q tests/run_all_tests.q                     # full suite (9 tests)
 ```
 
 ## Future Extensions
 
-- American option early exercise
 - Barrier option boundary conditions
-- Implicit FDM / Crank-Nicolson
+- Implicit FDM / Crank-Nicolson (better for American options)
 - Local volatility sigma(S,t)
 - Volatility surface input
+- American call with dividends
 - Portfolio-level pricing
 - HDB market data integration
-- IPC/API access

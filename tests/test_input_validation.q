@@ -2,10 +2,10 @@
 \l lib/init.q
 
 / Helper: expect a zero-arg function to throw an error
-.test.expectError:{[name;fn]
-    res:@[{x[];`NO_ERROR};fn;{`ERROR}];
-    if[res~`NO_ERROR; '"Expected error but got success: ",name];
-    -1 "  PASS ",name;
+.test.expectError:{[testName;fn]
+    testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];
+    if[testResult~`NO_ERROR; '"Expected error but got success: ",testName];
+    -1 "  PASS ",testName;
  };
 
 / --- Base inputs (all valid) ---
@@ -39,7 +39,7 @@ baseCfg:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfT
     {.product.validateOptionTrade @[baseTrade;`optionType;:;`digital]}];
 
 .test.expectError["unsupported exerciseStyle";
-    {.product.validateOptionTrade @[baseTrade;`exerciseStyle;:;`american]}];
+    {.product.validateOptionTrade @[baseTrade;`exerciseStyle;:;`bermudan]}];
 
 .test.expectError["unsupported productType";
     {.product.validateOptionTrade @[baseTrade;`productType;:;`fxOption]}];

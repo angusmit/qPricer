@@ -2,11 +2,11 @@
 
 .product.__requiredFields:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional;
 .product.__supportedProductTypes:enlist `equityOption;
-.product.__supportedExerciseStyles:enlist `european;
+.product.__supportedExerciseStyles:`european`american;
 .product.__supportedOptionTypes:`call`put;
 
-.product.createOptionTrade:{[d]
-    .product.validateOptionTrade d; d
+.product.createOptionTrade:{[tradeDictionary]
+    .product.validateOptionTrade tradeDictionary; tradeDictionary
  };
 
 .product.validateOptionTrade:{[trade]
@@ -17,8 +17,12 @@
     .utilities.assertPositive[trade`strike;"strike"];
     .utilities.assertPositive[trade`expiry;"expiry"];
     .utilities.assertPositive[trade`notional;"notional"];
+    / American call on non-dividend stock = European call; allow but warn
+    if[(trade[`exerciseStyle]~`american) and trade[`optionType]~`call;
+        -1 "WARNING: American call on non-dividend stock has no early exercise premium"];
  };
 
 .product.isCallOption:{[trade] trade[`optionType]~`call};
 .product.isPutOption:{[trade] trade[`optionType]~`put};
 .product.isEuropeanOption:{[trade] trade[`exerciseStyle]~`european};
+.product.isAmericanOption:{[trade] trade[`exerciseStyle]~`american};

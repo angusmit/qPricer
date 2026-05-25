@@ -9,7 +9,8 @@
     "tests/test_input_validation.q";
     "tests/test_greeks_call.q";
     "tests/test_greeks_put.q";
-    "tests/test_scenario_risk.q"
+    "tests/test_scenario_risk.q";
+    "tests/test_american_put.q"
     );
 
 .test.pass:0;
