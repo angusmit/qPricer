@@ -71,7 +71,8 @@
     "tests/portfolio/test_portfolio_multi_symbol_pricing.q";
     "tests/portfolio/test_portfolio_multi_symbol_scenario_risk.q";
     "tests/portfolio/test_portfolio_extended_products.q";
-    "tests/portfolio/test_scenario_extended_products.q");
+    "tests/portfolio/test_scenario_extended_products.q";
+    "tests/portfolio/test_portfolio_monte_carlo_products.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -99,6 +100,14 @@
     "tests/stress/test_perfdiag.q";
     "tests/stress/test_perfopt.q");
 
+.test.monteCarloFiles:(
+    "tests/montecarlo/test_monte_carlo_paths.q";
+    "tests/montecarlo/test_monte_carlo_european.q";
+    "tests/montecarlo/test_asian_arithmetic_call.q";
+    "tests/montecarlo/test_asian_arithmetic_put.q";
+    "tests/montecarlo/test_asian_geometric_validation.q";
+    "tests/montecarlo/test_monte_carlo_greeks.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -112,7 +121,8 @@
     (`impliedvol; .test.impliedVolFiles);
     (`reporting;  .test.reportingFiles);
     (`infra;      .test.infraFiles);
-    (`stress;     .test.stressFiles));
+    (`stress;     .test.stressFiles);
+    (`montecarlo; .test.monteCarloFiles));
 
 / --- Runner ---
 

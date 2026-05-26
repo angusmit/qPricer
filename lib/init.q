@@ -16,6 +16,8 @@
 \l lib/surface.q
 \l lib/risk.q
 \l lib/american.q
+\l lib/montecarlo.q
+\l lib/asian.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -31,4 +33,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.15";
+.qfdm.version:"0.16";

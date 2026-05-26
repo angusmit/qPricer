@@ -67,6 +67,9 @@
 
 .portfolio.__priceSingleTradeSafely:{[tradeDictionary;marketData;model;config]
     barrierType:.product.getBarrierType tradeDictionary;
+    / Route Asian to MC engine
+    if[tradeDictionary[`productType]~`asianOption;
+        :.portfolio.__priceAsianSafely[tradeDictionary;marketData;model;config]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -78,6 +81,23 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         functionResult`method;functionResult`modelName;`OK;"")
+ };
+
+.portfolio.__priceAsianSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    mcConfig:$[`mcConfig in key config; config`mcConfig; .montecarlo.defaultMcConfig[]];
+    asianConfig:`mcConfig`model`fdmConfig!(mcConfig;model;config);
+    functionResult:.[.asian.priceAsianOption;(tradeDictionary;marketData;asianConfig);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`asianOption;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `monteCarlo;`asianOption;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]
