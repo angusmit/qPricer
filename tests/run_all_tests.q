@@ -100,7 +100,8 @@
 .test.stressFiles:(
     "tests/stress/test_stress.q";
     "tests/stress/test_perfdiag.q";
-    "tests/stress/test_perfopt.q");
+    "tests/stress/test_perfopt.q";
+    "tests/stress/test_mc_diagnostics.q");
 
 .test.monteCarloFiles:(
     "tests/montecarlo/test_monte_carlo_paths.q";
@@ -121,7 +122,13 @@
     "tests/montecarlo/test_lookback_floating_call.q";
     "tests/montecarlo/test_lookback_floating_put.q";
     "tests/montecarlo/test_lookback_validation.q";
-    "tests/montecarlo/test_lookback_greeks.q");
+    "tests/montecarlo/test_lookback_greeks.q";
+    "tests/montecarlo/test_antithetic_variance_reduction.q";
+    "tests/montecarlo/test_moment_matching.q";
+    "tests/montecarlo/test_control_variate_european.q";
+    "tests/montecarlo/test_control_variate_geometric_asian.q";
+    "tests/montecarlo/test_mc_convergence_table.q";
+    "tests/montecarlo/test_mc_confidence_intervals.q");
 
 / --- Combine all suites ---
 

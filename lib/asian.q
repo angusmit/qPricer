@@ -70,3 +70,44 @@
     if[not trade[`expiry]>0f; '"expiry must be positive"];
     if[not trade[`observationCount]>0; '"observationCount must be positive"];
  };
+
+/ --- Control variate: arithmetic Asian with geometric Asian control (v0.19) ---
+
+.asian.asianPayoffPair:{[pathMatrix;trade]
+    arithmeticAvg:avg each pathMatrix;
+    geometricAvg:exp avg each log each pathMatrix;
+    arithmeticPayoff:.asian.payoff[arithmeticAvg;trade`strike;trade`optionType];
+    geometricPayoff:.asian.payoff[geometricAvg;trade`strike;trade`optionType];
+    `arithmeticPayoff`geometricPayoff!(arithmeticPayoff;geometricPayoff)
+ };
+
+.asian.priceAsianOptionWithControlVariate:{[trade;marketData;configDict]
+    .asian.validateAsianTrade trade;
+    if[not trade[`averageType]~`arithmetic; '"Control variate only for arithmetic Asian"];
+    spotVal:marketData`spot;
+    riskFreeRate:marketData`riskFreeRate;
+    dividendYield:marketData`dividendYield;
+    volatility:marketData`volatility;
+    expiry:trade`expiry;
+    observationCountValue:trade`observationCount;
+    mcConfig:$[`mcConfig in key configDict; configDict`mcConfig; .montecarlo.defaultMcConfig[]];
+    .montecarlo.validateMcConfig mcConfig;
+    mcConfigAsian:@[mcConfig;`timeStepCount;:;observationCountValue];
+    pathMatrix:.montecarlo.simulateGBMPaths[spotVal;riskFreeRate;dividendYield;volatility;expiry;mcConfigAsian];
+    payoffPair:.asian.asianPayoffPair[pathMatrix;trade];
+    / Geometric Asian closed-form (undiscounted expected payoff)
+    geoClosedForm:.asian.geometricAsianClosedForm[trade`optionType;spotVal;trade`strike;expiry;riskFreeRate;dividendYield;volatility;observationCountValue];
+    discountFactor:exp neg riskFreeRate*expiry;
+    controlExpectedPayoff:geoClosedForm%discountFactor;
+    / Apply control variate
+    adjustedPayoff:.variance.controlVariateAdjust[payoffPair`arithmeticPayoff;payoffPair`geometricPayoff;controlExpectedPayoff];
+    betaValue:.variance.controlVariateBeta[payoffPair`arithmeticPayoff;payoffPair`geometricPayoff];
+    / Price from adjusted payoffs
+    priceResult:.montecarlo.priceFromPayoffs[adjustedPayoff;riskFreeRate;expiry;mcConfig`confidenceLevel];
+    `tradeId`underlying`optionType`productType`unitPrice`notionalPrice`method`modelName`standardError`lowerConfidence`upperConfidence`betaValue`controlVariate`status`statusMessage!(
+        trade`tradeId;trade`underlying;trade`optionType;`asianOption;
+        priceResult`price;priceResult[`price]*trade`notional;
+        `monteCarlo;`asianOptionCV;
+        priceResult`standardError;priceResult`lowerConfidence;priceResult`upperConfidence;
+        betaValue;`geometricAsian;`OK;"")
+ };
