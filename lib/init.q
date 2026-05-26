@@ -27,6 +27,8 @@
 \l lib/testutil.q
 \l lib/stress.q
 \l lib/perfdiag.q
+\l lib/cache.q
+\l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.14";
+.qfdm.version:"0.15";

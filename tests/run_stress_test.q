@@ -70,6 +70,14 @@ if[0<count slowSteps;
     -1 "\nSlow steps (>1000ms):";
     show slowSteps];
 
+/ --- Baseline vs Optimised Timing ---
+-1 "";
+-1 "--- Baseline vs Optimised Timing ---";
+
+/ Reuse the same tradeTable, market data book, previous book and config from diagnostics
+optimisedComparison:.perfopt.compareBaselineOptimised[tradeTable;mktBook;prevBook;configDict];
+show optimisedComparison;
+
 -1 "\n=============================================================================";
 -1 " Stress test completed";
 -1 "=============================================================================";

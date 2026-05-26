@@ -91,11 +91,13 @@
     "tests/infra/test_result.q";
     "tests/infra/test_config.q";
     "tests/infra/test_timing.q";
-    "tests/infra/test_testutil.q");
+    "tests/infra/test_testutil.q";
+    "tests/infra/test_cache.q");
 
 .test.stressFiles:(
     "tests/stress/test_stress.q";
-    "tests/stress/test_perfdiag.q");
+    "tests/stress/test_perfdiag.q";
+    "tests/stress/test_perfopt.q");
 
 / --- Combine all suites ---
 
