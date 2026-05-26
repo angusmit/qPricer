@@ -1,7 +1,7 @@
 / run_daily_pricing.q - full daily batch: pricing, risk, PnL, audit, regression
 / Usage: q examples/run_daily_pricing.q
 
-\l lib/init.q
+\l ../lib/init.q
 -1 "qFDM v",.qfdm.version," - Daily Batch Run\n";
 
 / --- Trade book ---

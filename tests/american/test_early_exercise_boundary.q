@@ -1,4 +1,4 @@
-/ test_early_exercise_boundary.q - validate early exercise boundary extraction
+/ test_early_exercise_boundary.q - validate early exercise boundary extraction (v0.14)
 \l lib/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
@@ -28,7 +28,7 @@ if[0=count exerciseRows; '"FAIL: no rows with exercise region"];
 nonNullBoundaries:(boundaryTable`exerciseBoundary) where not null boundaryTable`exerciseBoundary;
 if[any nonNullBoundaries<0f; '"FAIL: negative boundary values found"];
 
-/ 5. Non-null boundaries <= strike
+/ 5. Non-null boundaries <= strike (for put)
 strike:100f;
 if[any nonNullBoundaries>strike+1.5; '"FAIL: boundary exceeds strike + spotStep"];
 
@@ -44,11 +44,12 @@ europeanTrade:@[trade;`exerciseStyle;:;`european];
 europeanErr:@[{.american.extractEarlyExerciseBoundary[x;marketData;model;config];`NO_ERROR};europeanTrade;{`ERROR}];
 if[europeanErr~`NO_ERROR; '"FAIL: expected error for European trade"];
 
-/ 8. Validate error for call trade
+/ 8. American call boundary extraction now works (v0.14)
 callTrade:@[trade;`optionType;:;`call];
 callTrade:@[callTrade;`exerciseStyle;:;`american];
-callErr:@[{.american.extractEarlyExerciseBoundary[x;marketData;model;config];`NO_ERROR};callTrade;{`ERROR}];
-if[callErr~`NO_ERROR; '"FAIL: expected error for call trade"];
+/ With zero dividend, American call = European call, so exercise boundary may be empty
+callResult:@[{.american.extractEarlyExerciseBoundary[x;marketData;model;config];`OK};callTrade;{`ERROR}];
+if[callResult~`ERROR; '"FAIL: American call boundary should not error"];
 
 exerciseRowCount:count exerciseRows;
 expiryBoundaryVal:0Nf;

@@ -25,7 +25,7 @@ baseCfg:.config.createFiniteDifferenceConfig[`method`numberOfSpotSteps`numberOfT
 .test.expectError["unsupported optionType";{.product.validateOptionTrade @[baseTrade;`optionType;:;`digital]}];
 .test.expectError["unsupported exerciseStyle";{.product.validateOptionTrade @[baseTrade;`exerciseStyle;:;`bermudan]}];
 .test.expectError["unsupported productType";{.product.validateOptionTrade @[baseTrade;`productType;:;`fxOption]}];
-.test.expectError["negative notional";{.product.validateOptionTrade @[baseTrade;`notional;:;-1f]}];
+.test.expectError["zero notional";{.product.validateOptionTrade @[baseTrade;`notional;:;0f]}];
 .test.expectError["missing strike field";{.product.validateOptionTrade `strike _ baseTrade}];
 
 / --- Market data validation ---

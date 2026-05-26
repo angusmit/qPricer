@@ -11,12 +11,10 @@
     .market.validateMarketData[marketData;model];
     .model.validateModel model;
     .config.validateFiniteDifferenceConfig config;
-    / Local vol scope restriction
+    / Local vol scope restriction (v0.14)
     if[.model.isLocalVolatility model;
-        if[not trade[`exerciseStyle]~`european;
-            '"Local volatility v0.7 only supports European vanilla options with explicit FDM"];
-        if[.product.isBarrierOption trade;
-            '"Local volatility v0.7 only supports European vanilla options with explicit FDM"]];
+        if[(.product.isAmericanOption trade) and .product.isBarrierOption trade;
+            '"Local volatility does not support American barrier options"]];
     solverInputs:.solver.__buildSolverInputs[trade;marketData;model;config];
     stable:1b;
     if[config`stabilityCheck;

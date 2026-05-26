@@ -1,7 +1,6 @@
-/ test_report.q - desk reporting functions
+/ test_report.q - desk reporting functions (v0.14)
 \l lib/init.q
 
-/ Build a sample portfolio and price it
 tradeTable:([]
     tradeId:1 2 3;
     underlying:`AAPL`AAPL`AAPL;
@@ -27,12 +26,11 @@ if[not portfolioSummary[`totalTrades]=3; '"FAIL: totalTrades should be 3"];
 if[not portfolioSummary[`okTrades]=3; '"FAIL: okTrades should be 3"];
 if[not portfolioSummary[`totalNotionalPrice]>0f; '"FAIL: totalNotionalPrice should be positive"];
 
-/ 2. Risk summary
+/ 2. Risk summary (v0.14: all 3 trades get Greeks)
 greekResult:.portfolio.calculatePortfolioGreeks[tradeTable;marketData;bsModel;fdmConfig];
 riskSummary:.report.riskSummary greekResult;
 if[not riskSummary[`totalTrades]=3; '"FAIL: risk totalTrades should be 3"];
-if[not riskSummary[`okTrades]=2; '"FAIL: risk okTrades should be 2 (European only)"];
-if[not riskSummary[`unsupportedTrades]=1; '"FAIL: unsupported should be 1 (American)"];
+if[not riskSummary[`okTrades]=3; '"FAIL: risk okTrades should be 3"];
 
 / 3. Scenario summary
 scenarioResult:.portfolio.generatePortfolioScenarioReport[tradeTable;marketData;bsModel;fdmConfig];

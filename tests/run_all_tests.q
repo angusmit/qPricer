@@ -1,78 +1,151 @@
-/ run_all_tests.q - test runner
+/ run_all_tests.q - grouped test runner (v0.14)
 \l lib/init.q
 
-.test.files:(
-    "tests/test_european_call.q";
-    "tests/test_european_put.q";
-    "tests/test_put_call_parity.q";
-    "tests/test_grid_convergence.q";
-    "tests/test_input_validation.q";
-    "tests/test_greeks_call.q";
-    "tests/test_greeks_put.q";
-    "tests/test_scenario_risk.q";
-    "tests/test_american_put.q";
-    "tests/test_early_exercise_boundary.q";
-    "tests/test_barrier_up_and_out_call.q";
-    "tests/test_barrier_down_and_out_put.q";
-    "tests/test_barrier_validation.q";
-    "tests/test_crank_nicolson_call.q";
-    "tests/test_crank_nicolson_put.q";
-    "tests/test_crank_nicolson_vs_explicit.q";
-    "tests/test_local_vol_flat_equivalence_call.q";
-    "tests/test_local_vol_flat_equivalence_put.q";
-    "tests/test_local_vol_validation.q";
-    "tests/test_local_vol_skew_sanity.q";
-    "tests/test_local_vol_time_dependence.q";
-    "tests/test_portfolio_pricing.q";
-    "tests/test_portfolio_greeks.q";
-    "tests/test_portfolio_scenario_risk.q";
-    "tests/test_implied_vol_call.q";
-    "tests/test_implied_vol_put.q";
-    "tests/test_option_chain_implied_vols.q";
-    "tests/test_vol_surface_lookup.q";
-    "tests/test_surface_market_data_pricing.q";
-    "tests/test_implied_vol_invalid_prices.q";
-    "tests/test_option_chain_partial_failures.q";
-    "tests/test_vol_surface_validation.q";
-    "tests/test_vol_surface_nearest_lookup.q";
-    "tests/test_market_data_book.q";
-    "tests/test_portfolio_multi_symbol_pricing.q";
-    "tests/test_portfolio_multi_symbol_scenario_risk.q";
-    "tests/test_market_data_book_missing_symbol.q";
-    "tests/test_report.q";
-    "tests/test_pnl_explain.q";
-    "tests/test_batch.q";
-    "tests/test_audit.q";
-    "tests/test_regression.q";
-    "tests/test_result.q";
-    "tests/test_config.q";
-    "tests/test_timing.q";
-    "tests/test_testutil.q"
-    );
+/ --- Test suites by domain ---
+
+.test.coreFiles:(
+    "tests/core/test_european_call.q";
+    "tests/core/test_european_put.q";
+    "tests/core/test_put_call_parity.q";
+    "tests/core/test_grid_convergence.q";
+    "tests/core/test_input_validation.q";
+    "tests/core/test_scenario_risk.q";
+    "tests/core/test_crank_nicolson_call.q";
+    "tests/core/test_crank_nicolson_put.q";
+    "tests/core/test_crank_nicolson_vs_explicit.q");
+
+.test.greeksFiles:(
+    "tests/greeks/test_greeks_call.q";
+    "tests/greeks/test_greeks_put.q";
+    "tests/greeks/test_greeks_extended_products.q");
+
+.test.americanFiles:(
+    "tests/american/test_american_put.q";
+    "tests/american/test_american_call.q";
+    "tests/american/test_american_call_zero_dividend.q";
+    "tests/american/test_american_call_dividend.q";
+    "tests/american/test_early_exercise_boundary.q");
+
+.test.barrierFiles:(
+    "tests/barrier/test_barrier_up_and_out_call.q";
+    "tests/barrier/test_barrier_down_and_out_put.q";
+    "tests/barrier/test_barrier_validation.q";
+    "tests/barrier/test_barrier_up_and_out_put.q";
+    "tests/barrier/test_barrier_down_and_out_call.q";
+    "tests/barrier/test_barrier_up_and_in_call.q";
+    "tests/barrier/test_barrier_up_and_in_put.q";
+    "tests/barrier/test_barrier_down_and_in_call.q";
+    "tests/barrier/test_barrier_down_and_in_put.q";
+    "tests/barrier/test_barrier_parity.q";
+    "tests/barrier/test_barrier_full_validation.q");
+
+.test.localVolFiles:(
+    "tests/localvol/test_local_vol_flat_equivalence_call.q";
+    "tests/localvol/test_local_vol_flat_equivalence_put.q";
+    "tests/localvol/test_local_vol_validation.q";
+    "tests/localvol/test_local_vol_skew_sanity.q";
+    "tests/localvol/test_local_vol_time_dependence.q";
+    "tests/localvol/test_local_vol_american_put.q";
+    "tests/localvol/test_local_vol_american_call.q";
+    "tests/localvol/test_local_vol_american_flat_equivalence_put.q";
+    "tests/localvol/test_local_vol_american_flat_equivalence_call.q";
+    "tests/localvol/test_local_vol_american_validation.q";
+    "tests/localvol/test_local_vol_barrier_flat_equivalence.q";
+    "tests/localvol/test_local_vol_barrier_up_and_out_call.q";
+    "tests/localvol/test_local_vol_barrier_down_and_out_put.q";
+    "tests/localvol/test_local_vol_barrier_knock_in_parity.q";
+    "tests/localvol/test_local_vol_barrier_validation.q");
+
+.test.marketFiles:(
+    "tests/market/test_market_data_book.q";
+    "tests/market/test_market_data_book_missing_symbol.q";
+    "tests/market/test_vol_surface_lookup.q";
+    "tests/market/test_vol_surface_validation.q";
+    "tests/market/test_vol_surface_nearest_lookup.q";
+    "tests/market/test_surface_market_data_pricing.q");
+
+.test.portfolioFiles:(
+    "tests/portfolio/test_portfolio_pricing.q";
+    "tests/portfolio/test_portfolio_greeks.q";
+    "tests/portfolio/test_portfolio_scenario_risk.q";
+    "tests/portfolio/test_portfolio_multi_symbol_pricing.q";
+    "tests/portfolio/test_portfolio_multi_symbol_scenario_risk.q";
+    "tests/portfolio/test_portfolio_extended_products.q";
+    "tests/portfolio/test_scenario_extended_products.q");
+
+.test.impliedVolFiles:(
+    "tests/impliedvol/test_implied_vol_call.q";
+    "tests/impliedvol/test_implied_vol_put.q";
+    "tests/impliedvol/test_option_chain_implied_vols.q";
+    "tests/impliedvol/test_implied_vol_invalid_prices.q";
+    "tests/impliedvol/test_option_chain_partial_failures.q");
+
+.test.reportingFiles:(
+    "tests/reporting/test_report.q";
+    "tests/reporting/test_pnl_explain.q";
+    "tests/reporting/test_batch.q";
+    "tests/reporting/test_audit.q";
+    "tests/reporting/test_regression.q");
+
+.test.infraFiles:(
+    "tests/infra/test_result.q";
+    "tests/infra/test_config.q";
+    "tests/infra/test_timing.q";
+    "tests/infra/test_testutil.q");
+
+.test.stressFiles:(
+    "tests/stress/test_stress.q";
+    "tests/stress/test_perfdiag.q");
+
+/ --- Combine all suites ---
+
+.test.suites:(
+    (`core;       .test.coreFiles);
+    (`greeks;     .test.greeksFiles);
+    (`american;   .test.americanFiles);
+    (`barrier;    .test.barrierFiles);
+    (`localvol;   .test.localVolFiles);
+    (`market;     .test.marketFiles);
+    (`portfolio;  .test.portfolioFiles);
+    (`impliedvol; .test.impliedVolFiles);
+    (`reporting;  .test.reportingFiles);
+    (`infra;      .test.infraFiles);
+    (`stress;     .test.stressFiles));
+
+/ --- Runner ---
 
 .test.pass:0;
 .test.fail:0;
 
-.test.run:{[testPath]
-    -1 "--- Running: ",testPath," ---";
+.test.runOne:{[testPath]
+    -1 "  --- ",testPath," ---";
     codeLines:read0 hsym `$testPath;
     filteredLines:codeLines where not codeLines like "\\l *";
     codeBlock:"\n" sv filteredLines;
     testResult:@[{value x;`OK};codeBlock;{x}];
     if[testResult~`OK; .test.pass+:1];
-    if[not testResult~`OK; -2 "  FAILED: ",$[10h=type testResult;testResult;string testResult]; .test.fail+:1];
-    -1 "";
+    if[not testResult~`OK; -2 "    FAILED: ",$[10h=type testResult;testResult;string testResult]; .test.fail+:1];
  };
 
--1 "=============================================================================";
--1 " qFDM v",.qfdm.version," Test Suite";
--1 "=============================================================================\n";
+.test.runSuite:{[suitePair]
+    suiteName:suitePair 0;
+    testFiles:suitePair 1;
+    -1 "";
+    -1 "--- Suite: ",string[suiteName]," (",string[count testFiles]," tests) ---";
+    .test.runOne each testFiles;
+ };
 
-.test.run each .test.files;
+.test.runAll:{[]
+    -1 "=============================================================================";
+    -1 " qFDM v",.qfdm.version," Test Suite";
+    -1 "=============================================================================";
+    .test.runSuite each .test.suites;
+    -1 "";
+    -1 "=============================================================================";
+    -1 " Results: ",string[.test.pass]," passed, ",string[.test.fail]," failed";
+    -1 "=============================================================================";
+    if[.test.fail=0; -1 "All tests passed."];
+    if[.test.fail>0; '"Some tests failed: ",string[.test.fail]," failures"];
+ };
 
--1 "=============================================================================";
--1 " Results: ",string[.test.pass]," passed, ",string[.test.fail]," failed";
--1 "=============================================================================";
-
-if[.test.fail=0; -1 "All tests passed."];
-if[.test.fail>0; '"Some tests failed: ",string[.test.fail]," failures"];
+.test.runAll[];

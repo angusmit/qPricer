@@ -1,14 +1,13 @@
-/ run_smoke_tests.q - fast core checks (~10 seconds)
-\l ./lib/init.q
+/ run_smoke_tests.q - fast core checks
+\l lib/init.q
 
 .test.files:(
-    "tests/test_european_call.q";
-    "tests/test_european_put.q";
-    "tests/test_input_validation.q";
-    "tests/test_implied_vol_call.q";
-    "tests/test_result.q";
-    "tests/test_testutil.q"
-    );
+    "tests/core/test_european_call.q";
+    "tests/core/test_european_put.q";
+    "tests/core/test_input_validation.q";
+    "tests/impliedvol/test_implied_vol_call.q";
+    "tests/infra/test_result.q";
+    "tests/infra/test_testutil.q");
 
 .test.pass:0;
 .test.fail:0;

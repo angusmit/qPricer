@@ -1,11 +1,12 @@
-/ product.q - option trade definition and validation
-/ Supports vanilla + barrier options (v0.5)
+/ product.q - option trade definition and validation (v0.14)
 
 .product.__requiredFields:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional;
 .product.__supportedProductTypes:enlist `equityOption;
 .product.__supportedExerciseStyles:`european`american;
 .product.__supportedOptionTypes:`call`put;
-.product.__supportedBarrierTypes:`none`upAndOut`downAndOut;
+.product.__supportedBarrierTypes:`none`upAndOut`downAndOut`upAndIn`downAndIn;
+.product.__knockOutTypes:`upAndOut`downAndOut;
+.product.__knockInTypes:`upAndIn`downAndIn;
 
 .product.createOptionTrade:{[tradeDictionary]
     .product.validateOptionTrade tradeDictionary; tradeDictionary
@@ -18,29 +19,21 @@
     .utilities.assertSupportedValue[trade`optionType;.product.__supportedOptionTypes;"optionType"];
     .utilities.assertPositive[trade`strike;"strike"];
     .utilities.assertPositive[trade`expiry;"expiry"];
-    .utilities.assertPositive[trade`notional;"notional"];
-    / Validate barrier fields if present
+    if[trade[`notional]=0f; '"notional must not be zero"];
     if[.product.isBarrierOption trade; .product.__validateBarrierFields trade];
  };
 
 .product.__validateBarrierFields:{[trade]
     barrierType:.product.getBarrierType trade;
     .utilities.assertSupportedValue[barrierType;.product.__supportedBarrierTypes;"barrierType"];
-    / Must be European for barrier v0.5
+    / Barrier options must be European
     if[not trade[`exerciseStyle]~`european;
-        '"Barrier options require exerciseStyle = `european in v0.5"];
-    / Validate barrierLevel
+        '"Barrier options require exerciseStyle = `european"];
     if[not `barrierLevel in key trade; '"Missing required field for barrier option: barrierLevel"];
     barrierLevel:trade`barrierLevel;
     .utilities.assertPositive[barrierLevel;"barrierLevel"];
-    / Validate rebate
     barrierRebate:.product.getBarrierRebate trade;
-    if[barrierRebate<>0f; '"Non-zero barrier rebate is not supported in v0.5"];
-    / Validate combination
-    if[(barrierType~`upAndOut) and not trade[`optionType]~`call;
-        '"upAndOut barrier is only supported with call in v0.5"];
-    if[(barrierType~`downAndOut) and not trade[`optionType]~`put;
-        '"downAndOut barrier is only supported with put in v0.5"];
+    if[barrierRebate<>0f; '"Non-zero barrier rebate is not supported"];
  };
 
 .product.isCallOption:{[trade] trade[`optionType]~`call};
@@ -51,6 +44,20 @@
 .product.isBarrierOption:{[trade]
     barrierType:.product.getBarrierType trade;
     not barrierType~`none
+ };
+
+.product.isKnockIn:{[trade]
+    (.product.getBarrierType trade) in .product.__knockInTypes
+ };
+
+.product.isKnockOut:{[trade]
+    (.product.getBarrierType trade) in .product.__knockOutTypes
+ };
+
+.product.knockInToKnockOut:{[barrierType]
+    $[barrierType~`upAndIn;`upAndOut;
+      barrierType~`downAndIn;`downAndOut;
+      '"Not a knock-in type: ",string barrierType]
  };
 
 .product.getBarrierType:{[trade]

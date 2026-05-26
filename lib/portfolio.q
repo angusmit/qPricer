@@ -81,8 +81,7 @@
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]
-    if[not tradeDictionary[`exerciseStyle]~`european; :0b];
-    if[.product.isBarrierOption tradeDictionary; :0b];
+    / v0.14: Greeks via bump-and-reprice work for all priceable products
     1b
  };
 

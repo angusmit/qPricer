@@ -46,10 +46,10 @@
     resultList:();
     loopIdx:0;
     while[loopIdx<numTrades;
-          currentTrade:tradeTable loopIdx;
-          singleResult:.batch.__greeksSingleFromBook[currentTrade;marketDataBook;pricingModel;fdmConfig];
-          resultList:resultList,enlist singleResult;
-          loopIdx+:1];
+        currentTrade:tradeTable loopIdx;
+        singleResult:.batch.__greeksSingleFromBook[currentTrade;marketDataBook;pricingModel;fdmConfig];
+        resultList:resultList,enlist singleResult;
+        loopIdx+:1];
     resultList
  };
 
@@ -58,16 +58,13 @@
     metaFields:`tradeId`underlying`productType`exerciseStyle`optionType`barrierType!(
         tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType);
-    unsupportedRow:metaFields,`delta`gamma`theta`vega`rho`status`statusMessage!(
-        0Nf;0Nf;0Nf;0Nf;0Nf;`UNSUPPORTED;"Greeks only supported for European vanilla");
-    if[not tradeDictionary[`exerciseStyle]~`european; :unsupportedRow];
-    if[.product.isBarrierOption tradeDictionary; :unsupportedRow];
+    / v0.14: Greeks via bump-and-reprice work for all priceable products; errors caught below
     functionResult:.[{[td;mdb;mdl;cfg]
-                         mktData:.marketbook.getMarketDataForTrade[mdb;td];
-                         .greeks.calculateGreeks[td;mktData;mdl;cfg]
-                     };(tradeDictionary;marketDataBook;pricingModel;fdmConfig);{x}];
+        mktData:.marketbook.getMarketDataForTrade[mdb;td];
+        .greeks.calculateGreeks[td;mktData;mdl;cfg]
+     };(tradeDictionary;marketDataBook;pricingModel;fdmConfig);{x}];
     if[10h=type functionResult;
-       :metaFields,`delta`gamma`theta`vega`rho`status`statusMessage!(0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;functionResult)];
+        :metaFields,`delta`gamma`theta`vega`rho`status`statusMessage!(0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;functionResult)];
     metaFields,`delta`gamma`theta`vega`rho`status`statusMessage!(
         functionResult[`delta]0;functionResult[`gamma]0;functionResult[`theta]0;
         functionResult[`vega]0;functionResult[`rho]0;`OK;"")
