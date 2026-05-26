@@ -73,7 +73,8 @@
     "tests/portfolio/test_portfolio_extended_products.q";
     "tests/portfolio/test_scenario_extended_products.q";
     "tests/portfolio/test_portfolio_monte_carlo_products.q";
-    "tests/portfolio/test_portfolio_basket_products.q");
+    "tests/portfolio/test_portfolio_basket_products.q";
+    "tests/portfolio/test_portfolio_lookback_products.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -113,7 +114,14 @@
     "tests/montecarlo/test_basket_option_call.q";
     "tests/montecarlo/test_basket_option_put.q";
     "tests/montecarlo/test_basket_option_validation.q";
-    "tests/montecarlo/test_basket_greeks.q");
+    "tests/montecarlo/test_basket_greeks.q";
+    "tests/montecarlo/test_path_diagnostics.q";
+    "tests/montecarlo/test_lookback_fixed_call.q";
+    "tests/montecarlo/test_lookback_fixed_put.q";
+    "tests/montecarlo/test_lookback_floating_call.q";
+    "tests/montecarlo/test_lookback_floating_put.q";
+    "tests/montecarlo/test_lookback_validation.q";
+    "tests/montecarlo/test_lookback_greeks.q");
 
 / --- Combine all suites ---
 

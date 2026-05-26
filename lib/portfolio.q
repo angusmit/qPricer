@@ -73,6 +73,9 @@
     / Route Basket to correlated MC engine
     if[tradeDictionary[`productType]~`basketOption;
         :.portfolio.__priceBasketSafely[tradeDictionary;marketData;model;config]];
+    / Route Lookback to MC engine
+    if[tradeDictionary[`productType]~`lookbackOption;
+        :.portfolio.__priceLookbackSafely[tradeDictionary;marketData;model;config]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -122,6 +125,23 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         `monteCarlo;`basketOption;`OK;"")
+ };
+
+.portfolio.__priceLookbackSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    mcConfig:$[`mcConfig in key config; config`mcConfig; .montecarlo.defaultMcConfig[]];
+    lookbackConfig:`mcConfig`model`fdmConfig!(mcConfig;model;config);
+    functionResult:.[.lookback.priceLookbackOption;(tradeDictionary;marketData;lookbackConfig);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`lookbackOption;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `monteCarlo;`lookbackOption;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]
