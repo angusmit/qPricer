@@ -125,3 +125,41 @@
     if[not mcConfig[`confidenceLevel]>0f; '"MC confidenceLevel must be positive"];
     if[not mcConfig[`confidenceLevel]<1f; '"MC confidenceLevel must be less than 1"];
  };
+
+/ --- Correlated Monte Carlo (v0.17) ---
+
+.montecarlo.generateCorrelatedNormals:{[pathCountValue;timeStepCountValue;correlationMatrix;randomSeedValue]
+    numSymbols:count correlationMatrix;
+    totalRows:pathCountValue*timeStepCountValue;
+    / Generate independent normals: totalRows x numSymbols
+    allNormals:.montecarlo.__generateNormals[totalRows*numSymbols;randomSeedValue];
+    independentMatrix:numSymbols cut allNormals;  / totalRows x numSymbols
+    / Apply Cholesky: Z = W * L^T
+    choleskyL:.correlation.__cholesky correlationMatrix;
+    independentMatrix mmu flip choleskyL
+ };
+
+.montecarlo.simulateCorrelatedGBMPaths:{[spotVector;riskFreeRateVector;dividendYieldVector;volatilityVector;expiry;correlationMatrix;mcConfig]
+    pathCountValue:mcConfig`pathCount;
+    timeStepCountValue:mcConfig`timeStepCount;
+    randomSeedValue:mcConfig`randomSeed;
+    numSymbols:count spotVector;
+    dtVal:expiry%timeStepCountValue;
+    / Correlated normals: (pathCount*timeStepCount) x numSymbols
+    correlatedNormals:.montecarlo.generateCorrelatedNormals[pathCountValue;timeStepCountValue;correlationMatrix;randomSeedValue];
+    / Build per-symbol drift and diffusion
+    halfVariances:0.5*volatilityVector*volatilityVector;
+    driftPerStepVector:((riskFreeRateVector-dividendYieldVector)-halfVariances)*dtVal;
+    diffusionPerStepVector:volatilityVector*sqrt dtVal;
+    / For each symbol, extract its column of correlated normals and build paths
+    pathData:numSymbols#enlist();
+    symIdx:0;
+    while[symIdx<numSymbols;
+        symbolNormals:correlatedNormals[;symIdx];  / totalRows column
+        symbolNormalMatrix:timeStepCountValue cut symbolNormals;  / pathCount x timeStepCount
+        logIncrements:driftPerStepVector[symIdx]+diffusionPerStepVector[symIdx]*symbolNormalMatrix;
+        logSpotPaths:(log spotVector symIdx)+sums each logIncrements;
+        pathData[symIdx]:exp each logSpotPaths;
+        symIdx+:1];
+    pathData  / list of numSymbols pathMatrices, each pathCount x timeStepCount
+ };

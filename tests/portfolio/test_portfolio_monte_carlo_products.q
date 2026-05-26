@@ -1,5 +1,5 @@
 / test_portfolio_monte_carlo_products.q - portfolio with equity + Asian
-\l lib/init.q
+\l ./lib/init.q
 
 / All trades must have the same columns to form a valid table
 equityTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`averageType`averagingStyle`observationCount`barrierType`barrierLevel`rebate!(

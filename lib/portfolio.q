@@ -70,6 +70,9 @@
     / Route Asian to MC engine
     if[tradeDictionary[`productType]~`asianOption;
         :.portfolio.__priceAsianSafely[tradeDictionary;marketData;model;config]];
+    / Route Basket to correlated MC engine
+    if[tradeDictionary[`productType]~`basketOption;
+        :.portfolio.__priceBasketSafely[tradeDictionary;marketData;model;config]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -98,6 +101,27 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         `monteCarlo;`asianOption;`OK;"")
+ };
+
+.portfolio.__priceBasketSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    / Basket needs marketDataBook and correlationTable from config
+    / If marketData is flat (not a book), wrap it
+    correlationTable:$[`correlationTable in key config; config`correlationTable; '"No correlationTable in config for basket option"];
+    / For single-symbol market data, basket can't route — needs market data book
+    functionResult:.[{[td;md;cfg;ct]
+        .basket.priceBasketOption[td;md;ct;cfg]
+     };(tradeDictionary;marketData;config;correlationTable);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary[`basketSymbols]0;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`basketOption;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary[`basketSymbols]0;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `monteCarlo;`basketOption;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]

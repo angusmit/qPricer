@@ -18,6 +18,8 @@
 \l lib/american.q
 \l lib/montecarlo.q
 \l lib/asian.q
+\l lib/correlation.q
+\l lib/basket.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -33,4 +35,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.16";
+.qfdm.version:"0.17";
