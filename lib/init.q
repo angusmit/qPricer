@@ -24,6 +24,7 @@
 \l lib/lookback.q
 \l lib/variance.q
 \l lib/convergence.q
+\l lib/heston.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -39,4 +40,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.19";
+.qfdm.version:"0.20";

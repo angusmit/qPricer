@@ -76,6 +76,11 @@
     / Route Lookback to MC engine
     if[tradeDictionary[`productType]~`lookbackOption;
         :.portfolio.__priceLookbackSafely[tradeDictionary;marketData;model;config]];
+    / Route Heston equityOption to Heston MC
+    if[`modelType in key config;
+        if[config[`modelType]~`heston;
+            if[tradeDictionary[`productType]~`equityOption;
+                :.portfolio.__priceHestonSafely[tradeDictionary;marketData;model;config]]]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -142,6 +147,26 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         `monteCarlo;`lookbackOption;`OK;"")
+ };
+
+.portfolio.__priceHestonSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    if[not tradeDictionary[`exerciseStyle]~`european;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`heston;`ERROR;"Heston only supports European exercise")];
+    functionResult:.[.heston.priceEuropean;(tradeDictionary;marketData;config);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`heston;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `monteCarlo;`heston;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]

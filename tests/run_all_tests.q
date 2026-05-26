@@ -74,7 +74,8 @@
     "tests/portfolio/test_scenario_extended_products.q";
     "tests/portfolio/test_portfolio_monte_carlo_products.q";
     "tests/portfolio/test_portfolio_basket_products.q";
-    "tests/portfolio/test_portfolio_lookback_products.q");
+    "tests/portfolio/test_portfolio_lookback_products.q";
+    "tests/portfolio/test_portfolio_heston_products.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -128,7 +129,13 @@
     "tests/montecarlo/test_control_variate_european.q";
     "tests/montecarlo/test_control_variate_geometric_asian.q";
     "tests/montecarlo/test_mc_convergence_table.q";
-    "tests/montecarlo/test_mc_confidence_intervals.q");
+    "tests/montecarlo/test_mc_confidence_intervals.q";
+    "tests/montecarlo/test_heston_paths.q";
+    "tests/montecarlo/test_heston_european_call.q";
+    "tests/montecarlo/test_heston_european_put.q";
+    "tests/montecarlo/test_heston_black_scholes_limit.q";
+    "tests/montecarlo/test_heston_validation.q";
+    "tests/montecarlo/test_heston_greeks.q");
 
 / --- Combine all suites ---
 
