@@ -55,6 +55,21 @@
         mertonPrice:@[.merton.priceEuropeanSeries[optionRow`optionType;spotVal;optionRow`strike;optionRow`expiry;mertonParams;];termCountValue;{x}];
         if[10h=type mertonPrice; :@[errorRow;`errorMessage;:;mertonPrice]];
         :.modelcompare.__buildSuccessRow[modelName;optionRow;mertonPrice]];
+    / Bates: price with Bates MC
+    if[modelName~`bates;
+        spotVal:.marketbook.getSpot[marketDataBook;optionRow`underlying];
+        riskFreeRate:.marketbook.getRiskFreeRate[marketDataBook;optionRow`expiry];
+        divYield:.marketbook.getDividendYield[marketDataBook;optionRow`underlying;optionRow`expiry];
+        mktData:`underlying`spot`riskFreeRate`dividendYield`volatility!(optionRow`underlying;spotVal;riskFreeRate;divYield;0.2);
+        fullParams:calibrationResult,`riskFreeRate`dividendYield!(riskFreeRate;divYield);
+        mcConfig:$[`mcConfig in key configDict;configDict`mcConfig;.montecarlo.defaultMcConfig[]];
+        trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
+            optionRow`optionId;optionRow`underlying;`equityOption;`european;optionRow`optionType;optionRow`strike;optionRow`expiry;1f);
+        batesConfig:`batesParams`mcConfig!(fullParams;mcConfig);
+        batesFn:{.bates.priceEuropean[x 0;x 1;x 2]};
+        batesResult:@[batesFn;(trade;mktData;batesConfig);{x}];
+        if[10h=type batesResult; :@[errorRow;`errorMessage;:;batesResult]];
+        :.modelcompare.__buildSuccessRow[modelName;optionRow;batesResult`unitPrice]];
     @[errorRow;`errorMessage;:;"Unknown model: ",string modelName]
  };
 

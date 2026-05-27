@@ -83,7 +83,10 @@
                 :.portfolio.__priceHestonSafely[tradeDictionary;marketData;model;config]]];
         if[config[`modelType]~`merton;
             if[tradeDictionary[`productType]~`equityOption;
-                :.portfolio.__priceMertonSafely[tradeDictionary;marketData;model;config]]]];
+                :.portfolio.__priceMertonSafely[tradeDictionary;marketData;model;config]]];
+        if[config[`modelType]~`bates;
+            if[tradeDictionary[`productType]~`equityOption;
+                :.portfolio.__priceBatesSafely[tradeDictionary;marketData;model;config]]]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -191,6 +194,27 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         `series;`merton;`OK;"")
+ };
+
+.portfolio.__priceBatesSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    if[not tradeDictionary[`exerciseStyle]~`european;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`bates;`ERROR;"Bates only supports European exercise")];
+    batesFn:{.bates.priceEuropean[x 0;x 1;x 2]};
+    functionResult:@[batesFn;(tradeDictionary;marketData;config);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`monteCarlo;`bates;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `monteCarlo;`bates;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]

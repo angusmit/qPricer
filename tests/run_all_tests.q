@@ -79,7 +79,8 @@
     "tests/portfolio/test_calibrated_model_pricing.q";
     "tests/portfolio/test_model_comparison_pricing.q";
     "tests/portfolio/test_sabr_surface_pricing.q";
-    "tests/portfolio/test_portfolio_merton_products.q");
+    "tests/portfolio/test_portfolio_merton_products.q";
+    "tests/portfolio/test_portfolio_bates_products.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -145,7 +146,13 @@
     "tests/montecarlo/test_merton_european_put.q";
     "tests/montecarlo/test_merton_black_scholes_limit.q";
     "tests/montecarlo/test_merton_validation.q";
-    "tests/montecarlo/test_merton_greeks.q");
+    "tests/montecarlo/test_merton_greeks.q";
+    "tests/montecarlo/test_bates_paths.q";
+    "tests/montecarlo/test_bates_european_call.q";
+    "tests/montecarlo/test_bates_european_put.q";
+    "tests/montecarlo/test_bates_limit_cases.q";
+    "tests/montecarlo/test_bates_validation.q";
+    "tests/montecarlo/test_bates_greeks.q");
 
 .test.calibrationFiles:(
     "tests/calibration/test_calibration_objective.q";
@@ -164,7 +171,9 @@
     "tests/calibration/test_sabr_validation.q";
     "tests/calibration/test_sabr_model_comparison.q";
     "tests/calibration/test_merton_grid_calibration.q";
-    "tests/calibration/test_merton_model_comparison.q");
+    "tests/calibration/test_merton_model_comparison.q";
+    "tests/calibration/test_bates_grid_calibration.q";
+    "tests/calibration/test_bates_model_comparison.q");
 
 / --- Combine all suites ---
 
