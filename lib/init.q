@@ -30,6 +30,8 @@
 \l lib/sabr.q
 \l lib/merton.q
 \l lib/bates.q
+\l lib/limitcheck.q
+\l lib/modelcheck.q
 \l lib/modelcompare.q
 \l lib/calibreport.q
 \l lib/portfolio.q
@@ -47,4 +49,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.25";
+.qfdm.version:"0.26";

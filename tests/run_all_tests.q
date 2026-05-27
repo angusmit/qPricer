@@ -107,7 +107,8 @@
     "tests/stress/test_stress.q";
     "tests/stress/test_perfdiag.q";
     "tests/stress/test_perfopt.q";
-    "tests/stress/test_mc_diagnostics.q");
+    "tests/stress/test_mc_diagnostics.q";
+    "tests/stress/test_model_limit_stress.q");
 
 .test.monteCarloFiles:(
     "tests/montecarlo/test_monte_carlo_paths.q";
@@ -175,6 +176,13 @@
     "tests/calibration/test_bates_grid_calibration.q";
     "tests/calibration/test_bates_model_comparison.q");
 
+.test.modelcheckFiles:(
+    "tests/modelcheck/test_model_limit_black_scholes.q";
+    "tests/modelcheck/test_model_limit_heston_merton_bates.q";
+    "tests/modelcheck/test_model_limit_local_vol_sabr.q";
+    "tests/modelcheck/test_model_consistency_report.q";
+    "tests/modelcheck/test_modelcheck_validation.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -190,7 +198,8 @@
     (`infra;      .test.infraFiles);
     (`stress;     .test.stressFiles);
     (`montecarlo; .test.monteCarloFiles);
-    (`calibration; .test.calibrationFiles));
+    (`calibration; .test.calibrationFiles);
+    (`modelcheck; .test.modelcheckFiles));
 
 / --- Runner ---
 
