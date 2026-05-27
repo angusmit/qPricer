@@ -27,6 +27,7 @@
 \l lib/heston.q
 \l lib/objective.q
 \l lib/calibration.q
+\l lib/sabr.q
 \l lib/modelcompare.q
 \l lib/calibreport.q
 \l lib/portfolio.q
@@ -44,4 +45,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.22";
+.qfdm.version:"0.23";

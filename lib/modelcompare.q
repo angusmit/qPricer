@@ -36,6 +36,15 @@
         modelPriceVal:.calibration.priceWithHestonParams[optionRow;mktData;hestonParams;configDict];
         if[null modelPriceVal; :@[errorRow;`errorMessage;:;"Heston pricing failed"]];
         :.modelcompare.__buildSuccessRow[modelName;optionRow;modelPriceVal]];
+    / SABR surface: price with SABR IV + BS
+    if[modelName~`sabrSurface;
+        spotVal:.marketbook.getSpot[marketDataBook;optionRow`underlying];
+        riskFreeRate:.marketbook.getRiskFreeRate[marketDataBook;optionRow`expiry];
+        divYield:.marketbook.getDividendYield[marketDataBook;optionRow`underlying;optionRow`expiry];
+        mktData:`underlying`spot`riskFreeRate`dividendYield`volatility!(optionRow`underlying;spotVal;riskFreeRate;divYield;0.2);
+        sabrResult:.sabr.priceEuropeanWithSabr[optionRow;mktData;calibrationResult;configDict];
+        if[not sabrResult[`status]~`OK; :@[errorRow;`errorMessage;:;sabrResult`statusMessage]];
+        :.modelcompare.__buildSuccessRow[modelName;optionRow;sabrResult`unitPrice]];
     @[errorRow;`errorMessage;:;"Unknown model: ",string modelName]
  };
 

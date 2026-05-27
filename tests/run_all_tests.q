@@ -77,7 +77,8 @@
     "tests/portfolio/test_portfolio_lookback_products.q";
     "tests/portfolio/test_portfolio_heston_products.q";
     "tests/portfolio/test_calibrated_model_pricing.q";
-    "tests/portfolio/test_model_comparison_pricing.q");
+    "tests/portfolio/test_model_comparison_pricing.q";
+    "tests/portfolio/test_sabr_surface_pricing.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -149,7 +150,12 @@
     "tests/calibration/test_calibration_residuals.q";
     "tests/calibration/test_calibration_bucket_report.q";
     "tests/calibration/test_calibration_model_ranking.q";
-    "tests/calibration/test_calibration_report_export.q");
+    "tests/calibration/test_calibration_report_export.q";
+    "tests/calibration/test_sabr_implied_vol.q";
+    "tests/calibration/test_sabr_smile_generation.q";
+    "tests/calibration/test_sabr_calibration.q";
+    "tests/calibration/test_sabr_validation.q";
+    "tests/calibration/test_sabr_model_comparison.q");
 
 / --- Combine all suites ---
 
