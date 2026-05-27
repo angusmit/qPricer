@@ -210,6 +210,11 @@
     "tests/risk/test_daily_risk_run.q";
     "tests/risk/test_daily_risk_run_validation.q");
 
+.test.realdataFiles:(
+    "tests/realdata/test_barchart_parser.q";
+    "tests/realdata/test_barchart_multiday_replay.q";
+    "tests/realdata/test_barchart_performance.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -227,7 +232,8 @@
     (`montecarlo; .test.monteCarloFiles);
     (`calibration; .test.calibrationFiles);
     (`modelcheck; .test.modelcheckFiles);
-    (`risk;       .test.riskFiles));
+    (`risk;       .test.riskFiles);
+    (`realdata;   .test.realdataFiles));
 
 / --- Runner ---
 

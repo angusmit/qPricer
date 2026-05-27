@@ -55,6 +55,8 @@
 \l lib/perfdiag.q
 \l lib/cache.q
 \l lib/perfopt.q
+\l lib/parser.q
+\l lib/backtest.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.30";
+.qfdm.version:"0.31";
