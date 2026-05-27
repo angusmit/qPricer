@@ -80,7 +80,8 @@
     "tests/portfolio/test_model_comparison_pricing.q";
     "tests/portfolio/test_sabr_surface_pricing.q";
     "tests/portfolio/test_portfolio_merton_products.q";
-    "tests/portfolio/test_portfolio_bates_products.q");
+    "tests/portfolio/test_portfolio_bates_products.q";
+    "tests/portfolio/test_portfolio_var.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -183,6 +184,14 @@
     "tests/modelcheck/test_model_consistency_report.q";
     "tests/modelcheck/test_modelcheck_validation.q");
 
+.test.riskFiles:(
+    "tests/risk/test_pnl_distribution.q";
+    "tests/risk/test_var_expected_shortfall.q";
+    "tests/risk/test_var_report.q";
+    "tests/risk/test_risk_contribution.q";
+    "tests/risk/test_worst_loss_report.q";
+    "tests/risk/test_var_validation.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -199,7 +208,8 @@
     (`stress;     .test.stressFiles);
     (`montecarlo; .test.monteCarloFiles);
     (`calibration; .test.calibrationFiles);
-    (`modelcheck; .test.modelcheckFiles));
+    (`modelcheck; .test.modelcheckFiles);
+    (`risk;       .test.riskFiles));
 
 / --- Runner ---
 
