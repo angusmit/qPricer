@@ -82,7 +82,8 @@
     "tests/portfolio/test_portfolio_merton_products.q";
     "tests/portfolio/test_portfolio_bates_products.q";
     "tests/portfolio/test_portfolio_var.q";
-    "tests/portfolio/test_portfolio_historical_replay.q");
+    "tests/portfolio/test_portfolio_historical_replay.q";
+    "tests/portfolio/test_portfolio_limit_monitoring.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -198,7 +199,13 @@
     "tests/risk/test_historical_var_report.q";
     "tests/risk/test_historical_worst_events.q";
     "tests/risk/test_historical_replay_validation.q";
-    "tests/risk/test_historical_var_regression.q");
+    "tests/risk/test_historical_var_regression.q";
+    "tests/risk/test_limit_table_validation.q";
+    "tests/risk/test_var_limit_monitoring.q";
+    "tests/risk/test_greek_limit_monitoring.q";
+    "tests/risk/test_pnl_limit_monitoring.q";
+    "tests/risk/test_limit_summary_report.q";
+    "tests/risk/test_limit_monitoring_validation.q");
 
 / --- Combine all suites ---
 

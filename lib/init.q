@@ -38,6 +38,8 @@
 \l lib/var.q
 \l lib/histscen.q
 \l lib/replay.q
+\l lib/limits.q
+\l lib/limitreport.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -53,4 +55,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.28.1";
+.qfdm.version:"0.29";
