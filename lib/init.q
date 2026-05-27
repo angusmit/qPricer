@@ -36,6 +36,8 @@
 \l lib/calibreport.q
 \l lib/riskdist.q
 \l lib/var.q
+\l lib/histscen.q
+\l lib/replay.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -51,4 +53,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.27";
+.qfdm.version:"0.28";

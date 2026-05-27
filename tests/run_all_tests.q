@@ -81,7 +81,8 @@
     "tests/portfolio/test_sabr_surface_pricing.q";
     "tests/portfolio/test_portfolio_merton_products.q";
     "tests/portfolio/test_portfolio_bates_products.q";
-    "tests/portfolio/test_portfolio_var.q");
+    "tests/portfolio/test_portfolio_var.q";
+    "tests/portfolio/test_portfolio_historical_replay.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -190,7 +191,13 @@
     "tests/risk/test_var_report.q";
     "tests/risk/test_risk_contribution.q";
     "tests/risk/test_worst_loss_report.q";
-    "tests/risk/test_var_validation.q");
+    "tests/risk/test_var_validation.q";
+    "tests/risk/test_historical_shock_table.q";
+    "tests/risk/test_historical_replay_pricing.q";
+    "tests/risk/test_historical_replay_distribution.q";
+    "tests/risk/test_historical_var_report.q";
+    "tests/risk/test_historical_worst_events.q";
+    "tests/risk/test_historical_replay_validation.q");
 
 / --- Combine all suites ---
 
