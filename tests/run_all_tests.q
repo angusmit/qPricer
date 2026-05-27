@@ -97,7 +97,8 @@
     "tests/reporting/test_pnl_explain.q";
     "tests/reporting/test_batch.q";
     "tests/reporting/test_audit.q";
-    "tests/reporting/test_regression.q");
+    "tests/reporting/test_regression.q";
+    "tests/reporting/test_dashboard.q");
 
 .test.infraFiles:(
     "tests/infra/test_result.q";
@@ -205,7 +206,9 @@
     "tests/risk/test_greek_limit_monitoring.q";
     "tests/risk/test_pnl_limit_monitoring.q";
     "tests/risk/test_limit_summary_report.q";
-    "tests/risk/test_limit_monitoring_validation.q");
+    "tests/risk/test_limit_monitoring_validation.q";
+    "tests/risk/test_daily_risk_run.q";
+    "tests/risk/test_daily_risk_run_validation.q");
 
 / --- Combine all suites ---
 
