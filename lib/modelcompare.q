@@ -45,6 +45,16 @@
         sabrResult:.sabr.priceEuropeanWithSabr[optionRow;mktData;calibrationResult;configDict];
         if[not sabrResult[`status]~`OK; :@[errorRow;`errorMessage;:;sabrResult`statusMessage]];
         :.modelcompare.__buildSuccessRow[modelName;optionRow;sabrResult`unitPrice]];
+    / Merton series: price with Merton series formula
+    if[modelName~`mertonSeries;
+        spotVal:.marketbook.getSpot[marketDataBook;optionRow`underlying];
+        riskFreeRate:.marketbook.getRiskFreeRate[marketDataBook;optionRow`expiry];
+        divYield:.marketbook.getDividendYield[marketDataBook;optionRow`underlying;optionRow`expiry];
+        mertonParams:calibrationResult,`riskFreeRate`dividendYield!(riskFreeRate;divYield);
+        termCountValue:$[`termCount in key configDict;configDict`termCount;30];
+        mertonPrice:@[.merton.priceEuropeanSeries[optionRow`optionType;spotVal;optionRow`strike;optionRow`expiry;mertonParams;];termCountValue;{x}];
+        if[10h=type mertonPrice; :@[errorRow;`errorMessage;:;mertonPrice]];
+        :.modelcompare.__buildSuccessRow[modelName;optionRow;mertonPrice]];
     @[errorRow;`errorMessage;:;"Unknown model: ",string modelName]
  };
 

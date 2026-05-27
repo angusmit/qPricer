@@ -80,7 +80,10 @@
     if[`modelType in key config;
         if[config[`modelType]~`heston;
             if[tradeDictionary[`productType]~`equityOption;
-                :.portfolio.__priceHestonSafely[tradeDictionary;marketData;model;config]]]];
+                :.portfolio.__priceHestonSafely[tradeDictionary;marketData;model;config]]];
+        if[config[`modelType]~`merton;
+            if[tradeDictionary[`productType]~`equityOption;
+                :.portfolio.__priceMertonSafely[tradeDictionary;marketData;model;config]]]];
     functionResult:.[.engine.priceOption;(tradeDictionary;marketData;model;config);{x}];
     if[10h=type functionResult;
         :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
@@ -167,6 +170,27 @@
         tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
         functionResult`unitPrice;functionResult`notionalPrice;
         `monteCarlo;`heston;`OK;"")
+ };
+
+.portfolio.__priceMertonSafely:{[tradeDictionary;marketData;model;config]
+    barrierType:`none;
+    if[not tradeDictionary[`exerciseStyle]~`european;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`series;`merton;`ERROR;"Merton only supports European exercise")];
+    mertonFn:{.merton.priceEuropean[x 0;x 1;x 2]};
+    functionResult:@[mertonFn;(tradeDictionary;marketData;config);{x}];
+    if[10h=type functionResult;
+        :`tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+            tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+            tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+            0Nf;0Nf;`series;`merton;`ERROR;functionResult)];
+    `tradeId`underlying`productType`exerciseStyle`optionType`barrierType`unitPrice`notionalPrice`method`modelName`status`statusMessage!(
+        tradeDictionary`tradeId;tradeDictionary`underlying;tradeDictionary`productType;
+        tradeDictionary`exerciseStyle;tradeDictionary`optionType;barrierType;
+        functionResult`unitPrice;functionResult`notionalPrice;
+        `series;`merton;`OK;"")
  };
 
 .portfolio.__isGreeksSupported:{[tradeDictionary]
