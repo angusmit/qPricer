@@ -213,7 +213,9 @@
 .test.realdataFiles:(
     "tests/realdata/test_barchart_parser.q";
     "tests/realdata/test_barchart_multiday_replay.q";
-    "tests/realdata/test_barchart_performance.q");
+    "tests/realdata/test_barchart_performance.q";
+    "tests/realdata/test_barchart_model_pricing.q";
+    "tests/realdata/test_barchart_model_vs_market.q");
 
 / --- Combine all suites ---
 
