@@ -53,4 +53,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.28";
+.qfdm.version:"0.28.1";

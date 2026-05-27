@@ -197,7 +197,8 @@
     "tests/risk/test_historical_replay_distribution.q";
     "tests/risk/test_historical_var_report.q";
     "tests/risk/test_historical_worst_events.q";
-    "tests/risk/test_historical_replay_validation.q");
+    "tests/risk/test_historical_replay_validation.q";
+    "tests/risk/test_historical_var_regression.q");
 
 / --- Combine all suites ---
 

@@ -7,7 +7,7 @@ mktBook:.marketbook.createMarketDataBook[spotTable;volTable;rateTable;divTable];
 shockTable:.histscen.syntheticShockTable[`AAPL`MSFT];
 tradeTable:();
 tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(1;`AAPL;`equityOption;`european;`call;100f;1f;100000f;`equities;`none;0Nf;0f);
-tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(2;`MSFT;`equityOption;`european;`put;250f;1f;50000f;`equities;`none;0Nf;0f);
+tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(2;`MSFT;`equityOption;`european;`call;250f;1f;50000f;`equities;`none;0Nf;0f);
 replayResult:.replay.replayHistoricalScenarios[tradeTable;mktBook;shockTable;()!()];
 summaryResult:.replay.replaySummary replayResult;
 .testutil.assertTrue[summaryResult[`scenarioCount]>0;"scenarios ran"];

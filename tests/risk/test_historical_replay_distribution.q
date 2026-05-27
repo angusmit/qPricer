@@ -7,7 +7,7 @@ mktBook:.marketbook.createMarketDataBook[spotTable;volTable;rateTable;divTable];
 shockTable:.histscen.syntheticShockTable[`AAPL`MSFT];
 tradeTable:();
 tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(1;`AAPL;`equityOption;`european;`call;100f;1f;100000f;`equities;`none;0Nf;0f);
-tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(2;`MSFT;`equityOption;`european;`put;250f;1f;50000f;`equities;`none;0Nf;0f);
+tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(2;`MSFT;`equityOption;`european;`call;250f;1f;50000f;`equities;`none;0Nf;0f);
 replayResult:.replay.replayHistoricalScenarios[tradeTable;mktBook;shockTable;()!()];
 pnlDist:.replay.historicalPnlDistribution replayResult;
 scenCount:count .histscen.scenarioKeys shockTable;
@@ -15,4 +15,7 @@ scenCount:count .histscen.scenarioKeys shockTable;
 pnlVec:pnlDist`pnl;
 lossVec:pnlDist`loss;
 .testutil.assertTrue[all lossVec=(neg pnlVec);"loss = -pnl"];
+/ Crash scenarios should produce net losses (negative PnL) for call portfolio
+.testutil.assertTrue[any pnlVec<0f;"at least one losing scenario"];
+.testutil.assertTrue[any lossVec>0f;"at least one positive loss"];
 -1 "PASS test_historical_replay_distribution: scenarios=",string count pnlDist;
