@@ -75,7 +75,8 @@
     "tests/portfolio/test_portfolio_monte_carlo_products.q";
     "tests/portfolio/test_portfolio_basket_products.q";
     "tests/portfolio/test_portfolio_lookback_products.q";
-    "tests/portfolio/test_portfolio_heston_products.q");
+    "tests/portfolio/test_portfolio_heston_products.q";
+    "tests/portfolio/test_calibrated_model_pricing.q");
 
 .test.impliedVolFiles:(
     "tests/impliedvol/test_implied_vol_call.q";
@@ -137,6 +138,13 @@
     "tests/montecarlo/test_heston_validation.q";
     "tests/montecarlo/test_heston_greeks.q");
 
+.test.calibrationFiles:(
+    "tests/calibration/test_calibration_objective.q";
+    "tests/calibration/test_black_scholes_vol_calibration.q";
+    "tests/calibration/test_surface_calibration_diagnostics.q";
+    "tests/calibration/test_heston_grid_calibration.q";
+    "tests/calibration/test_calibration_validation.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -151,7 +159,8 @@
     (`reporting;  .test.reportingFiles);
     (`infra;      .test.infraFiles);
     (`stress;     .test.stressFiles);
-    (`montecarlo; .test.monteCarloFiles));
+    (`montecarlo; .test.monteCarloFiles);
+    (`calibration; .test.calibrationFiles));
 
 / --- Runner ---
 

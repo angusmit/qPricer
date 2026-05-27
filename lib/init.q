@@ -25,6 +25,8 @@
 \l lib/variance.q
 \l lib/convergence.q
 \l lib/heston.q
+\l lib/objective.q
+\l lib/calibration.q
 \l lib/portfolio.q
 \l lib/report.q
 \l lib/pnl.q
@@ -40,4 +42,4 @@
 \l lib/perfopt.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.20";
+.qfdm.version:"0.21";
