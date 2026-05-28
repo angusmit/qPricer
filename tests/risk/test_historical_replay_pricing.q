@@ -1,0 +1,21 @@
+\l lib/init.q
+spotTable:([] underlying:`AAPL`MSFT; spot:100 250f);
+volTable:([] underlying:`AAPL`MSFT; volatility:0.2 0.25);
+rateTable:([] expiry:enlist 1f; riskFreeRate:enlist 0.05);
+divTable:([] underlying:`AAPL`MSFT; dividendYield:0 0.01f);
+mktBook:.marketbook.createMarketDataBook[spotTable;volTable;rateTable;divTable];
+shockTable:.histscen.syntheticShockTable[`AAPL`MSFT];
+tradeTable:();
+tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(1;`AAPL;`equityOption;`european;`call;100f;1f;100000f;`equities;`none;0Nf;0f);
+tradeTable:tradeTable,enlist `tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`bookName`barrierType`barrierLevel`rebate!(2;`MSFT;`equityOption;`european;`call;250f;1f;50000f;`equities;`none;0Nf;0f);
+replayResult:.replay.replayHistoricalScenarios[tradeTable;mktBook;shockTable;()!()];
+.testutil.assertTrue[(count replayResult)>0;"replay has rows"];
+expectedRows:2*count .histscen.scenarioKeys shockTable;
+.testutil.assertTrue[expectedRows=count replayResult;"trade*scenario rows"];
+firstRow:replayResult 0;
+.testutil.assertTrue[`basePV in key firstRow;"has basePV"];
+.testutil.assertTrue[`shockedPV in key firstRow;"has shockedPV"];
+.testutil.assertTrue[`historicalPnl in key firstRow;"has historicalPnl"];
+okCount:sum (replayResult`status)=`OK;
+.testutil.assertTrue[okCount>0;"some rows OK"];
+-1 "PASS test_historical_replay_pricing: rows=",string[count replayResult],", okRows=",string okCount;

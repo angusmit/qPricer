@@ -1,5 +1,5 @@
 \l constant.q
-\l bs.q 
+\l bs.q
 
 /reference: https://www.codearmo.com/python-tutorial/options-trading-greeks-black-scholes
 /
