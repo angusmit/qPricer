@@ -296,3 +296,284 @@
     rankDicts:rankFn[;sortedRows] each til rankCount;
     .commodity.modelreport.__dictsToTable rankDicts
  };
+
+/ --- Greeks / sensitivities (v0.37) --------------------------------
+/ Finite-difference sensitivities for each commodity model under a common
+/ greekConfig. All four models use FD on their respective pricers, which keeps
+/ the derivative units consistent (every column is dPrice / d(parameter)).
+/ For mrjump the same mcConfig (and hence the same randomSeed) is reused
+/ across base/up/down evaluations to apply common random numbers and reduce
+/ FD noise.
+
+.commodity.modelreport.defaultGreekConfig:{[]
+    `spotBumpPct`volBump`meanReversionBump`longRunLogMeanBump`jumpIntensityBump`jumpMeanBump`correlationBump`useCentralDifference!(
+        0.01;
+        0.01;
+        0.01;
+        0.01;
+        0.10;
+        0.01;
+        0.01;
+        1b)
+ };
+
+.commodity.modelreport.bumpDict:{[paramDict;paramName;bumpAmount]
+    if[not paramName in key paramDict; '"bumpDict missing key: ",string paramName];
+    @[paramDict;paramName;+;bumpAmount]
+ };
+
+.commodity.modelreport.finiteDifference:{[basePrice;upPrice;downPrice;bumpAmount;useCentralDifference]
+    if[0f=bumpAmount; '"finiteDifference bumpAmount must be non-zero"];
+    $[useCentralDifference;
+        (upPrice-downPrice)%(2f*bumpAmount);
+        (upPrice-basePrice)%bumpAmount]
+ };
+
+/ --- Per-model greek wrappers ---
+
+.commodity.modelreport.greeksBlack76:{[optionSetup;modelInputs;greekConfig]
+    failRowDict:`modelName`basePrice`forwardDelta`volatilityVega`pricingStatus`pricingErrorMessage!(
+        `black76;0Nf;0Nf;0Nf;`ERROR;"");
+    bodyFn:{[setup;mi;cfg]
+        if[not `black76 in key mi; '"modelInputs missing key black76"];
+        inputs:mi`black76;
+        if[not `volatility in key inputs; '"modelInputs.black76 missing volatility"];
+        optType:setup`optionType;
+        strikeVal:setup`strikePrice;
+        expiryVal:setup`expiry;
+        rateVal:setup`riskFreeRate;
+        fwdVal:$[`forwardPrice in key inputs; inputs`forwardPrice; setup`forwardPrice];
+        volVal:inputs`volatility;
+        spotBumpPct:cfg`spotBumpPct;
+        volBump:cfg`volBump;
+        useCentral:cfg`useCentralDifference;
+        fwdBumpAmount:fwdVal*spotBumpPct;
+        basePrice:.commodity.black76.price[optType;fwdVal;strikeVal;expiryVal;volVal;rateVal];
+        fwdUpPrice:.commodity.black76.price[optType;fwdVal+fwdBumpAmount;strikeVal;expiryVal;volVal;rateVal];
+        fwdDownPrice:.commodity.black76.price[optType;fwdVal-fwdBumpAmount;strikeVal;expiryVal;volVal;rateVal];
+        volUpPrice:.commodity.black76.price[optType;fwdVal;strikeVal;expiryVal;volVal+volBump;rateVal];
+        volDownPrice:.commodity.black76.price[optType;fwdVal;strikeVal;expiryVal;volVal-volBump;rateVal];
+        forwardDelta:.commodity.modelreport.finiteDifference[basePrice;fwdUpPrice;fwdDownPrice;fwdBumpAmount;useCentral];
+        volatilityVega:.commodity.modelreport.finiteDifference[basePrice;volUpPrice;volDownPrice;volBump;useCentral];
+        `basePrice`forwardDelta`volatilityVega!(basePrice;forwardDelta;volatilityVega)
+        };
+    result:.[bodyFn;(optionSetup;modelInputs;greekConfig);{x}];
+    if[10h=type result;
+        :.commodity.modelreport.__dictsToTable enlist @[failRowDict;`pricingErrorMessage;:;result]];
+    okRow:`modelName`basePrice`forwardDelta`volatilityVega`pricingStatus`pricingErrorMessage!(
+        `black76;result`basePrice;result`forwardDelta;result`volatilityVega;`OK;"");
+    .commodity.modelreport.__dictsToTable enlist okRow
+ };
+
+.commodity.modelreport.greeksSchwartz:{[optionSetup;modelInputs;greekConfig]
+    failRowDict:`modelName`basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity`pricingStatus`pricingErrorMessage!(
+        `schwartz;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"");
+    bodyFn:{[setup;mi;cfg]
+        if[not `schwartz in key mi; '"modelInputs missing key schwartz"];
+        inputs:mi`schwartz;
+        if[not all `x0`params in key inputs; '"modelInputs.schwartz missing x0 or params"];
+        optType:setup`optionType;
+        strikeVal:setup`strikePrice;
+        expiryVal:setup`expiry;
+        rateVal:setup`riskFreeRate;
+        x0:inputs`x0;
+        params:inputs`params;
+        spotBumpPct:cfg`spotBumpPct;
+        logBump:log 1f+spotBumpPct;
+        volBump:cfg`volBump;
+        kappaBump:cfg`meanReversionBump;
+        thetaBump:cfg`longRunLogMeanBump;
+        useCentral:cfg`useCentralDifference;
+        priceFn:.commodity.schwartz.europeanOptionPrice[optType;;strikeVal;expiryVal;rateVal;];
+        basePrice:priceFn[x0;params];
+        xUpPrice:priceFn[x0+logBump;params];
+        xDownPrice:priceFn[x0-logBump;params];
+        logStateDelta:.commodity.modelreport.finiteDifference[basePrice;xUpPrice;xDownPrice;logBump;useCentral];
+        volUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`volatility;volBump]];
+        volDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`volatility;neg volBump]];
+        volatilityVega:.commodity.modelreport.finiteDifference[basePrice;volUpPrice;volDownPrice;volBump;useCentral];
+        kappaUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;kappaBump]];
+        kappaDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;neg kappaBump]];
+        meanReversionSensitivity:.commodity.modelreport.finiteDifference[basePrice;kappaUpPrice;kappaDownPrice;kappaBump;useCentral];
+        thetaUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`longRunLogMean;thetaBump]];
+        thetaDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`longRunLogMean;neg thetaBump]];
+        longRunLogMeanSensitivity:.commodity.modelreport.finiteDifference[basePrice;thetaUpPrice;thetaDownPrice;thetaBump;useCentral];
+        `basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity!(
+            basePrice;logStateDelta;volatilityVega;meanReversionSensitivity;longRunLogMeanSensitivity)
+        };
+    result:.[bodyFn;(optionSetup;modelInputs;greekConfig);{x}];
+    if[10h=type result;
+        :.commodity.modelreport.__dictsToTable enlist @[failRowDict;`pricingErrorMessage;:;result]];
+    okRow:`modelName`basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity`pricingStatus`pricingErrorMessage!(
+        `schwartz;result`basePrice;result`logStateDelta;result`volatilityVega;result`meanReversionSensitivity;result`longRunLogMeanSensitivity;`OK;"");
+    .commodity.modelreport.__dictsToTable enlist okRow
+ };
+
+.commodity.modelreport.greeksSchwartz2:{[optionSetup;modelInputs;greekConfig]
+    failRowDict:`modelName`basePrice`shortFactorSensitivity`longFactorSensitivity`shortVolSensitivity`longVolSensitivity`meanReversionSensitivity`correlationSensitivity`pricingStatus`pricingErrorMessage!(
+        `schwartz2;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"");
+    bodyFn:{[setup;mi;cfg]
+        if[not `schwartz2 in key mi; '"modelInputs missing key schwartz2"];
+        inputs:mi`schwartz2;
+        if[not all `shortFactor0`longFactor0`params in key inputs;
+            '"modelInputs.schwartz2 missing shortFactor0, longFactor0, or params"];
+        optType:setup`optionType;
+        strikeVal:setup`strikePrice;
+        expiryVal:setup`expiry;
+        rateVal:setup`riskFreeRate;
+        shortFactor0:inputs`shortFactor0;
+        longFactor0:inputs`longFactor0;
+        params:inputs`params;
+        spotBumpPct:cfg`spotBumpPct;
+        logBump:log 1f+spotBumpPct;
+        volBump:cfg`volBump;
+        kappaBump:cfg`meanReversionBump;
+        rhoBump:cfg`correlationBump;
+        useCentral:cfg`useCentralDifference;
+        rhoVal:params`correlation;
+        if[(rhoVal+rhoBump)>=1f; '"schwartz2 correlation bump would exceed +1; reduce correlationBump"];
+        if[(rhoVal-rhoBump)<=-1f; '"schwartz2 correlation bump would breach -1; reduce correlationBump"];
+        priceFn:.commodity.schwartz2.europeanOptionPrice[optType;;;strikeVal;expiryVal;rateVal;];
+        basePrice:priceFn[shortFactor0;longFactor0;params];
+        shortUpPrice:priceFn[shortFactor0+logBump;longFactor0;params];
+        shortDownPrice:priceFn[shortFactor0-logBump;longFactor0;params];
+        shortFactorSensitivity:.commodity.modelreport.finiteDifference[basePrice;shortUpPrice;shortDownPrice;logBump;useCentral];
+        longUpPrice:priceFn[shortFactor0;longFactor0+logBump;params];
+        longDownPrice:priceFn[shortFactor0;longFactor0-logBump;params];
+        longFactorSensitivity:.commodity.modelreport.finiteDifference[basePrice;longUpPrice;longDownPrice;logBump;useCentral];
+        shortVolUpPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`shortVolatility;volBump]];
+        shortVolDownPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`shortVolatility;neg volBump]];
+        shortVolSensitivity:.commodity.modelreport.finiteDifference[basePrice;shortVolUpPrice;shortVolDownPrice;volBump;useCentral];
+        longVolUpPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`longVolatility;volBump]];
+        longVolDownPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`longVolatility;neg volBump]];
+        longVolSensitivity:.commodity.modelreport.finiteDifference[basePrice;longVolUpPrice;longVolDownPrice;volBump;useCentral];
+        kappaUpPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;kappaBump]];
+        kappaDownPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;neg kappaBump]];
+        meanReversionSensitivity:.commodity.modelreport.finiteDifference[basePrice;kappaUpPrice;kappaDownPrice;kappaBump;useCentral];
+        rhoUpPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`correlation;rhoBump]];
+        rhoDownPrice:priceFn[shortFactor0;longFactor0;.commodity.modelreport.bumpDict[params;`correlation;neg rhoBump]];
+        correlationSensitivity:.commodity.modelreport.finiteDifference[basePrice;rhoUpPrice;rhoDownPrice;rhoBump;useCentral];
+        `basePrice`shortFactorSensitivity`longFactorSensitivity`shortVolSensitivity`longVolSensitivity`meanReversionSensitivity`correlationSensitivity!(
+            basePrice;shortFactorSensitivity;longFactorSensitivity;shortVolSensitivity;longVolSensitivity;meanReversionSensitivity;correlationSensitivity)
+        };
+    result:.[bodyFn;(optionSetup;modelInputs;greekConfig);{x}];
+    if[10h=type result;
+        :.commodity.modelreport.__dictsToTable enlist @[failRowDict;`pricingErrorMessage;:;result]];
+    okRow:`modelName`basePrice`shortFactorSensitivity`longFactorSensitivity`shortVolSensitivity`longVolSensitivity`meanReversionSensitivity`correlationSensitivity`pricingStatus`pricingErrorMessage!(
+        `schwartz2;result`basePrice;result`shortFactorSensitivity;result`longFactorSensitivity;result`shortVolSensitivity;result`longVolSensitivity;result`meanReversionSensitivity;result`correlationSensitivity;`OK;"");
+    .commodity.modelreport.__dictsToTable enlist okRow
+ };
+
+.commodity.modelreport.greeksMrJump:{[optionSetup;modelInputs;greekConfig]
+    failRowDict:`modelName`basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity`jumpIntensitySensitivity`jumpMeanSensitivity`standardError`pricingStatus`pricingErrorMessage!(
+        `mrjump;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"");
+    bodyFn:{[setup;mi;cfg]
+        if[not `mrjump in key mi; '"modelInputs missing key mrjump"];
+        inputs:mi`mrjump;
+        if[not all `x0`params`mcConfig in key inputs;
+            '"modelInputs.mrjump missing x0, params, or mcConfig"];
+        optType:setup`optionType;
+        strikeVal:setup`strikePrice;
+        expiryVal:setup`expiry;
+        rateVal:setup`riskFreeRate;
+        x0:inputs`x0;
+        params:inputs`params;
+        mcCfg:inputs`mcConfig;
+        spotBumpPct:cfg`spotBumpPct;
+        logBump:log 1f+spotBumpPct;
+        volBump:cfg`volBump;
+        kappaBump:cfg`meanReversionBump;
+        thetaBump:cfg`longRunLogMeanBump;
+        lambdaBump:cfg`jumpIntensityBump;
+        jumpMeanBumpVal:cfg`jumpMeanBump;
+        useCentral:cfg`useCentralDifference;
+        if[(params`jumpIntensity)<lambdaBump;
+            '"mrjump greeks: jumpIntensityBump would push jumpIntensity below zero; choose a smaller bump"];
+        priceFn:{[ot;k;t;r;mc;xVal;pVal]
+            (.commodity.mrjump.europeanOptionPriceMC[ot;xVal;k;t;r;pVal;mc])`price
+            }[optType;strikeVal;expiryVal;rateVal;mcCfg;;];
+        baseMcResult:.commodity.mrjump.europeanOptionPriceMC[optType;x0;strikeVal;expiryVal;rateVal;params;mcCfg];
+        basePrice:baseMcResult`price;
+        baseSE:baseMcResult`standardError;
+        xUpPrice:priceFn[x0+logBump;params];
+        xDownPrice:priceFn[x0-logBump;params];
+        logStateDelta:.commodity.modelreport.finiteDifference[basePrice;xUpPrice;xDownPrice;logBump;useCentral];
+        volUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`volatility;volBump]];
+        volDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`volatility;neg volBump]];
+        volatilityVega:.commodity.modelreport.finiteDifference[basePrice;volUpPrice;volDownPrice;volBump;useCentral];
+        kappaUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;kappaBump]];
+        kappaDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`meanReversionSpeed;neg kappaBump]];
+        meanReversionSensitivity:.commodity.modelreport.finiteDifference[basePrice;kappaUpPrice;kappaDownPrice;kappaBump;useCentral];
+        thetaUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`longRunLogMean;thetaBump]];
+        thetaDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`longRunLogMean;neg thetaBump]];
+        longRunLogMeanSensitivity:.commodity.modelreport.finiteDifference[basePrice;thetaUpPrice;thetaDownPrice;thetaBump;useCentral];
+        lambdaUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`jumpIntensity;lambdaBump]];
+        lambdaDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`jumpIntensity;neg lambdaBump]];
+        jumpIntensitySensitivity:.commodity.modelreport.finiteDifference[basePrice;lambdaUpPrice;lambdaDownPrice;lambdaBump;useCentral];
+        jmUpPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`jumpMean;jumpMeanBumpVal]];
+        jmDownPrice:priceFn[x0;.commodity.modelreport.bumpDict[params;`jumpMean;neg jumpMeanBumpVal]];
+        jumpMeanSensitivity:.commodity.modelreport.finiteDifference[basePrice;jmUpPrice;jmDownPrice;jumpMeanBumpVal;useCentral];
+        `basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity`jumpIntensitySensitivity`jumpMeanSensitivity`standardError!(
+            basePrice;logStateDelta;volatilityVega;meanReversionSensitivity;longRunLogMeanSensitivity;jumpIntensitySensitivity;jumpMeanSensitivity;baseSE)
+        };
+    result:.[bodyFn;(optionSetup;modelInputs;greekConfig);{x}];
+    if[10h=type result;
+        :.commodity.modelreport.__dictsToTable enlist @[failRowDict;`pricingErrorMessage;:;result]];
+    okRow:`modelName`basePrice`logStateDelta`volatilityVega`meanReversionSensitivity`longRunLogMeanSensitivity`jumpIntensitySensitivity`jumpMeanSensitivity`standardError`pricingStatus`pricingErrorMessage!(
+        `mrjump;result`basePrice;result`logStateDelta;result`volatilityVega;result`meanReversionSensitivity;result`longRunLogMeanSensitivity;result`jumpIntensitySensitivity;result`jumpMeanSensitivity;result`standardError;`OK;"");
+    .commodity.modelreport.__dictsToTable enlist okRow
+ };
+
+/ --- Composite greeks API ---
+
+.commodity.modelreport.greeksAllModels:{[optionSetup;modelInputs;greekConfig]
+    b76Tbl:.commodity.modelreport.greeksBlack76[optionSetup;modelInputs;greekConfig];
+    schTbl:.commodity.modelreport.greeksSchwartz[optionSetup;modelInputs;greekConfig];
+    sch2Tbl:.commodity.modelreport.greeksSchwartz2[optionSetup;modelInputs;greekConfig];
+    mrjTbl:.commodity.modelreport.greeksMrJump[optionSetup;modelInputs;greekConfig];
+    b76Tbl uj schTbl uj sch2Tbl uj mrjTbl
+ };
+
+.commodity.modelreport.greeksSummary:{[greeksTable]
+    okMask:(greeksTable`pricingStatus)=`OK;
+    okRows:greeksTable where okMask;
+    modelCountValue:count greeksTable;
+    okModelCountValue:count okRows;
+    statusVal:`OK; errMsgVal:"";
+    if[okModelCountValue=0;
+        statusVal:`ERROR;
+        errMsgVal:"All model greeks failed"];
+    maxPrimaryDeltaValue:0Nf;
+    maxVolatilityVegaValue:0Nf;
+    maxJumpIntensitySensitivityValue:0Nf;
+    if[okModelCountValue>0;
+        availableCols:cols okRows;
+        primaryDeltaFn:{[rowDict]
+            modelNameVal:rowDict`modelName;
+            $[modelNameVal=`black76; rowDict`forwardDelta;
+              modelNameVal=`schwartz; rowDict`logStateDelta;
+              modelNameVal=`schwartz2; rowDict`longFactorSensitivity;
+              modelNameVal=`mrjump; rowDict`logStateDelta;
+              0Nf]
+            };
+        primaryDeltas:primaryDeltaFn each okRows;
+        nonNullDeltas:primaryDeltas where not null primaryDeltas;
+        if[0<count nonNullDeltas; maxPrimaryDeltaValue:max abs nonNullDeltas];
+        if[`volatilityVega in availableCols;
+            volVegas:okRows`volatilityVega;
+            nonNullVegas:volVegas where not null volVegas;
+            if[0<count nonNullVegas; maxVolatilityVegaValue:max abs nonNullVegas]];
+        if[`jumpIntensitySensitivity in availableCols;
+            jumpSens:okRows`jumpIntensitySensitivity;
+            nonNullJumpSens:jumpSens where not null jumpSens;
+            if[0<count nonNullJumpSens; maxJumpIntensitySensitivityValue:max abs nonNullJumpSens]]];
+    `modelCount`okModelCount`maxPrimaryDelta`maxVolatilityVega`maxJumpIntensitySensitivity`status`errorMessage!(
+        modelCountValue;okModelCountValue;maxPrimaryDeltaValue;maxVolatilityVegaValue;maxJumpIntensitySensitivityValue;statusVal;errMsgVal)
+ };
+
+.commodity.modelreport.runComparisonWithGreeks:{[optionSetup;modelInputs;scenarioConfig;quantity;contractMultiplier;greekConfig]
+    baseReport:.commodity.modelreport.runComparison[optionSetup;modelInputs;scenarioConfig;quantity;contractMultiplier];
+    greeksTbl:.commodity.modelreport.greeksAllModels[optionSetup;modelInputs;greekConfig];
+    greeksSum:.commodity.modelreport.greeksSummary greeksTbl;
+    baseReport,`greeksTable`greeksSummary!(greeksTbl;greeksSum)
+ };

@@ -260,7 +260,14 @@
     "tests/commodity/test_modelreport_summary.q";
     "tests/commodity/test_modelreport_scenario_pnl.q";
     "tests/commodity/test_modelreport_validation.q";
-    "tests/commodity/test_modelreport_ranking.q");
+    "tests/commodity/test_modelreport_ranking.q";
+    "tests/commodity/test_modelreport_greeks_black76.q";
+    "tests/commodity/test_modelreport_greeks_schwartz.q";
+    "tests/commodity/test_modelreport_greeks_schwartz2.q";
+    "tests/commodity/test_modelreport_greeks_mrjump.q";
+    "tests/commodity/test_modelreport_greeks_all.q";
+    "tests/commodity/test_modelreport_greeks_summary.q";
+    "tests/commodity/test_modelreport_comparison_with_greeks.q");
 
 / --- Combine all suites ---
 
