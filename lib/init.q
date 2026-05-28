@@ -77,4 +77,4 @@
 \l lib/backtest.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.40";
+.qfdm.version:"0.41";

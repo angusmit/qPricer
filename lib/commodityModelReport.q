@@ -1159,3 +1159,156 @@
     `portfolioRisk`dashboard`limitTable`limitSummary`breachReport!(
         portfolioRiskRes;dashboard;limitTbl;limitSum;breachRep)
  };
+
+/ --- Limit history and trend (v0.41) -------------------------------
+/ In-memory time-series layer over the v0.40 limit checker. Snapshot a
+/ limitTable / limitSummary with run metadata, append to a history table,
+/ aggregate per-limit statistics, detect repeated breaches and worsening
+/ trends. No persistence layer; callers keep histories in q variables.
+/ Public:  limitSnapshot, limitSummarySnapshot, appendLimitHistory,
+/          limitHistorySummary, limitBreachTrend, repeatedBreaches,
+/          limitHistoryDashboard, runPortfolioRiskWithLimitHistory.
+/ Private: __broadcastColumn.
+
+.commodity.modelreport.__broadcastColumn:{[rowCount;atomValue]
+    rowCount#enlist atomValue
+ };
+
+.commodity.modelreport.limitSnapshot:{[runId;runDate;portfolioName;limitTable]
+    if[(0=count limitTable)|not 98h=type limitTable;
+        :([] runId:0#`; runDate:0#0Nd; portfolioName:0#`; limitName:0#`; metricValue:0#0Nf; warningThreshold:0#0Nf; breachThreshold:0#0Nf; status:0#`; breachAmount:0#0Nf; message:0#"")];
+    rowCount:count limitTable;
+    runIdCol:.commodity.modelreport.__broadcastColumn[rowCount;runId];
+    runDateCol:.commodity.modelreport.__broadcastColumn[rowCount;runDate];
+    portfolioCol:.commodity.modelreport.__broadcastColumn[rowCount;portfolioName];
+    tagged:update runId:runIdCol, runDate:runDateCol, portfolioName:portfolioCol from limitTable;
+    `runId`runDate`portfolioName`limitName`metricValue`warningThreshold`breachThreshold`status`breachAmount`message xcols tagged
+ };
+
+.commodity.modelreport.limitSummarySnapshot:{[runId;runDate;portfolioName;limitSummary]
+    rowDict:`runId`runDate`portfolioName`limitCount`okCount`warningCount`breachCount`errorCount`overallStatus`statusMessage!(
+        runId;runDate;portfolioName;
+        limitSummary`limitCount;
+        limitSummary`okCount;
+        limitSummary`warningCount;
+        limitSummary`breachCount;
+        limitSummary`errorCount;
+        limitSummary`overallStatus;
+        limitSummary`statusMessage);
+    .commodity.modelreport.__dictsToTable enlist rowDict
+ };
+
+.commodity.modelreport.appendLimitHistory:{[existingHistory;newSnapshot]
+    existingIsTable:(98h=type existingHistory)&0<count existingHistory;
+    newIsTable:(98h=type newSnapshot)&0<count newSnapshot;
+    if[not existingIsTable; :newSnapshot];
+    if[not newIsTable; :existingHistory];
+    existingHistory uj newSnapshot
+ };
+
+.commodity.modelreport.limitHistorySummary:{[limitHistory]
+    emptyResult:([] limitName:0#`; observationCount:0#0; okCount:0#0; warningCount:0#0; breachCount:0#0; errorCount:0#0; latestStatus:0#`; latestMetricValue:0#0Nf; worstMetricValue:0#0Nf; maxBreachAmount:0#0Nf; breachRate:0#0Nf; warningRate:0#0Nf; status:0#`; errorMessage:0#"");
+    if[(0=count limitHistory)|not 98h=type limitHistory; :emptyResult];
+    sortedHistory:`runDate`runId xasc limitHistory;
+    grouped:select
+        observationCount:count i,
+        okCount:sum status=`OK,
+        warningCount:sum status=`warning,
+        breachCount:sum status=`breach,
+        errorCount:sum status=`ERROR,
+        latestStatus:last status,
+        latestMetricValue:last metricValue,
+        worstMetricValue:max metricValue,
+        maxBreachAmount:max breachAmount
+        by limitName from sortedHistory;
+    grouped:update breachRate:(`float$breachCount)%`float$observationCount,
+                   warningRate:(`float$warningCount)%`float$observationCount
+        from grouped;
+    grouped:update status:count[i]#`OK, errorMessage:count[i]#enlist "" from grouped;
+    0!grouped
+ };
+
+.commodity.modelreport.limitBreachTrend:{[limitHistory;lookbackRuns]
+    emptyResult:([] limitName:0#`; lookbackRuns:0#0; latestMetricValue:0#0Nf; previousMetricValue:0#0Nf; metricChange:0#0Nf; metricChangePct:0#0Nf; latestStatus:0#`; trendDirection:0#`; status:0#`; errorMessage:0#"");
+    if[(0=count limitHistory)|not 98h=type limitHistory; :emptyResult];
+    if[lookbackRuns<1; '"limitBreachTrend lookbackRuns must be >= 1"];
+    sortedHistory:`runDate`runId xasc limitHistory;
+    limitNames:distinct sortedHistory`limitName;
+    trendFn:{[limitNameVal;sortedHistoryLocal;lookbackRunsLocal]
+        rowsForLimit:sortedHistoryLocal where (sortedHistoryLocal`limitName)=limitNameVal;
+        latestRow:last rowsForLimit;
+        latestVal:latestRow`metricValue;
+        latestStatusVal:latestRow`status;
+        priorRows:(-1)_rowsForLimit;
+        priorAvailable:count priorRows;
+        takeCount:lookbackRunsLocal&priorAvailable;
+        prevWindow:$[takeCount<=0; (); (neg takeCount)#priorRows];
+        previousVal:0Nf;
+        metricChangeVal:0Nf;
+        metricChangePctVal:0Nf;
+        trendDir:`flat;
+        statusVal:`OK;
+        errMsgVal:"";
+        if[0=count prevWindow;
+            statusVal:`warning;
+            errMsgVal:"Insufficient history for trend"];
+        if[0<count prevWindow;
+            previousVal:avg prevWindow`metricValue;
+            metricChangeVal:latestVal-previousVal;
+            metricChangePctVal:$[0f=previousVal; 0Nf; metricChangeVal%abs previousVal];
+            trendDir:$[metricChangeVal>0f; `worsening;
+                       metricChangeVal<0f; `improving;
+                       `flat]];
+        `limitName`lookbackRuns`latestMetricValue`previousMetricValue`metricChange`metricChangePct`latestStatus`trendDirection`status`errorMessage!(
+            limitNameVal;lookbackRunsLocal;latestVal;previousVal;metricChangeVal;metricChangePctVal;latestStatusVal;trendDir;statusVal;errMsgVal)
+        };
+    rowDicts:trendFn[;sortedHistory;lookbackRuns] each limitNames;
+    .commodity.modelreport.__dictsToTable rowDicts
+ };
+
+.commodity.modelreport.repeatedBreaches:{[limitHistory;minBreachCount]
+    emptyResult:([] limitName:0#`; breachCount:0#0; warningCount:0#0; observationCount:0#0; breachRate:0#0Nf; latestStatus:0#`; maxBreachAmount:0#0Nf; status:0#`; errorMessage:0#"");
+    historySum:.commodity.modelreport.limitHistorySummary limitHistory;
+    if[0=count historySum; :emptyResult];
+    repeatedRows:historySum where (historySum`breachCount)>=minBreachCount;
+    if[0=count repeatedRows; :emptyResult];
+    select limitName, breachCount, warningCount, observationCount, breachRate, latestStatus, maxBreachAmount, status, errorMessage from repeatedRows
+ };
+
+.commodity.modelreport.limitHistoryDashboard:{[limitHistory;summaryHistory;lookbackRuns;minBreachCount]
+    historySum:.commodity.modelreport.limitHistorySummary limitHistory;
+    trendTbl:.commodity.modelreport.limitBreachTrend[limitHistory;lookbackRuns];
+    repeated:.commodity.modelreport.repeatedBreaches[limitHistory;minBreachCount];
+    summaryIsTable:(98h=type summaryHistory)&0<count summaryHistory;
+    latestSum:$[summaryIsTable; last `runDate`runId xasc summaryHistory; ()!()];
+    dashStatusVal:`OK;
+    dashMsgVal:"OK";
+    if[(99h=type latestSum)&`overallStatus in key latestSum;
+        dashStatusVal:latestSum`overallStatus;
+        dashMsgVal:$[`statusMessage in key latestSum; latestSum`statusMessage; ""]];
+    if[(0=count limitHistory)|not 98h=type limitHistory;
+        dashStatusVal:`ERROR;
+        dashMsgVal:"Empty limit history"];
+    `historySummary`breachTrend`repeatedBreaches`latestSummary`dashboardStatus`dashboardMessage!(
+        historySum;trendTbl;repeated;latestSum;dashStatusVal;dashMsgVal)
+ };
+
+/ Note: q lambdas cap explicit params at 8, so run metadata and existing
+/ histories are bundled into dicts.
+/   runMetadata:       `runId`runDate`portfolioName!(...)
+/   existingHistories: `limitHistory`summaryHistory!(...) (either may be ())
+.commodity.modelreport.runPortfolioRiskWithLimitHistory:{[positions;greekConfig;disagreementConfig;limitConfig;topN;runMetadata;existingHistories]
+    runIdVal:runMetadata`runId;
+    runDateVal:runMetadata`runDate;
+    portfolioNameVal:runMetadata`portfolioName;
+    existingLimitHistory:$[`limitHistory in key existingHistories; existingHistories`limitHistory; ()];
+    existingSummaryHistory:$[`summaryHistory in key existingHistories; existingHistories`summaryHistory; ()];
+    currentRun:.commodity.modelreport.runPortfolioRiskWithLimits[positions;greekConfig;disagreementConfig;limitConfig;topN];
+    snapshot:.commodity.modelreport.limitSnapshot[runIdVal;runDateVal;portfolioNameVal;currentRun`limitTable];
+    summarySnapshot:.commodity.modelreport.limitSummarySnapshot[runIdVal;runDateVal;portfolioNameVal;currentRun`limitSummary];
+    limitHistory:.commodity.modelreport.appendLimitHistory[existingLimitHistory;snapshot];
+    summaryHistory:.commodity.modelreport.appendLimitHistory[existingSummaryHistory;summarySnapshot];
+    dashboard:.commodity.modelreport.limitHistoryDashboard[limitHistory;summaryHistory;3;2];
+    `currentRun`limitHistory`summaryHistory`historyDashboard!(
+        currentRun;limitHistory;summaryHistory;dashboard)
+ };

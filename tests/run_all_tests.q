@@ -289,7 +289,14 @@
     "tests/commodity/test_modelreport_portfolio_limits_breach.q";
     "tests/commodity/test_modelreport_limit_breach_report.q";
     "tests/commodity/test_modelreport_portfolio_risk_with_limits.q";
-    "tests/commodity/test_modelreport_portfolio_limits_error_isolation.q");
+    "tests/commodity/test_modelreport_portfolio_limits_error_isolation.q";
+    "tests/commodity/test_modelreport_limit_snapshot.q";
+    "tests/commodity/test_modelreport_limit_history_append.q";
+    "tests/commodity/test_modelreport_limit_history_summary.q";
+    "tests/commodity/test_modelreport_limit_breach_trend.q";
+    "tests/commodity/test_modelreport_repeated_breaches.q";
+    "tests/commodity/test_modelreport_limit_history_dashboard.q";
+    "tests/commodity/test_modelreport_limit_history_wrapper.q");
 
 / --- Combine all suites ---
 

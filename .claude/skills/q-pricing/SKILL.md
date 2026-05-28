@@ -331,7 +331,23 @@ The result of `select … by key from t` is a keyed table. Direct column indexin
 
 **7. Avoid q built-ins as variable/column/namespace names**
 
-In addition to obvious cases (`value`, `count`, `select`, `key`, `type`, `string`, `first`, `last`, `sum`, `avg`, `min`, `max`, `exp`, `log`, `sqrt`), the keyword `rank` is also reserved and will trigger `'assign` errors when used as a table-literal column name. Prefer descriptive names like `offenderRank`, `breachRank`, `optionValue`, `tradeCount`.
+In addition to obvious cases (`value`, `count`, `select`, `key`, `type`, `string`, `first`, `last`, `sum`, `avg`, `min`, `max`, `exp`, `log`, `sqrt`), the keyword `rank` is also reserved and will trigger `'assign` errors when used as a table-literal column name. Prefer descriptive names like `offenderRank`, `breachRank`, `optionValue`, `tradeCount`. Function parameters named `value` can also surface as `'match` errors at the lambda-definition site — rename to `atomValue` etc.
+
+**8. q lambdas allow at most 8 explicit parameters**
+
+`{[a;b;c;d;e;f;g;h;i] ...}` fails with `'params`. When you genuinely need more arguments — typically a wrapper that threads metadata plus existing state through several layers — bundle related args into dicts: pass `runMetadata:`runId`runDate`portfolioName!(…)` and `existingHistories:`limitHistory`summaryHistory!(…)` instead of nine bare positional params.
+
+**9. `update col:scalar from t` on a single atom can misalign for strings**
+
+For symbol/numeric/date atoms, q's `update col:atom from t` broadcasts the atom across rows correctly. For a string atom (char list), the same form treats it as a list and may error or assign char-by-char. The safe broadcast idiom is `count[t]#enlist atom` — this works uniformly for symbols, dates, ints, floats, and strings.
+
+**10. `update col:atom from t` appends new columns at the end**
+
+If the consumer cares about column order (tests, downstream `first cols tbl`, dashboard display), apply `xcols` to reorder after the `update`: `requiredColOrder xcols (update newCol:val from tbl)`.
+
+**11. `n#x` cycles when n > count x**
+
+`(-3)#enlist row` on a 1-row table returns a 3-row table by duplicating the single row, NOT an empty take and NOT an error. When you need a "take up to N rows, otherwise empty" semantics (e.g. computing a trend over the *prior* runs but the limit only has one observation), explicitly bound the take: `takeCount:lookbackRuns&priorAvailable; window:$[takeCount<=0;();(neg takeCount)#priorRows]`.
 
 ## q/kdb+ naming and namespace rules
 
