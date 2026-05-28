@@ -267,7 +267,14 @@
     "tests/commodity/test_modelreport_greeks_mrjump.q";
     "tests/commodity/test_modelreport_greeks_all.q";
     "tests/commodity/test_modelreport_greeks_summary.q";
-    "tests/commodity/test_modelreport_comparison_with_greeks.q");
+    "tests/commodity/test_modelreport_comparison_with_greeks.q";
+    "tests/commodity/test_modelreport_primary_sensitivity.q";
+    "tests/commodity/test_modelreport_price_disagreement.q";
+    "tests/commodity/test_modelreport_greeks_disagreement.q";
+    "tests/commodity/test_modelreport_scenario_disagreement.q";
+    "tests/commodity/test_modelreport_disagreement_alerts.q";
+    "tests/commodity/test_modelreport_comparison_risk.q";
+    "tests/commodity/test_modelreport_disagreement_insufficient_models.q");
 
 / --- Combine all suites ---
 

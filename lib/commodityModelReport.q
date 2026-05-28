@@ -577,3 +577,235 @@
     greeksSum:.commodity.modelreport.greeksSummary greeksTbl;
     baseReport,`greeksTable`greeksSummary!(greeksTbl;greeksSum)
  };
+
+/ --- Disagreement risk (v0.38) -------------------------------------
+/ Quantifies how much price/risk depends on commodity model choice.
+/ Public:  defaultDisagreementConfig, primarySensitivity, priceDisagreement,
+/          greeksDisagreement, scenarioDisagreement, disagreementAlerts,
+/          modelDisagreementReport, runComparisonRisk.
+/ Private: __primaryFieldFor, __resolveStatus, __alertRow.
+/ Each disagreement dict carries its own threshold values so the alert table
+/ can be built without re-passing the disagreementConfig.
+
+.commodity.modelreport.defaultDisagreementConfig:{[]
+    `priceRangeAbsThreshold`priceRangePctThreshold`primaryDeltaRangeThreshold`volatilityVegaRangeThreshold`scenarioPnlRangeThreshold`jumpSensitivityThreshold`minimumOkModels!(
+        5f;
+        0.10;
+        10f;
+        10f;
+        1000f;
+        5f;
+        2)
+ };
+
+.commodity.modelreport.__primaryFieldFor:{[modelName]
+    $[modelName=`black76; `forwardDelta;
+      modelName=`schwartz; `logStateDelta;
+      modelName=`schwartz2; `longFactorSensitivity;
+      modelName=`mrjump; `logStateDelta;
+      `]
+ };
+
+/ Common status resolution: zero OK rows -> ERROR; some but below minimum -> warning; otherwise OK.
+.commodity.modelreport.__resolveStatus:{[okCount;minimumRequired;errorContextLabel]
+    if[okCount=0;
+        :`status`errorMessage!(`ERROR;"No OK rows for ",errorContextLabel)];
+    if[okCount<minimumRequired;
+        :`status`errorMessage!(`warning;errorContextLabel," has ",string[okCount]," OK rows < minimumOkModels ",string minimumRequired)];
+    `status`errorMessage!(`OK;"")
+ };
+
+.commodity.modelreport.__alertRow:{[alertType;alertFlag;metricValue;threshold;message]
+    severity:$[alertFlag;`warning;`OK];
+    `alertType`alertFlag`metricValue`threshold`severity`message!(
+        alertType;alertFlag;metricValue;threshold;severity;message)
+ };
+
+/ --- Primary sensitivity extraction ---
+
+.commodity.modelreport.primarySensitivity:{[greeksTable]
+    rowFn:{[rowDict]
+        modelNameVal:rowDict`modelName;
+        primaryField:.commodity.modelreport.__primaryFieldFor modelNameVal;
+        rowStatus:rowDict`pricingStatus;
+        rowErrMsg:rowDict`pricingErrorMessage;
+        primaryVal:0Nf;
+        if[(rowStatus=`OK)&(not primaryField=`)&(primaryField in key rowDict);
+            candidate:rowDict primaryField;
+            if[not null candidate; primaryVal:candidate]];
+        `modelName`primarySensitivityName`primarySensitivity`pricingStatus`pricingErrorMessage!(
+            modelNameVal;primaryField;primaryVal;rowStatus;rowErrMsg)
+        };
+    rowDicts:rowFn each greeksTable;
+    .commodity.modelreport.__dictsToTable rowDicts
+ };
+
+/ --- Price disagreement ---
+
+.commodity.modelreport.priceDisagreement:{[priceTable;disagreementConfig]
+    minimumRequired:disagreementConfig`minimumOkModels;
+    absThr:disagreementConfig`priceRangeAbsThreshold;
+    pctThr:disagreementConfig`priceRangePctThreshold;
+    okMask:(priceTable`pricingStatus)=`OK;
+    okRows:priceTable where okMask;
+    okPrices:okRows`modelPrice;
+    validMask:not null okPrices;
+    validPrices:okPrices where validMask;
+    okModelCountValue:count validPrices;
+
+    minPriceVal:0Nf; maxPriceVal:0Nf; averagePriceVal:0Nf;
+    priceRangeVal:0Nf; priceRangePctVal:0Nf;
+    priceRangeAlertVal:0b;
+    if[okModelCountValue>0;
+        minPriceVal:min validPrices;
+        maxPriceVal:max validPrices;
+        averagePriceVal:avg validPrices;
+        priceRangeVal:maxPriceVal-minPriceVal;
+        priceRangePctVal:$[0f=averagePriceVal;0Nf;priceRangeVal%abs averagePriceVal];
+        absAlert:priceRangeVal>absThr;
+        pctAlert:(not null priceRangePctVal)&priceRangePctVal>pctThr;
+        priceRangeAlertVal:absAlert|pctAlert];
+
+    statusDict:.commodity.modelreport.__resolveStatus[okModelCountValue;minimumRequired;"priceDisagreement"];
+    `okModelCount`minPrice`maxPrice`averagePrice`priceRange`priceRangePct`priceRangeAlert`priceRangeAbsThreshold`priceRangePctThreshold`status`errorMessage!(
+        okModelCountValue;minPriceVal;maxPriceVal;averagePriceVal;priceRangeVal;priceRangePctVal;priceRangeAlertVal;absThr;pctThr;statusDict`status;statusDict`errorMessage)
+ };
+
+/ --- Greeks disagreement ---
+
+.commodity.modelreport.greeksDisagreement:{[greeksTable;disagreementConfig]
+    minimumRequired:disagreementConfig`minimumOkModels;
+    primaryThr:disagreementConfig`primaryDeltaRangeThreshold;
+    volVegaThr:disagreementConfig`volatilityVegaRangeThreshold;
+    jumpThr:disagreementConfig`jumpSensitivityThreshold;
+
+    primaryTbl:.commodity.modelreport.primarySensitivity greeksTable;
+    primaryOkMask:(primaryTbl`pricingStatus)=`OK;
+    primaryOkRows:primaryTbl where primaryOkMask;
+    primaryVals:primaryOkRows`primarySensitivity;
+    validPrimaryMask:not null primaryVals;
+    validPrimary:primaryVals where validPrimaryMask;
+    okModelCountValue:count validPrimary;
+
+    primaryMinVal:0Nf; primaryMaxVal:0Nf; primaryRangeVal:0Nf;
+    primaryAlertVal:0b;
+    if[okModelCountValue>0;
+        primaryMinVal:min validPrimary;
+        primaryMaxVal:max validPrimary;
+        primaryRangeVal:primaryMaxVal-primaryMinVal;
+        primaryAlertVal:primaryRangeVal>primaryThr];
+
+    greekOkMask:(greeksTable`pricingStatus)=`OK;
+    greekOkRows:greeksTable where greekOkMask;
+    availableGreekCols:cols greekOkRows;
+
+    volVegaMinVal:0Nf; volVegaMaxVal:0Nf; volVegaRangeVal:0Nf;
+    volVegaAlertVal:0b;
+    if[`volatilityVega in availableGreekCols;
+        volVegasFull:greekOkRows`volatilityVega;
+        validVegaMask:not null volVegasFull;
+        validVegas:volVegasFull where validVegaMask;
+        if[0<count validVegas;
+            volVegaMinVal:min validVegas;
+            volVegaMaxVal:max validVegas;
+            volVegaRangeVal:volVegaMaxVal-volVegaMinVal;
+            volVegaAlertVal:volVegaRangeVal>volVegaThr]];
+
+    jumpIntSensVal:0Nf;
+    jumpSensAlertVal:0b;
+    if[`jumpIntensitySensitivity in availableGreekCols;
+        mrjumpMask:(greekOkRows`modelName)=`mrjump;
+        if[any mrjumpMask;
+            mrjumpRowSelect:greekOkRows first where mrjumpMask;
+            candidate:mrjumpRowSelect`jumpIntensitySensitivity;
+            if[not null candidate;
+                jumpIntSensVal:candidate;
+                jumpSensAlertVal:(abs jumpIntSensVal)>jumpThr]]];
+
+    statusDict:.commodity.modelreport.__resolveStatus[okModelCountValue;minimumRequired;"greeksDisagreement"];
+    `okModelCount`primarySensitivityMin`primarySensitivityMax`primarySensitivityRange`primarySensitivityAlert`volatilityVegaMin`volatilityVegaMax`volatilityVegaRange`volatilityVegaAlert`jumpIntensitySensitivity`jumpSensitivityAlert`primaryDeltaRangeThreshold`volatilityVegaRangeThreshold`jumpSensitivityThreshold`status`errorMessage!(
+        okModelCountValue;primaryMinVal;primaryMaxVal;primaryRangeVal;primaryAlertVal;volVegaMinVal;volVegaMaxVal;volVegaRangeVal;volVegaAlertVal;jumpIntSensVal;jumpSensAlertVal;primaryThr;volVegaThr;jumpThr;statusDict`status;statusDict`errorMessage)
+ };
+
+/ --- Scenario PnL disagreement ---
+
+.commodity.modelreport.scenarioDisagreement:{[scenarioPnlTable;disagreementConfig]
+    minimumRequired:disagreementConfig`minimumOkModels;
+    pnlThr:disagreementConfig`scenarioPnlRangeThreshold;
+    okMask:(scenarioPnlTable`status)=`OK;
+    okRows:scenarioPnlTable where okMask;
+    pnLs:okRows`scenarioPnL;
+    validMask:not null pnLs;
+    validPnLs:pnLs where validMask;
+    okModelCountValue:count validPnLs;
+
+    minPnlVal:0Nf; maxPnlVal:0Nf; avgPnlVal:0Nf; rangeVal:0Nf;
+    alertVal:0b;
+    if[okModelCountValue>0;
+        minPnlVal:min validPnLs;
+        maxPnlVal:max validPnLs;
+        avgPnlVal:avg validPnLs;
+        rangeVal:maxPnlVal-minPnlVal;
+        alertVal:rangeVal>pnlThr];
+
+    statusDict:.commodity.modelreport.__resolveStatus[okModelCountValue;minimumRequired;"scenarioDisagreement"];
+    `okModelCount`minScenarioPnl`maxScenarioPnl`averageScenarioPnl`scenarioPnlRange`scenarioPnlAlert`scenarioPnlRangeThreshold`status`errorMessage!(
+        okModelCountValue;minPnlVal;maxPnlVal;avgPnlVal;rangeVal;alertVal;pnlThr;statusDict`status;statusDict`errorMessage)
+ };
+
+/ --- Alert composition ---
+
+.commodity.modelreport.disagreementAlerts:{[priceDisagreement;greeksDisagreement;scenarioDisagreement]
+    rowList:(
+        .commodity.modelreport.__alertRow[`priceRangeAbs;
+            priceDisagreement[`priceRange]>priceDisagreement`priceRangeAbsThreshold;
+            priceDisagreement`priceRange;
+            priceDisagreement`priceRangeAbsThreshold;
+            "Absolute price range across models"];
+        .commodity.modelreport.__alertRow[`priceRangePct;
+            (not null priceDisagreement`priceRangePct)&priceDisagreement[`priceRangePct]>priceDisagreement`priceRangePctThreshold;
+            priceDisagreement`priceRangePct;
+            priceDisagreement`priceRangePctThreshold;
+            "Relative price range across models"];
+        .commodity.modelreport.__alertRow[`primarySensitivityRange;
+            greeksDisagreement`primarySensitivityAlert;
+            greeksDisagreement`primarySensitivityRange;
+            greeksDisagreement`primaryDeltaRangeThreshold;
+            "Primary-sensitivity range across models"];
+        .commodity.modelreport.__alertRow[`volatilityVegaRange;
+            greeksDisagreement`volatilityVegaAlert;
+            greeksDisagreement`volatilityVegaRange;
+            greeksDisagreement`volatilityVegaRangeThreshold;
+            "Volatility-vega range across models"];
+        .commodity.modelreport.__alertRow[`scenarioPnlRange;
+            scenarioDisagreement`scenarioPnlAlert;
+            scenarioDisagreement`scenarioPnlRange;
+            scenarioDisagreement`scenarioPnlRangeThreshold;
+            "Scenario PnL range across models"];
+        .commodity.modelreport.__alertRow[`jumpSensitivity;
+            greeksDisagreement`jumpSensitivityAlert;
+            greeksDisagreement`jumpIntensitySensitivity;
+            greeksDisagreement`jumpSensitivityThreshold;
+            "mrjump jump-intensity sensitivity magnitude"]);
+    .commodity.modelreport.__dictsToTable rowList
+ };
+
+/ --- Full report wrappers ---
+
+.commodity.modelreport.modelDisagreementReport:{[comparisonResult;disagreementConfig]
+    basePricesTable:comparisonResult`basePrices;
+    greeksTbl:comparisonResult`greeksTable;
+    scenarioPnLTbl:comparisonResult`scenarioPnL;
+    priceDis:.commodity.modelreport.priceDisagreement[basePricesTable;disagreementConfig];
+    greeksDis:.commodity.modelreport.greeksDisagreement[greeksTbl;disagreementConfig];
+    scenarioDis:.commodity.modelreport.scenarioDisagreement[scenarioPnLTbl;disagreementConfig];
+    alertsTbl:.commodity.modelreport.disagreementAlerts[priceDis;greeksDis;scenarioDis];
+    `priceDisagreement`greeksDisagreement`scenarioDisagreement`alerts!(
+        priceDis;greeksDis;scenarioDis;alertsTbl)
+ };
+
+.commodity.modelreport.runComparisonRisk:{[optionSetup;modelInputs;scenarioConfig;quantity;contractMultiplier;greekConfig;disagreementConfig]
+    comparisonResult:.commodity.modelreport.runComparisonWithGreeks[optionSetup;modelInputs;scenarioConfig;quantity;contractMultiplier;greekConfig];
+    disagreementResult:.commodity.modelreport.modelDisagreementReport[comparisonResult;disagreementConfig];
+    `comparison`disagreement!(comparisonResult;disagreementResult)
+ };
