@@ -75,6 +75,8 @@
 / Parsers and backtest
 \l lib/parser.q
 \l lib/backtest.q
+/ Strategy / backtest engine
+\l lib/strategy.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.41";
+.qfdm.version:"0.42";

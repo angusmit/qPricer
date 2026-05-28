@@ -298,6 +298,15 @@
     "tests/commodity/test_modelreport_limit_history_dashboard.q";
     "tests/commodity/test_modelreport_limit_history_wrapper.q");
 
+.test.strategyFiles:(
+    "tests/strategy/test_strategy_registry.q";
+    "tests/strategy/test_strategy_path_synthetic.q";
+    "tests/strategy/test_strategy_path_barchart_adapter.q";
+    "tests/strategy/test_strategy_gamma_scalp_synthetic.q";
+    "tests/strategy/test_strategy_gamma_scalp_band.q";
+    "tests/strategy/test_strategy_gamma_scalp_reconciliation.q";
+    "tests/strategy/test_strategy_gamma_scalp_barchart.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -317,7 +326,8 @@
     (`modelcheck; .test.modelcheckFiles);
     (`risk;       .test.riskFiles);
     (`realdata;   .test.realdataFiles);
-    (`commodity;  .test.commodityFiles));
+    (`commodity;  .test.commodityFiles);
+    (`strategy;   .test.strategyFiles));
 
 / --- Runner ---
 

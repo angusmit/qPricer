@@ -349,6 +349,18 @@ If the consumer cares about column order (tests, downstream `first cols tbl`, da
 
 `(-3)#enlist row` on a 1-row table returns a 3-row table by duplicating the single row, NOT an empty take and NOT an error. When you need a "take up to N rows, otherwise empty" semantics (e.g. computing a trend over the *prior* runs but the limit only has one observation), explicitly bound the take: `takeCount:lookbackRuns&priorAvailable; window:$[takeCount<=0;();(neg takeCount)#priorRows]`.
 
+**12. Bare `/` lines: `\l` vs `value src` diverge**
+
+A bare `/` line opens a multiline comment block that runs until the next bare `\` or EOF. The trap is that `value (read0 file)` does NOT honour multiline comments — it just evaluates statements — so a test that *evaluates* the file (via the project's `run_all_tests.q` harness) will pass, while *directly* running it with `q file.q` (which goes through `\l`) silently comments out everything after the bare `/` and the script returns exit 0 with no PASS line and no assertion failure. Always replace bare `/` with `/ text` or `/ -----`, especially in test headers.
+
+**13. Seeded scan `f\[seed;list]` does NOT include the seed in the output**
+
+`(+)\[10; 1 2 3]` returns `11 12 13` — three states from three list elements. The seed `10` is the accumulator but is not part of the result. When you need to keep the initial state alongside the per-step results (typical for a backtest where step 0 IS the entry state), prepend explicitly: `states: enlist[initialState], f\[initialState; remainingRows]`. Or do `states: f\[initialState; pathRows]` and treat `pathRows[0]` as one of the step rows rather than the seed.
+
+**14. `.[fn;arglist;handler]` needs a LIST of args, not a dict**
+
+`.[fn;args;handler]` applies `fn` to `args` as a list (so `fn` is called with `args[0], args[1], ...`). If `fn` takes a single dict argument, pass `enlist dictArg`, not `dictArg` — otherwise q sees the dict's *values* as the arglist. Same for unary fn: use `enlist atomArg`.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.
