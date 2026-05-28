@@ -330,7 +330,15 @@
     "tests/strategy/test_strategy_portfolio_run_ensemble.q";
     "tests/strategy/test_strategy_portfolio_performance.q";
     "tests/strategy/test_strategy_portfolio_correlation.q";
-    "tests/strategy/test_strategy_portfolio_dashboard.q");
+    "tests/strategy/test_strategy_portfolio_dashboard.q";
+    "tests/strategy/test_strategy_long_vol.q";
+    "tests/strategy/test_strategy_long_vol_gate.q";
+    "tests/strategy/test_strategy_long_vol_accounting.q";
+    "tests/strategy/test_strategy_collar_tail_hedge.q";
+    "tests/strategy/test_strategy_collar_tail_hedge_mode.q";
+    "tests/strategy/test_strategy_collar_tail_hedge_accounting.q";
+    "tests/strategy/test_strategy_put_ratio_backspread.q";
+    "tests/strategy/test_strategy_put_ratio_backspread_accounting.q");
 
 / --- Combine all suites ---
 

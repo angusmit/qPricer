@@ -1624,3 +1624,417 @@
     `performanceByStrategy`strategyCorrelation`bookAggregate`dashboardStatus`dashboardMessage!(
         perfTbl;corDict;bookAgg;dashStatus;dashMsg)
  };
+
+/ ==================================================================
+/ 11. Concrete strategy: longVol (mirror of shortVariance)
+/ ==================================================================
+/ Buys an ATM straddle when forecastVol > impliedVolAtEntry + entryMargin. Long
+/ position has positive gamma, negative theta. Pays premium up front.
+
+.strategy.longVol.__rowEmitCols:`stepIndex`stepDate`spot`volatility`callPrice`putPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`premiumPaid`status`message;
+
+.strategy.longVol.defaultConfig:{[]
+    `forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+        0.30;0.02;`interval;1;0.05;0f;0f;1f%252f)
+ };
+
+.strategy.longVol.__validateConfig:{[stratCfg]
+    requiredKeys:`forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears;
+    missing:requiredKeys where not requiredKeys in key stratCfg;
+    if[0<count missing; '"longVol config missing keys: ",", " sv string missing];
+    if[(stratCfg`forecastVol)<0f; '"longVol forecastVol must be non-negative"];
+    if[(stratCfg`entryMargin)<0f; '"longVol entryMargin must be non-negative"];
+    if[not stratCfg[`rebalanceMode] in `interval`band;
+        '"longVol rebalanceMode must be interval or band"];
+    if[(stratCfg`stepYears)<=0f; '"longVol stepYears must be positive"];
+ };
+
+.strategy.longVol.__buildLegs:{[trade]
+    callTrade:@[trade;(`tradeId;`optionType);:;(`$(string trade`tradeId),"_C";`call)];
+    putTrade:@[trade;(`tradeId;`optionType);:;(`$(string trade`tradeId),"_P";`put)];
+    `callTrade`putTrade!(callTrade;putTrade)
+ };
+
+.strategy.longVol.__flatRow:{[marketStep]
+    .strategy.longVol.__rowEmitCols!(
+        marketStep`stepIndex;marketStep`stepDate;marketStep`spot;marketStep`volatility;
+        0Nf;0Nf;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;
+        `flat;"Entry gate closed")
+ };
+
+.strategy.longVol.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.longVol.__validateConfig stratCfg;
+    notional:trade`notional;
+    spot:firstStep`spot;
+    vol:firstStep`volatility;
+    rfr:firstStep`riskFreeRate;
+    divY:firstStep`dividendYield;
+    forecastVol:stratCfg`forecastVol;
+    entryMargin:stratCfg`entryMargin;
+    gateOpen:forecastVol>vol+entryMargin;
+    legs:.strategy.longVol.__buildLegs trade;
+    callTrade:legs`callTrade;
+    putTrade:legs`putTrade;
+    if[not gateOpen;
+        flatRow:.strategy.longVol.__flatRow firstStep;
+        :`gateOpen`notional`callTrade`putTrade`impliedVolAtEntry`forecastVol`premiumPaid`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit!(
+            0b;notional;callTrade;putTrade;vol;forecastVol;0f;0f;0f;0f;0;spot;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;flatRow)];
+    mktData:.market.createFlatMarketData[trade`underlying;spot;rfr;divY;vol];
+    callPrice:(.engine.priceOption[callTrade;mktData;model;fdmConfig])`unitPrice;
+    putPrice:(.engine.priceOption[putTrade;mktData;model;fdmConfig])`unitPrice;
+    callGreeks:.greeks.calculateGreeks[callTrade;mktData;model;fdmConfig];
+    putGreeks:.greeks.calculateGreeks[putTrade;mktData;model;fdmConfig];
+    callDelta:first callGreeks`delta;
+    putDelta:first putGreeks`delta;
+    callGamma:first callGreeks`gamma;
+    putGamma:first putGreeks`gamma;
+    callTheta:first callGreeks`theta;
+    putTheta:first putGreeks`theta;
+    positionValue:notional*callPrice+putPrice;
+    positionDelta:notional*callDelta+putDelta;
+    positionGamma:notional*callGamma+putGamma;
+    positionTheta:notional*callTheta+putTheta;
+    premiumPaid:notional*callPrice+putPrice;
+    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    initialCash:(neg premiumPaid)+hedgeInit`cashAdj;
+    initialStepPnl:neg hedgeInit`txnCost;
+    rowEmit:.strategy.longVol.__rowEmitCols!(
+        firstStep`stepIndex;firstStep`stepDate;spot;vol;callPrice;putPrice;positionValue;positionDelta;
+        hedgeInit`hedgePosition;hedgeInit`hedgeTrade;hedgeInit`txnCost;
+        0f;0f;0f;0f;initialStepPnl;initialStepPnl;0f;premiumPaid;`OK;"");
+    `gateOpen`notional`callTrade`putTrade`impliedVolAtEntry`forecastVol`premiumPaid`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit!(
+        1b;notional;callTrade;putTrade;vol;forecastVol;premiumPaid;initialCash;hedgeInit`hedgePosition;positionDelta;1;spot;positionValue;positionGamma;positionTheta;
+        hedgeInit`hedgeTrade;hedgeInit`txnCost;0f;0f;0f;0f;initialStepPnl;initialStepPnl;rowEmit)
+ };
+
+.strategy.longVol.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    if[not state`gateOpen;
+        :@[state;`rowEmit;:;.strategy.longVol.__flatRow marketStep]];
+    notional:state`notional;
+    callTrade:state`callTrade;
+    putTrade:state`putTrade;
+    spot:marketStep`spot;
+    vol:marketStep`volatility;
+    mktData:.market.createFlatMarketData[trade`underlying;spot;marketStep`riskFreeRate;marketStep`dividendYield;vol];
+    callPrice:(.engine.priceOption[callTrade;mktData;model;fdmConfig])`unitPrice;
+    putPrice:(.engine.priceOption[putTrade;mktData;model;fdmConfig])`unitPrice;
+    callGreeks:.greeks.calculateGreeks[callTrade;mktData;model;fdmConfig];
+    putGreeks:.greeks.calculateGreeks[putTrade;mktData;model;fdmConfig];
+    positionValue:notional*callPrice+putPrice;
+    positionDelta:notional*(first callGreeks`delta)+first putGreeks`delta;
+    positionGamma:notional*(first callGreeks`gamma)+first putGreeks`gamma;
+    positionTheta:notional*(first callGreeks`theta)+first putGreeks`theta;
+    hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
+    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
+    spotMove:spot-state`prevSpot;
+    theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
+    thetaPnl:(state`prevPositionTheta)*stratCfg`stepYears;
+    cumulativePnl:(state`cumulativePnl)+newHedge`stepPnl;
+    rowEmit:.strategy.longVol.__rowEmitCols!(
+        marketStep`stepIndex;marketStep`stepDate;spot;vol;callPrice;putPrice;positionValue;positionDelta;
+        newHedge`hedgePosition;newHedge`hedgeTrade;newHedge`txnCost;
+        newHedge`positionPnl;newHedge`hedgePnl;newHedge`financingPnl;thetaPnl;
+        newHedge`stepPnl;cumulativePnl;theoreticalGammaPnl;
+        state`premiumPaid;`OK;"");
+    state,newHedge,`prevPositionGamma`prevPositionTheta`cumulativePnl`rowEmit!(
+        positionGamma;positionTheta;cumulativePnl;rowEmit)
+ };
+
+.strategy.longVol.summary:{[resultTable;stratCfg]
+    base:`strategyName`gateOpen`steps`premiumPaid`totalPnl`positionPnlTotal`hedgePnlTotal`txnCostTotal`financingTotal`numRebalances`impliedVolAtEntry`forecastVol`realizedVol`varianceRiskPremium`theoreticalGammaPnlTotal`thetaPnlTotal`gammaReconResidual`maxDrawdown`meanStepPnl`stepPnlVol`status`errorMessage!(
+        `longVol;0b;0;0f;0Nf;0Nf;0Nf;0Nf;0Nf;0;0Nf;stratCfg`forecastVol;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty");
+    if[(0=count resultTable)|not 98h=type resultTable; :base];
+    statusCol:resultTable`status;
+    stepCount:count resultTable;
+    if[all statusCol=`flat;
+        :@[base;(`gateOpen;`steps;`status;`errorMessage;`totalPnl;`positionPnlTotal;`hedgePnlTotal;`txnCostTotal;`financingTotal;`theoreticalGammaPnlTotal;`thetaPnlTotal;`gammaReconResidual;`maxDrawdown;`meanStepPnl;`stepPnlVol;`impliedVolAtEntry;`realizedVol;`varianceRiskPremium);:;(0b;stepCount;`flat;"Gate closed";0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;0f;first resultTable`volatility;0Nf;0Nf)]];
+    okRows:resultTable where statusCol=`OK;
+    if[0=count okRows; :@[base;`steps;:;stepCount]];
+    totalsDict:first 0!select
+        totalPnl:sum stepPnl, positionPnlTotal:sum positionPnl, hedgePnlTotal:sum hedgePnl,
+        txnCostTotal:sum txnCost, financingTotal:sum financingPnl,
+        theoreticalGammaPnlTotal:sum theoreticalGammaPnl, thetaPnlTotal:sum thetaPnl,
+        meanStepPnl:avg stepPnl, stepPnlVol:dev stepPnl
+        from okRows;
+    spots:okRows`spot;
+    logRet:$[1<count spots; 1_(log spots)-prev log spots; ()];
+    nonNullRet:logRet where not null logRet;
+    realizedVol:$[(0<count nonNullRet)&stratCfg[`stepYears]>0f; (dev nonNullRet)%sqrt stratCfg`stepYears; 0Nf];
+    impliedVolAtEntry:first okRows`volatility;
+    varianceRiskPremium:realizedVol-impliedVolAtEntry;
+    pnlExclCosts:(totalsDict[`totalPnl]+totalsDict`txnCostTotal)-totalsDict`financingTotal;
+    gammaReconResidual:pnlExclCosts-(totalsDict[`theoreticalGammaPnlTotal]+totalsDict`thetaPnlTotal);
+    cumPnlSeries:sums okRows`stepPnl;
+    maxDrawdownVal:max (maxs cumPnlSeries)-cumPnlSeries;
+    numRebalancesVal:sum 0<>okRows`hedgeTrade;
+    premiumPaidVal:first okRows`premiumPaid;
+    totalsDict,`strategyName`gateOpen`steps`premiumPaid`numRebalances`impliedVolAtEntry`forecastVol`realizedVol`varianceRiskPremium`gammaReconResidual`maxDrawdown`status`errorMessage!(
+        `longVol;1b;stepCount;premiumPaidVal;numRebalancesVal;impliedVolAtEntry;stratCfg`forecastVol;realizedVol;varianceRiskPremium;gammaReconResidual;maxDrawdownVal;`OK;"")
+ };
+
+.strategy.register[`longVol;.strategy.longVol.init;.strategy.longVol.step;.strategy.longVol.summary;.strategy.longVol.defaultConfig];
+
+/ ==================================================================
+/ 12. Concrete strategy: collarTailHedge (collar OR tailHedge mode)
+/ ==================================================================
+/ collar: long underlying (notional units) + long OTM put + short OTM call. Held
+/ outright (no external delta hedge); net delta tracked for reporting.
+/ tailHedge: long OTM puts only, sized to premiumBudgetPct * notional * spot value.
+/ Cap (collar): fixed call strike at spot*(1+callStrikePct); NOT solved for zero-cost.
+
+.strategy.collarTailHedge.__rowEmitCols:`stepIndex`stepDate`spot`mode`underlyingValue`putValue`callValue`positionValue`netDelta`txnCost`positionPnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`putUnits`status`message;
+
+.strategy.collarTailHedge.defaultConfig:{[]
+    `mode`putStrikePct`callStrikePct`premiumBudgetPct`txnCostRate`financingRate`stepYears!(
+        `collar;0.05;0.05;0.005;0f;0f;1f%252f)
+ };
+
+.strategy.collarTailHedge.__validateConfig:{[stratCfg]
+    requiredKeys:`mode`putStrikePct`callStrikePct`premiumBudgetPct`txnCostRate`financingRate`stepYears;
+    missing:requiredKeys where not requiredKeys in key stratCfg;
+    if[0<count missing; '"collarTailHedge config missing keys: ",", " sv string missing];
+    if[not stratCfg[`mode] in `collar`tailHedge;
+        '"collarTailHedge mode must be collar or tailHedge"];
+    if[(stratCfg`putStrikePct)<=0f; '"collarTailHedge putStrikePct must be positive"];
+    if[(stratCfg[`mode]=`collar)&(stratCfg`callStrikePct)<=0f;
+        '"collarTailHedge callStrikePct must be positive in collar mode"];
+    if[(stratCfg[`mode]=`tailHedge)&(stratCfg`premiumBudgetPct)<=0f;
+        '"collarTailHedge premiumBudgetPct must be positive in tailHedge mode"];
+    if[(stratCfg`stepYears)<=0f; '"collarTailHedge stepYears must be positive"];
+ };
+
+.strategy.collarTailHedge.__priceLeg:{[legTrade;contextDict;model;fdmConfig]
+    mktData:.market.createFlatMarketData[contextDict`underlying;contextDict`spot;contextDict`riskFreeRate;contextDict`dividendYield;contextDict`volatility];
+    priceRes:.engine.priceOption[legTrade;mktData;model;fdmConfig];
+    greeksRes:.greeks.calculateGreeks[legTrade;mktData;model;fdmConfig];
+    `unitPrice`unitDelta`unitGamma`unitTheta!(priceRes`unitPrice;first greeksRes`delta;first greeksRes`gamma;first greeksRes`theta)
+ };
+
+.strategy.collarTailHedge.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.collarTailHedge.__validateConfig stratCfg;
+    notional:trade`notional;
+    spot:firstStep`spot;
+    mode:stratCfg`mode;
+    isCollar:mode=`collar;
+    putStrike:spot*1f-stratCfg`putStrikePct;
+    callStrike:spot*1f+stratCfg`callStrikePct;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying!(
+        spot;firstStep`volatility;firstStep`riskFreeRate;firstStep`dividendYield;trade`underlying);
+    putTrade:@[trade;(`tradeId;`optionType;`strike);:;(`$(string trade`tradeId),"_P";`put;putStrike)];
+    callTrade:@[trade;(`tradeId;`optionType;`strike);:;(`$(string trade`tradeId),"_C";`call;callStrike)];
+    putMark:.strategy.collarTailHedge.__priceLeg[putTrade;contextDict;model;fdmConfig];
+    callMark:$[isCollar; .strategy.collarTailHedge.__priceLeg[callTrade;contextDict;model;fdmConfig]; `unitPrice`unitDelta`unitGamma`unitTheta!(0f;0f;0f;0f)];
+    putUnits:$[isCollar; notional; (stratCfg[`premiumBudgetPct]*notional*spot)%putMark`unitPrice];
+    callUnits:$[isCollar; notional; 0f];
+    underlyingUnits:$[isCollar; notional; 0f];
+    putValue:putUnits*putMark`unitPrice;
+    callValue:callUnits*callMark`unitPrice;
+    underlyingValue:underlyingUnits*spot;
+    positionValue:(underlyingValue+putValue)-callValue;
+    netDelta:underlyingUnits+(putUnits*putMark`unitDelta)-callUnits*callMark`unitDelta;
+    netGamma:(putUnits*putMark`unitGamma)-callUnits*callMark`unitGamma;
+    netTheta:(putUnits*putMark`unitTheta)-callUnits*callMark`unitTheta;
+    legTxnCost:(((abs underlyingValue)+abs putValue)+abs callValue)*stratCfg`txnCostRate;
+    initialStepPnl:neg legTxnCost;
+    initialCash:(neg positionValue)-legTxnCost;
+    rowEmit:.strategy.collarTailHedge.__rowEmitCols!(
+        firstStep`stepIndex;firstStep`stepDate;spot;mode;underlyingValue;putValue;callValue;positionValue;netDelta;legTxnCost;
+        0f;0f;0f;initialStepPnl;initialStepPnl;0f;putUnits;`OK;"");
+    `mode`underlyingUnits`putUnits`callUnits`putTrade`callTrade`cash`hedgePosition`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`txnCost`financingPnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit!(
+        mode;underlyingUnits;putUnits;callUnits;putTrade;callTrade;initialCash;0f;spot;positionValue;netGamma;netTheta;legTxnCost;0f;0f;0f;initialStepPnl;initialStepPnl;rowEmit)
+ };
+
+.strategy.collarTailHedge.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    mode:state`mode;
+    underlyingUnits:state`underlyingUnits;
+    putUnits:state`putUnits;
+    callUnits:state`callUnits;
+    putTrade:state`putTrade;
+    callTrade:state`callTrade;
+    spot:marketStep`spot;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying!(
+        spot;marketStep`volatility;marketStep`riskFreeRate;marketStep`dividendYield;trade`underlying);
+    putMark:.strategy.collarTailHedge.__priceLeg[putTrade;contextDict;model;fdmConfig];
+    callMark:$[mode=`collar; .strategy.collarTailHedge.__priceLeg[callTrade;contextDict;model;fdmConfig]; `unitPrice`unitDelta`unitGamma`unitTheta!(0f;0f;0f;0f)];
+    putValue:putUnits*putMark`unitPrice;
+    callValue:callUnits*callMark`unitPrice;
+    underlyingValue:underlyingUnits*spot;
+    newPositionValue:(underlyingValue+putValue)-callValue;
+    netDelta:underlyingUnits+(putUnits*putMark`unitDelta)-callUnits*callMark`unitDelta;
+    netGamma:(putUnits*putMark`unitGamma)-callUnits*callMark`unitGamma;
+    netTheta:(putUnits*putMark`unitTheta)-callUnits*callMark`unitTheta;
+    cashPrev:state`cash;
+    financingPnl:(stratCfg`financingRate)*cashPrev*stratCfg`stepYears;
+    positionPnl:newPositionValue-state`prevPositionValue;
+    spotMove:spot-state`prevSpot;
+    theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
+    thetaPnl:(state`prevPositionTheta)*stratCfg`stepYears;
+    stepPnl:positionPnl+financingPnl;
+    newCash:cashPrev+financingPnl;
+    cumulativePnl:(state`cumulativePnl)+stepPnl;
+    rowEmit:.strategy.collarTailHedge.__rowEmitCols!(
+        marketStep`stepIndex;marketStep`stepDate;spot;mode;underlyingValue;putValue;callValue;newPositionValue;netDelta;0f;
+        positionPnl;financingPnl;thetaPnl;stepPnl;cumulativePnl;theoreticalGammaPnl;putUnits;`OK;"");
+    @[state;`cash`hedgePosition`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`txnCost`financingPnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit;:;
+        (newCash;0f;spot;newPositionValue;netGamma;netTheta;0f;financingPnl;positionPnl;thetaPnl;stepPnl;cumulativePnl;rowEmit)]
+ };
+
+.strategy.collarTailHedge.summary:{[resultTable;stratCfg]
+    base:`strategyName`mode`steps`netPremium`protectionFloor`cap`budgetUsed`totalPnl`positionPnlTotal`financingTotal`txnCostTotal`theoreticalGammaPnlTotal`thetaPnlTotal`maxDrawdown`status`errorMessage!(
+        `collarTailHedge;stratCfg`mode;0;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty");
+    if[(0=count resultTable)|not 98h=type resultTable; :base];
+    okRows:resultTable where (resultTable`status)=`OK;
+    stepCount:count resultTable;
+    if[0=count okRows; :@[base;`steps;:;stepCount]];
+    totalsDict:first 0!select
+        totalPnl:sum stepPnl, positionPnlTotal:sum positionPnl, financingTotal:sum financingPnl, txnCostTotal:sum txnCost,
+        theoreticalGammaPnlTotal:sum theoreticalGammaPnl, thetaPnlTotal:sum thetaPnl
+        from okRows;
+    initRow:resultTable 0;
+    isCollar:(initRow`mode)=`collar;
+    cumPnlSeries:sums okRows`stepPnl;
+    maxDrawdownVal:max (maxs cumPnlSeries)-cumPnlSeries;
+    spot0:initRow`spot;
+    protectionFloor:spot0*1f-stratCfg`putStrikePct;
+    capVal:$[isCollar;spot0*1f+stratCfg`callStrikePct;0Nf];
+    budgetUsed:$[not isCollar;(initRow`putValue)%spot0;0Nf];
+    netPremium:initRow[`putValue]-initRow`callValue;
+    totalsDict,`strategyName`mode`steps`netPremium`protectionFloor`cap`budgetUsed`maxDrawdown`status`errorMessage!(
+        `collarTailHedge;initRow`mode;stepCount;netPremium;protectionFloor;capVal;budgetUsed;maxDrawdownVal;`OK;"")
+ };
+
+.strategy.register[`collarTailHedge;.strategy.collarTailHedge.init;.strategy.collarTailHedge.step;.strategy.collarTailHedge.summary;.strategy.collarTailHedge.defaultConfig];
+
+/ ==================================================================
+/ 13. Concrete strategy: putRatioBackspread (1xN)
+/ ==================================================================
+/ Short 1 near-ATM put + long ratioN OTM puts at a lower strike. Long volatility
+/ with downside-skew. Delta-hedge optional via stratCfg.hedgeDelta.
+
+.strategy.putRatioBackspread.__rowEmitCols:`stepIndex`stepDate`spot`shortStrike`longStrike`shortPutPrice`longPutPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`status`message;
+
+.strategy.putRatioBackspread.defaultConfig:{[]
+    `shortStrikePct`longStrikePct`ratioN`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+        0f;0.05;2f;1b;`interval;1;0.05;0f;0f;1f%252f)
+ };
+
+.strategy.putRatioBackspread.__validateConfig:{[stratCfg]
+    requiredKeys:`shortStrikePct`longStrikePct`ratioN`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears;
+    missing:requiredKeys where not requiredKeys in key stratCfg;
+    if[0<count missing; '"putRatioBackspread config missing keys: ",", " sv string missing];
+    if[(stratCfg`longStrikePct)<=stratCfg`shortStrikePct;
+        '"putRatioBackspread longStrikePct must exceed shortStrikePct (long strike further OTM)"];
+    if[(stratCfg`ratioN)<=1f; '"putRatioBackspread ratioN must be > 1"];
+    if[(stratCfg`stepYears)<=0f; '"putRatioBackspread stepYears must be positive"];
+ };
+
+.strategy.putRatioBackspread.__priceLeg:{[legTrade;contextDict;model;fdmConfig]
+    mktData:.market.createFlatMarketData[contextDict`underlying;contextDict`spot;contextDict`riskFreeRate;contextDict`dividendYield;contextDict`volatility];
+    priceRes:.engine.priceOption[legTrade;mktData;model;fdmConfig];
+    greeksRes:.greeks.calculateGreeks[legTrade;mktData;model;fdmConfig];
+    `unitPrice`unitDelta`unitGamma`unitTheta!(priceRes`unitPrice;first greeksRes`delta;first greeksRes`gamma;first greeksRes`theta)
+ };
+
+.strategy.putRatioBackspread.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.putRatioBackspread.__validateConfig stratCfg;
+    notional:trade`notional;
+    spot:firstStep`spot;
+    ratioN:stratCfg`ratioN;
+    shortStrike:spot*1f-stratCfg`shortStrikePct;
+    longStrike:spot*1f-stratCfg`longStrikePct;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying!(
+        spot;firstStep`volatility;firstStep`riskFreeRate;firstStep`dividendYield;trade`underlying);
+    shortPut:@[trade;(`tradeId;`optionType;`strike);:;(`$(string trade`tradeId),"_SP";`put;shortStrike)];
+    longPut:@[trade;(`tradeId;`optionType;`strike);:;(`$(string trade`tradeId),"_LP";`put;longStrike)];
+    shortMark:.strategy.putRatioBackspread.__priceLeg[shortPut;contextDict;model;fdmConfig];
+    longMark:.strategy.putRatioBackspread.__priceLeg[longPut;contextDict;model;fdmConfig];
+    shortUnits:notional;
+    longUnits:ratioN*notional;
+    shortPrice:shortMark`unitPrice;
+    longPrice:longMark`unitPrice;
+    positionValue:(longUnits*longPrice)-shortUnits*shortPrice;
+    netDelta:(longUnits*longMark`unitDelta)-shortUnits*shortMark`unitDelta;
+    netGamma:(longUnits*longMark`unitGamma)-shortUnits*shortMark`unitGamma;
+    netTheta:(longUnits*longMark`unitTheta)-shortUnits*shortMark`unitTheta;
+    legEntryTxnCost:((longUnits*longPrice)+shortUnits*shortPrice)*stratCfg`txnCostRate;
+    hedgeInit:$[stratCfg`hedgeDelta;
+        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
+    initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
+    initialStepPnl:neg initialTxnCost;
+    initialCash:((neg positionValue)-legEntryTxnCost)+hedgeInit`cashAdj;
+    rowEmit:.strategy.putRatioBackspread.__rowEmitCols!(
+        firstStep`stepIndex;firstStep`stepDate;spot;shortStrike;longStrike;shortPrice;longPrice;
+        positionValue;netDelta;hedgeInit`hedgePosition;hedgeInit`hedgeTrade;initialTxnCost;
+        0f;0f;0f;0f;initialStepPnl;initialStepPnl;0f;`OK;"");
+    `shortPut`longPut`shortUnits`longUnits`shortStrike`longStrike`netPremium`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit!(
+        shortPut;longPut;shortUnits;longUnits;shortStrike;longStrike;positionValue;initialCash;hedgeInit`hedgePosition;netDelta;1;spot;positionValue;netGamma;netTheta;
+        hedgeInit`hedgeTrade;initialTxnCost;0f;0f;0f;0f;initialStepPnl;initialStepPnl;rowEmit)
+ };
+
+.strategy.putRatioBackspread.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    shortPut:state`shortPut;
+    longPut:state`longPut;
+    shortUnits:state`shortUnits;
+    longUnits:state`longUnits;
+    shortStrike:state`shortStrike;
+    longStrike:state`longStrike;
+    spot:marketStep`spot;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying!(
+        spot;marketStep`volatility;marketStep`riskFreeRate;marketStep`dividendYield;trade`underlying);
+    shortMark:.strategy.putRatioBackspread.__priceLeg[shortPut;contextDict;model;fdmConfig];
+    longMark:.strategy.putRatioBackspread.__priceLeg[longPut;contextDict;model;fdmConfig];
+    shortPrice:shortMark`unitPrice;
+    longPrice:longMark`unitPrice;
+    newPositionValue:(longUnits*longPrice)-shortUnits*shortPrice;
+    netDelta:(longUnits*longMark`unitDelta)-shortUnits*shortMark`unitDelta;
+    netGamma:(longUnits*longMark`unitGamma)-shortUnits*shortMark`unitGamma;
+    netTheta:(longUnits*longMark`unitTheta)-shortUnits*shortMark`unitTheta;
+    cashPrev:state`cash;
+    financingRate:stratCfg`financingRate;
+    hedgeUpdate:$[stratCfg`hedgeDelta;
+        .strategy.__hedgeStep[
+            `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
+                cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
+            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+        `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
+            cashPrev+(financingRate*cashPrev)*stratCfg`stepYears;0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stratCfg`stepYears;0f)];
+    positionPnl:newPositionValue-state`prevPositionValue;
+    spotMove:spot-state`prevSpot;
+    theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
+    thetaPnl:(state`prevPositionTheta)*stratCfg`stepYears;
+    txnCostVal:hedgeUpdate`txnCost;
+    stepPnl:(positionPnl+(hedgeUpdate`hedgePnl)+hedgeUpdate`financingPnl)-txnCostVal;
+    cumulativePnl:(state`cumulativePnl)+stepPnl;
+    rowEmit:.strategy.putRatioBackspread.__rowEmitCols!(
+        marketStep`stepIndex;marketStep`stepDate;spot;shortStrike;longStrike;shortPrice;longPrice;
+        newPositionValue;netDelta;hedgeUpdate`hedgePosition;hedgeUpdate`hedgeTrade;txnCostVal;
+        positionPnl;hedgeUpdate`hedgePnl;hedgeUpdate`financingPnl;thetaPnl;stepPnl;cumulativePnl;theoreticalGammaPnl;`OK;"");
+    @[state;`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`thetaPnl`stepPnl`cumulativePnl`rowEmit;:;
+        (hedgeUpdate`cash;hedgeUpdate`hedgePosition;hedgeUpdate`hedgedDelta;hedgeUpdate`numRebalances;spot;newPositionValue;netGamma;netTheta;
+         hedgeUpdate`hedgeTrade;txnCostVal;hedgeUpdate`financingPnl;hedgeUpdate`hedgePnl;positionPnl;thetaPnl;stepPnl;cumulativePnl;rowEmit)]
+ };
+
+.strategy.putRatioBackspread.summary:{[resultTable;stratCfg]
+    base:`strategyName`steps`ratioN`shortStrike`longStrike`netPremium`totalPnl`positionPnlTotal`hedgePnlTotal`financingTotal`txnCostTotal`numRebalances`theoreticalGammaPnlTotal`thetaPnlTotal`maxDrawdown`status`errorMessage!(
+        `putRatioBackspread;0;stratCfg`ratioN;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0;0Nf;0Nf;0Nf;`ERROR;"empty");
+    if[(0=count resultTable)|not 98h=type resultTable; :base];
+    okRows:resultTable where (resultTable`status)=`OK;
+    stepCount:count resultTable;
+    if[0=count okRows; :@[base;`steps;:;stepCount]];
+    totalsDict:first 0!select
+        totalPnl:sum stepPnl, positionPnlTotal:sum positionPnl, hedgePnlTotal:sum hedgePnl, financingTotal:sum financingPnl, txnCostTotal:sum txnCost,
+        theoreticalGammaPnlTotal:sum theoreticalGammaPnl, thetaPnlTotal:sum thetaPnl
+        from okRows;
+    cumPnl:sums okRows`stepPnl;
+    maxDrawdownVal:max (maxs cumPnl)-cumPnl;
+    numRebalancesVal:sum 0<>okRows`hedgeTrade;
+    initRow:resultTable 0;
+    totalsDict,`strategyName`steps`ratioN`shortStrike`longStrike`netPremium`numRebalances`maxDrawdown`status`errorMessage!(
+        `putRatioBackspread;stepCount;stratCfg`ratioN;initRow`shortStrike;initRow`longStrike;initRow`positionValue;numRebalancesVal;maxDrawdownVal;`OK;"")
+ };
+
+.strategy.register[`putRatioBackspread;.strategy.putRatioBackspread.init;.strategy.putRatioBackspread.step;.strategy.putRatioBackspread.summary;.strategy.putRatioBackspread.defaultConfig];
