@@ -8,7 +8,9 @@ qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes,
 
 Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.35).
 
-Test status: `q tests/run_all_tests.q` → **214 passed / 0 failed**.
+Test status: `q tests/run_all_tests.q` → **218 passed / 0 failed**.
+
+v0.35.2 strengthened `.commodity.mrjump` validation with four benchmark tests (lambda-zero call/put vs Schwartz closed-form, stationary-variance limit, jump-intensity monotonicity, jump-mean sensitivity). No pricing logic was changed.
 
 AAPL / Barchart data under `data/barchart/aapl/options_history/` is a **technical validation dataset only** — it exists to exercise the parser/backtest path on real-shaped CSVs, not because equities are the target asset class. The long-term target remains commodity (oil, power/electricity) and multi-asset options.
 

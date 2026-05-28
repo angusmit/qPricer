@@ -250,7 +250,11 @@
     "tests/commodity/test_mrjump_zero_jump_size.q";
     "tests/commodity/test_mrjump_option_call.q";
     "tests/commodity/test_mrjump_option_put.q";
-    "tests/commodity/test_mrjump_scenario_paths.q");
+    "tests/commodity/test_mrjump_scenario_paths.q";
+    "tests/commodity/test_mrjump_lambda_zero_price_benchmark.q";
+    "tests/commodity/test_mrjump_stationary_variance.q";
+    "tests/commodity/test_mrjump_jump_intensity_sensitivity.q";
+    "tests/commodity/test_mrjump_jump_mean_sensitivity.q");
 
 / --- Combine all suites ---
 
