@@ -1,4 +1,11 @@
-/ assetclass.q - asset class registry and routing (v0.32)
+/ assetclass.q - asset class registry and routing (v0.35)
+/ Registered commodity model families:
+/   black76            - Black-76 futures option
+/   kirk               - Kirk spread approximation
+/   meanReversion      - generic mean-reverting marker
+/   schwartzOneFactor  - .commodity.schwartz       (v0.33, log mean reversion)
+/   schwartzTwoFactor  - .commodity.schwartz2      (v0.34, spot + stochastic convenience yield)
+/   meanRevertingJump  - .commodity.mrjump         (v0.35, OU log-price + compound-Poisson jumps)
 
 .assetclass.__productMap:`equityOption`asianOption`basketOption`lookbackOption`commodityFuture`commodityOption`spreadOption`sparkSpreadOption`powerForward!`equity`equity`equity`equity`commodity`commodity`commodity`electricity`electricity;
 .assetclass.__modelMap:`blackScholes`localVolatility`heston`merton`bates`sabr`black76`kirk`meanReversion`schwartzOneFactor`schwartzTwoFactor`meanRevertingJump!`equity`equity`equity`equity`equity`equity`commodity`commodity`commodity`commodity`commodity`commodity;

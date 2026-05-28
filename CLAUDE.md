@@ -6,7 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes, Crank-Nicolson, American, barriers, local vol) is the *technical validation case*; the long-term target is commodity (oil, power/electricity) and multi-asset options. Treat AAPL/equity tests as proof-of-correctness, not the end goal.
 
-Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.32).
+Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.35).
+
+Test status: `q tests/run_all_tests.q` → **214 passed / 0 failed**.
+
+AAPL / Barchart data under `data/barchart/aapl/options_history/` is a **technical validation dataset only** — it exists to exercise the parser/backtest path on real-shaped CSVs, not because equities are the target asset class. The long-term target remains commodity (oil, power/electricity) and multi-asset options.
 
 ## Common commands
 
@@ -73,7 +77,7 @@ The library has grown well past the README's stated scope. Additional surfaces:
 - **Monte Carlo stack** — `montecarlo.q`, `asian.q`, `correlation.q`, `basket.q`, `lookback.q`, `variance.q`, `pathdiag.q`.
 - **Model calibration / comparison** — `iv.q`, `surface.q`, `calibration.q`, `objective.q`, `modelcheck.q`, `modelcompare.q`, `calibreport.q`, `convergence.q`.
 - **Risk engine** — `riskdist.q`, `var.q`, `histscen.q`, `replay.q`, `limits.q`, `limitcheck.q`, `limitreport.q`, `dailyrisk.q`, `dashboard.q`.
-- **Commodity / multi-asset** — `assetclass.q` (routing registry), `commodityFutures.q`, `commodityBlack76.q`, `commoditySpread.q`, `electricity.q`, `commodityBacktest.q`.
+- **Commodity / multi-asset** — `assetclass.q` (routing registry), `commodityFutures.q`, `commodityBlack76.q`, `schwartz.q` (`.commodity.schwartz`, one-factor log mean reversion, v0.33), `schwartz2.q` (`.commodity.schwartz2`, two-factor: spot + stochastic convenience yield, v0.34), `meanRevertingJump.q` (`.commodity.mrjump`, OU log-price + compound-Poisson jumps for spike/shock dynamics, v0.35), `commoditySpread.q`, `electricity.q`, `commodityBacktest.q`.
 - **Real-data path** — `parser.q` (Barchart CSV loader — **deliberately standalone**, no qFDM deps) → `backtest.q`.
 - **Reporting / infra** — `report.q`, `pnl.q`, `audit.q`, `regression.q`, `batch.q`, `result.q`, `timing.q`, `testutil.q`, `stress.q`, `perfdiag.q`, `perfopt.q`, `cache.q`.
 
@@ -93,11 +97,19 @@ The library has grown well past the README's stated scope. Additional surfaces:
 - **No silent pricing-logic changes.** A change that alters numerical output requires (a) a clear reason and (b) a test or recommended test, ideally with a benchmark comparison (closed-form, parity, limiting case).
 - **Preserve working code** unless there is a clear bug or design problem. Prefer minimal patches over rewrites.
 
+## q source cautions (silent failures)
+
+These are the cautions enforced when writing or reviewing q in this repo. Each one parses or loads without an obvious error — the bug only surfaces later, which is why they are easy to miss.
+
+- **No bare `/` separator lines.** A line consisting of just `/` opens a multiline comment block that runs until a standalone `\` line, silently commenting out everything in between (including function definitions). Use `/ text` on every comment line.
+- **Avoid ambiguous `exp -1f`.** Tokenised as `exp - 1f` (subtraction), not negation. Always write `exp neg 1f` (or `exp neg expression`) when negating before `exp`/`log`/etc.
+- **Typed numeric vector literals use a single trailing suffix.** Write `0.25 0.5 1 2 5f`, not `0.25 0.5 1f 2f 5f`. Patterns like `1 2 3f 4f 5f` or `1i 2i 3i` parse but do not produce the vector you expect.
+
 ## Things to know that aren't obvious from the file tree
 
 - `parser.q` is intentionally standalone — do not add qFDM library calls into it; it is meant to be loadable independently for ingest jobs.
 - `tests/run_all_tests.q` aborts via `'"Some tests failed: N failures"` if any test fails — don't catch this and continue.
-- The Barchart fixtures under `data/barchart/aapl/options_history/` are required by `tests/realdata/test_barchart_*.q`; don't delete them when cleaning.
+- The `tests/realdata/test_barchart_*.q` suite is **fully synthetic** — those tests build option tables in q code and do not read any CSV. The CSV-backed runners (`tests/run_barchart_backtest.q`, `tests/realdata/run_barchart_backtest.q`) load every file under `data/barchart/aapl/options_history/` via `.parser.barchart.loadAll` and are **not part of `run_all_tests.q`** — they are demo/backtest runners and are sensitive to whatever CSVs sit in that directory.
 - Knock-in barriers are priced as `vanilla − knock-out` (in-out parity) inside the engine — there is no dedicated knock-in solver.
 - Local volatility is currently European-vanilla-only on the explicit FDM path; American / barrier + local-vol combinations are explicitly rejected.
 - Crank-Nicolson currently supports European vanilla only.

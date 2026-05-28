@@ -1,0 +1,8 @@
+.idea/
+.kdbinb/
+kc.lic
+*.ipynb
+tmp_*.q
+*.log
+
+data/barchart/aapl/options_history/*.csv
