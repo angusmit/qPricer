@@ -251,6 +251,68 @@ For each q error, explain:
 - suggested fix
 - test to confirm
 
+### q literal and comment syntax cautions
+
+These two cautions catch silently invalid q source that parses or runs without an obvious error and only manifests when a function is later called or proves to be missing.
+
+**1. Typed numeric vector literal rule**
+
+When creating typed numeric vectors in q, do not write invalid per-element suffix lists like `1 2 3f 4f 5f` or `1 2 3i 4i 5i`.
+
+Use valid q syntax:
+
+- `1 2 3 4 5f`
+- `1 2 3 4 5i`
+- or explicit casts like `"f"$1 2 3 4 5` and `"i"$1 2 3 4 5`.
+
+Bad examples:
+
+```q
+1f 2f 3f
+1i 2i 3i
+1 2 3f 4f 5f
+1 2 3i 4i 5i
+0.25 0.5 1f 2f 5f
+```
+
+Good examples:
+
+```q
+1 2 3f
+1 2 3i
+1 2 3 4 5f
+0.25 0.5 1 2 5f
+"f"$1 2 3 4 5
+```
+
+Code review check: reject generated q code containing patterns like `1f 2f 3f`, `1i 2i 3i`, `1 2 3f 4f 5f`, or `1 2 3i 4i 5i`.
+
+**2. q comment syntax caution**
+
+A bare `/` line can start a multiline comment block until a standalone `\` is found, which may silently comment out following definitions. The file loads without error, but the affected functions never get defined and only fail when something tries to call or reference them.
+
+Avoid bare `/` separator lines in q source files. Use `/ text` comments on every comment line instead.
+
+Bad example:
+
+```q
+/
+Helper functions
+/
+.my.ns.func:{[x] x+1}
+```
+
+In the bad example, the bare `/` on the first line opens a multiline comment block. Every subsequent line, including the `.my.ns.func` definition, is consumed by that block until a standalone `\` line appears.
+
+Good example:
+
+```q
+/ Helper functions
+.my.ns.func:{[x] x+1}
+```
+
+Code review check: scan q source files for any line consisting solely of `/` (no following text). If found, replace with `/ text` or remove the line.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.
