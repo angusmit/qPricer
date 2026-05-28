@@ -6,11 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes, Crank-Nicolson, American, barriers, local vol) is the *technical validation case*; the long-term target is commodity (oil, power/electricity) and multi-asset options. Treat AAPL/equity tests as proof-of-correctness, not the end goal.
 
-Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.35).
+Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.36).
 
-Test status: `q tests/run_all_tests.q` → **218 passed / 0 failed**.
+Test status: `q tests/run_all_tests.q` → **224 passed / 0 failed**.
 
 v0.35.2 strengthened `.commodity.mrjump` validation with four benchmark tests (lambda-zero call/put vs Schwartz closed-form, stationary-variance limit, jump-intensity monotonicity, jump-mean sensitivity). No pricing logic was changed.
+
+v0.36 adds `.commodity.modelreport` for cross-model commodity option comparison and scenario PnL across Black-76, Schwartz one-factor, Schwartz two-factor, and mean-reverting jump models. Reporting layer only — no pricing-formula changes.
 
 AAPL / Barchart data under `data/barchart/aapl/options_history/` is a **technical validation dataset only** — it exists to exercise the parser/backtest path on real-shaped CSVs, not because equities are the target asset class. The long-term target remains commodity (oil, power/electricity) and multi-asset options.
 
@@ -79,7 +81,7 @@ The library has grown well past the README's stated scope. Additional surfaces:
 - **Monte Carlo stack** — `montecarlo.q`, `asian.q`, `correlation.q`, `basket.q`, `lookback.q`, `variance.q`, `pathdiag.q`.
 - **Model calibration / comparison** — `iv.q`, `surface.q`, `calibration.q`, `objective.q`, `modelcheck.q`, `modelcompare.q`, `calibreport.q`, `convergence.q`.
 - **Risk engine** — `riskdist.q`, `var.q`, `histscen.q`, `replay.q`, `limits.q`, `limitcheck.q`, `limitreport.q`, `dailyrisk.q`, `dashboard.q`.
-- **Commodity / multi-asset** — `assetclass.q` (routing registry), `commodityFutures.q`, `commodityBlack76.q`, `schwartz.q` (`.commodity.schwartz`, one-factor log mean reversion, v0.33), `schwartz2.q` (`.commodity.schwartz2`, two-factor: spot + stochastic convenience yield, v0.34), `meanRevertingJump.q` (`.commodity.mrjump`, OU log-price + compound-Poisson jumps for spike/shock dynamics, v0.35), `commoditySpread.q`, `electricity.q`, `commodityBacktest.q`.
+- **Commodity / multi-asset** — `assetclass.q` (routing registry), `commodityFutures.q`, `commodityBlack76.q`, `schwartz.q` (`.commodity.schwartz`, one-factor log mean reversion, v0.33), `schwartz2.q` (`.commodity.schwartz2`, two-factor: spot + stochastic convenience yield, v0.34), `meanRevertingJump.q` (`.commodity.mrjump`, OU log-price + compound-Poisson jumps for spike/shock dynamics, v0.35), `commodityModelReport.q` (`.commodity.modelreport`, cross-model comparison + scenario PnL, v0.36), `commoditySpread.q`, `electricity.q`, `commodityBacktest.q`.
 - **Real-data path** — `parser.q` (Barchart CSV loader — **deliberately standalone**, no qFDM deps) → `backtest.q`.
 - **Reporting / infra** — `report.q`, `pnl.q`, `audit.q`, `regression.q`, `batch.q`, `result.q`, `timing.q`, `testutil.q`, `stress.q`, `perfdiag.q`, `perfopt.q`, `cache.q`.
 

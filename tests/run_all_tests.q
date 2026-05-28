@@ -254,7 +254,13 @@
     "tests/commodity/test_mrjump_lambda_zero_price_benchmark.q";
     "tests/commodity/test_mrjump_stationary_variance.q";
     "tests/commodity/test_mrjump_jump_intensity_sensitivity.q";
-    "tests/commodity/test_mrjump_jump_mean_sensitivity.q");
+    "tests/commodity/test_mrjump_jump_mean_sensitivity.q";
+    "tests/commodity/test_modelreport_price_all.q";
+    "tests/commodity/test_modelreport_price_differences.q";
+    "tests/commodity/test_modelreport_summary.q";
+    "tests/commodity/test_modelreport_scenario_pnl.q";
+    "tests/commodity/test_modelreport_validation.q";
+    "tests/commodity/test_modelreport_ranking.q");
 
 / --- Combine all suites ---
 
