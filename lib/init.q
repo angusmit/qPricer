@@ -50,6 +50,7 @@
 \l lib/commodityBlack76.q
 \l lib/schwartz.q
 \l lib/schwartz2.q
+\l lib/meanRevertingJump.q
 \l lib/commoditySpread.q
 \l lib/electricity.q
 \l lib/commodityBacktest.q
@@ -75,4 +76,4 @@
 \l lib/backtest.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.34";
+.qfdm.version:"0.35";

@@ -242,7 +242,15 @@
     "tests/commodity/test_schwartz2_european_put.q";
     "tests/commodity/test_schwartz2_correlation_effect.q";
     "tests/commodity/test_schwartz2_onefactor_limit.q";
-    "tests/commodity/test_schwartz2_validation.q");
+    "tests/commodity/test_schwartz2_validation.q";
+    "tests/commodity/test_mrjump_validation.q";
+    "tests/commodity/test_mrjump_paths.q";
+    "tests/commodity/test_mrjump_jump_diagnostics.q";
+    "tests/commodity/test_mrjump_zero_jump_limit.q";
+    "tests/commodity/test_mrjump_zero_jump_size.q";
+    "tests/commodity/test_mrjump_option_call.q";
+    "tests/commodity/test_mrjump_option_put.q";
+    "tests/commodity/test_mrjump_scenario_paths.q");
 
 / --- Combine all suites ---
 
