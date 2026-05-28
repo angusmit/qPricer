@@ -226,7 +226,15 @@
     "tests/commodity/test_black76_implied_vol.q";
     "tests/commodity/test_spread_option.q";
     "tests/commodity/test_electricity_foundation.q";
-    "tests/core/test_assetclass_registry.q");
+    "tests/core/test_assetclass_registry.q";
+    "tests/commodity/test_schwartz_transition_moments.q";
+    "tests/commodity/test_schwartz_stationary_variance.q";
+    "tests/commodity/test_schwartz_futures_price.q";
+    "tests/commodity/test_schwartz_futures_curve_shape.q";
+    "tests/commodity/test_schwartz_european_call.q";
+    "tests/commodity/test_schwartz_european_put.q";
+    "tests/commodity/test_schwartz_gbm_limit.q";
+    "tests/commodity/test_schwartz_validation.q");
 
 / --- Combine all suites ---
 

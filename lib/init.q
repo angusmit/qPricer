@@ -48,6 +48,7 @@
 \l lib/assetclass.q
 \l lib/commodityFutures.q
 \l lib/commodityBlack76.q
+\l lib/schwartz.q
 \l lib/commoditySpread.q
 \l lib/electricity.q
 \l lib/commodityBacktest.q
@@ -73,4 +74,4 @@
 \l lib/backtest.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.32";
+.qfdm.version:"0.33";

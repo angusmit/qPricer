@@ -13,6 +13,7 @@ supported:.assetclass.supportedAssetClasses[];
 / Model family
 .testutil.assertTrue[`commodity=.assetclass.modelFamily `black76;"black76 -> commodity"];
 .testutil.assertTrue[`equity=.assetclass.modelFamily `blackScholes;"blackScholes -> equity"];
+.testutil.assertTrue[`commodity=.assetclass.modelFamily `schwartzOneFactor;"schwartzOneFactor -> commodity"];
 
 / Invalid
 badAc:@[.assetclass.validateAssetClass;`crypto;{`ERROR}];
