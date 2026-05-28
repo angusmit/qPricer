@@ -1034,3 +1034,128 @@
     `portfolioRisk`portfolioSummary`alertSummary`disagreementExposure`worstOffenders!(
         portfolioRiskRes;portfolioRiskRes`portfolioSummary;alertSum;exposureSum;offenders)
  };
+
+/ --- Model-risk limit monitoring (v0.40) ---------------------------
+/ Apply configurable warning/breach thresholds to portfolio disagreement
+/ outputs. Produces a per-limit status table, an aggregate status summary,
+/ and a sorted breach report. Reporting/risk-control layer only.
+/ Public:  defaultModelRiskLimitConfig, checkLimit,
+/          checkPortfolioModelRiskLimits, limitStatusSummary,
+/          limitBreachReport, runPortfolioRiskWithLimits.
+/ Private: __severityPriority.
+
+.commodity.modelreport.defaultModelRiskLimitConfig:{[]
+    `grossPriceRangeExposureWarning`grossPriceRangeExposureBreach`maxScenarioPnlRangeWarning`maxScenarioPnlRangeBreach`maxPrimarySensitivityRangeWarning`maxPrimarySensitivityRangeBreach`maxVolatilityVegaRangeWarning`maxVolatilityVegaRangeBreach`maxJumpSensitivityWarning`maxJumpSensitivityBreach`warningAlertCountWarning`warningAlertCountBreach`errorTradeCountWarning`errorTradeCountBreach!(
+        5000f;
+        10000f;
+        1000f;
+        2500f;
+        25f;
+        50f;
+        20f;
+        40f;
+        5f;
+        10f;
+        5;
+        10;
+        1;
+        3)
+ };
+
+.commodity.modelreport.__severityPriority:{[statusSymbol]
+    $[statusSymbol=`ERROR; 0;
+      statusSymbol=`breach; 1;
+      statusSymbol=`warning; 2;
+      3]
+ };
+
+.commodity.modelreport.checkLimit:{[limitName;metricValue;warningThreshold;breachThreshold]
+    metricFloat:`float$metricValue;
+    warningFloat:`float$warningThreshold;
+    breachFloat:`float$breachThreshold;
+    if[(null warningFloat)|(null breachFloat)|warningFloat>breachFloat;
+        :`limitName`metricValue`warningThreshold`breachThreshold`status`breachAmount`message!(
+            limitName;metricFloat;warningFloat;breachFloat;`ERROR;0Nf;"Invalid thresholds")];
+    if[null metricFloat;
+        :`limitName`metricValue`warningThreshold`breachThreshold`status`breachAmount`message!(
+            limitName;metricFloat;warningFloat;breachFloat;`ERROR;0Nf;"metricValue is null")];
+    statusVal:`OK;
+    msgVal:"";
+    breachAmt:0f;
+    if[(metricFloat>=warningFloat)&metricFloat<breachFloat;
+        statusVal:`warning;
+        msgVal:"Above warning threshold"];
+    if[metricFloat>=breachFloat;
+        statusVal:`breach;
+        breachAmt:metricFloat-breachFloat;
+        msgVal:"Breach by ",string breachAmt];
+    `limitName`metricValue`warningThreshold`breachThreshold`status`breachAmount`message!(
+        limitName;metricFloat;warningFloat;breachFloat;statusVal;breachAmt;msgVal)
+ };
+
+.commodity.modelreport.checkPortfolioModelRiskLimits:{[portfolioRiskResult;limitConfig]
+    exposureSum:.commodity.modelreport.portfolioDisagreementExposure portfolioRiskResult;
+    alertSum:.commodity.modelreport.portfolioAlertSummary portfolioRiskResult`alertRows;
+    portfolioSum:portfolioRiskResult`portfolioSummary;
+    warningAlertCountVal:$[(0=count alertSum)|not 98h=type alertSum; 0; sum alertSum`warningCount];
+    errorTradeCountVal:portfolioSum`errorTradeCount;
+    limitChecks:(
+        .commodity.modelreport.checkLimit[`grossPriceRangeExposure;exposureSum`grossPriceRangeExposure;limitConfig`grossPriceRangeExposureWarning;limitConfig`grossPriceRangeExposureBreach];
+        .commodity.modelreport.checkLimit[`maxScenarioPnlRange;exposureSum`maxScenarioPnlRange;limitConfig`maxScenarioPnlRangeWarning;limitConfig`maxScenarioPnlRangeBreach];
+        .commodity.modelreport.checkLimit[`maxPrimarySensitivityRange;exposureSum`maxPrimarySensitivityRange;limitConfig`maxPrimarySensitivityRangeWarning;limitConfig`maxPrimarySensitivityRangeBreach];
+        .commodity.modelreport.checkLimit[`maxVolatilityVegaRange;exposureSum`maxVolatilityVegaRange;limitConfig`maxVolatilityVegaRangeWarning;limitConfig`maxVolatilityVegaRangeBreach];
+        .commodity.modelreport.checkLimit[`maxJumpSensitivity;exposureSum`maxJumpSensitivity;limitConfig`maxJumpSensitivityWarning;limitConfig`maxJumpSensitivityBreach];
+        .commodity.modelreport.checkLimit[`warningAlertCount;warningAlertCountVal;limitConfig`warningAlertCountWarning;limitConfig`warningAlertCountBreach];
+        .commodity.modelreport.checkLimit[`errorTradeCount;errorTradeCountVal;limitConfig`errorTradeCountWarning;limitConfig`errorTradeCountBreach]);
+    .commodity.modelreport.__dictsToTable limitChecks
+ };
+
+.commodity.modelreport.limitStatusSummary:{[limitTable]
+    if[(0=count limitTable)|not 98h=type limitTable;
+        :`limitCount`okCount`warningCount`breachCount`errorCount`overallStatus`statusMessage!(
+            0;0;0;0;0;`OK;"No limits checked")];
+    statusCol:limitTable`status;
+    limitCountVal:count limitTable;
+    okCountVal:sum statusCol=`OK;
+    warningCountVal:sum statusCol=`warning;
+    breachCountVal:sum statusCol=`breach;
+    errorCountVal:sum statusCol=`ERROR;
+    overallStatusVal:`OK;
+    msgVal:"All limits OK";
+    if[warningCountVal>0;
+        overallStatusVal:`warning;
+        msgVal:(string warningCountVal)," limits at warning level"];
+    if[breachCountVal>0;
+        overallStatusVal:`breach;
+        msgVal:(string breachCountVal)," limit breaches"];
+    if[errorCountVal>0;
+        overallStatusVal:`ERROR;
+        msgVal:(string errorCountVal)," limit ERROR rows"];
+    `limitCount`okCount`warningCount`breachCount`errorCount`overallStatus`statusMessage!(
+        limitCountVal;okCountVal;warningCountVal;breachCountVal;errorCountVal;overallStatusVal;msgVal)
+ };
+
+/ Sort: ERROR, then breach, then warning. Within severity, highest breachAmount first.
+/ The output rank column is named breachRank (not rank - that would shadow q's rank keyword).
+.commodity.modelreport.limitBreachReport:{[limitTable]
+    emptyResult:([] limitName:0#`; metricValue:0#0Nf; warningThreshold:0#0Nf; breachThreshold:0#0Nf; status:0#`; breachAmount:0#0Nf; message:0#""; breachRank:0#0);
+    if[(0=count limitTable)|not 98h=type limitTable; :emptyResult];
+    nonOkRows:limitTable where not (limitTable`status)=`OK;
+    if[0=count nonOkRows; :emptyResult];
+    augmented:update statusPriority:.commodity.modelreport.__severityPriority each status,
+                     sortableBreach:neg breachAmount
+        from nonOkRows;
+    sortedTable:`statusPriority`sortableBreach xasc augmented;
+    sortedTable:delete statusPriority,sortableBreach from sortedTable;
+    update breachRank:1+til count sortedTable from sortedTable
+ };
+
+.commodity.modelreport.runPortfolioRiskWithLimits:{[positions;greekConfig;disagreementConfig;limitConfig;topN]
+    dashboard:.commodity.modelreport.runPortfolioDashboard[positions;greekConfig;disagreementConfig;topN];
+    portfolioRiskRes:dashboard`portfolioRisk;
+    limitTbl:.commodity.modelreport.checkPortfolioModelRiskLimits[portfolioRiskRes;limitConfig];
+    limitSum:.commodity.modelreport.limitStatusSummary limitTbl;
+    breachRep:.commodity.modelreport.limitBreachReport limitTbl;
+    `portfolioRisk`dashboard`limitTable`limitSummary`breachReport!(
+        portfolioRiskRes;dashboard;limitTbl;limitSum;breachRep)
+ };

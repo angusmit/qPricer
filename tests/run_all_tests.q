@@ -282,7 +282,14 @@
     "tests/commodity/test_modelreport_portfolio_exposure.q";
     "tests/commodity/test_modelreport_worst_offenders.q";
     "tests/commodity/test_modelreport_portfolio_dashboard.q";
-    "tests/commodity/test_modelreport_portfolio_error_isolation.q");
+    "tests/commodity/test_modelreport_portfolio_error_isolation.q";
+    "tests/commodity/test_modelreport_limit_check.q";
+    "tests/commodity/test_modelreport_portfolio_limits_ok.q";
+    "tests/commodity/test_modelreport_portfolio_limits_warning.q";
+    "tests/commodity/test_modelreport_portfolio_limits_breach.q";
+    "tests/commodity/test_modelreport_limit_breach_report.q";
+    "tests/commodity/test_modelreport_portfolio_risk_with_limits.q";
+    "tests/commodity/test_modelreport_portfolio_limits_error_isolation.q");
 
 / --- Combine all suites ---
 

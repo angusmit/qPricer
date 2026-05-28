@@ -313,6 +313,26 @@ Good example:
 
 Code review check: scan q source files for any line consisting solely of `/` (no following text). If found, replace with `/ text` or remove the line.
 
+**3. q is right-associative; parenthesise mixed-arity expressions**
+
+q evaluates expressions right-to-left with uniform precedence. `2*metricCount=count rows` parses as `2*(metricCount=count rows)`, not `(2*metricCount)=count rows`. Likewise `string foo,")"` parses as `string (foo,")")` rather than `(string foo),")"`. Always bracket explicitly when mixing comparison, arithmetic, or function-application operators on the same line, especially in test assertions and print-line concatenations.
+
+**4. `~` (match) is strict on type; `=` is not**
+
+`1+til 4` produces a long vector `1 2 3 4`. `1 2 3 4i` is an int vector. `(1+til 4)~1 2 3 4i` is `0b` because match compares both value AND type. For test assertions on integer ranks/counts, prefer `(1+til n) ~ expectedLongVec` or use `=` if you only care about values. Same trap shows up for type codes: boolean atom is `-1h`, long atom is `-7h`, int atom is `-6h` — write the literal type code that matches your value's actual type.
+
+**5. q lambdas do not capture outer locals like Python closures**
+
+Inside a nested lambda, q can see its own args, its own locals, and globals — but NOT locals from an enclosing function body. If you define `requiredKeys` in an outer lambda and reference it inside a nested lambda, you'll get a `requiredKeys` error at call time. Pass the value in as an explicit argument and project it: `validateOne[;;requiredKeys]'[xs;ys]`.
+
+**6. `select ... by ... from t` returns a keyed table; unkey before column access**
+
+The result of `select … by key from t` is a keyed table. Direct column indexing (`kt`col`) on the key column can return unexpected shapes and surface as `type` errors in downstream `=` comparisons. Apply `0!` to convert to a plain table when callers expect ordinary column-name access — especially for test code or `exec … by` aggregations that flow into further `where`/`first` queries.
+
+**7. Avoid q built-ins as variable/column/namespace names**
+
+In addition to obvious cases (`value`, `count`, `select`, `key`, `type`, `string`, `first`, `last`, `sum`, `avg`, `min`, `max`, `exp`, `log`, `sqrt`), the keyword `rank` is also reserved and will trigger `'assign` errors when used as a table-literal column name. Prefer descriptive names like `offenderRank`, `breachRank`, `optionValue`, `tradeCount`.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.

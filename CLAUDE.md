@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes, Crank-Nicolson, American, barriers, local vol) is the *technical validation case*; the long-term target is commodity (oil, power/electricity) and multi-asset options. Treat AAPL/equity tests as proof-of-correctness, not the end goal.
 
-Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.39).
+Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.40).
 
-Test status: `q tests/run_all_tests.q` → **246 passed / 0 failed**.
+Test status: `q tests/run_all_tests.q` → **253 passed / 0 failed**.
 
 v0.35.2 strengthened `.commodity.mrjump` validation with four benchmark tests (lambda-zero call/put vs Schwartz closed-form, stationary-variance limit, jump-intensity monotonicity, jump-mean sensitivity). No pricing logic was changed.
 
@@ -19,6 +19,8 @@ v0.37 adds commodity model Greeks/sensitivities (finite-difference) inside `.com
 v0.38 adds commodity model-disagreement risk metrics and alerting inside `.commodity.modelreport`: `primarySensitivity`, `priceDisagreement`, `greeksDisagreement`, `scenarioDisagreement`, `disagreementAlerts`, `modelDisagreementReport`, and the top-level `runComparisonRisk` wrapper. Status policy: zero OK rows -> `ERROR; 1..(minimumOkModels-1) -> `warning; otherwise `OK. Reporting-layer extension only — no pricing-formula changes.
 
 v0.39 adds portfolio-level commodity model-disagreement aggregation inside `.commodity.modelreport`: `validatePortfolioPositions`, `runPositionRisk` (tagged per-position tables), `runPortfolioRisk` (uj-merged book of priceRows/greeksRows/scenarioPnlRows/alertRows + positionSummary), `portfolioAlertSummary`, `portfolioDisagreementExposure`, `worstOffenders` (top-N by metric — column is `offenderRank` to avoid shadowing q's `rank`), `portfolioRiskDashboard`, and `runPortfolioDashboard`. Per-position try-catch isolates failures so one bad position never crashes the book. Reporting/aggregation layer only — no pricing-formula changes.
+
+v0.40 adds commodity model-risk limit monitoring on top of the portfolio disagreement outputs: `defaultModelRiskLimitConfig`, `checkLimit` (OK/warning/breach/ERROR), `checkPortfolioModelRiskLimits` (seven limits: grossPriceRangeExposure, maxScenarioPnlRange, maxPrimarySensitivityRange, maxVolatilityVegaRange, maxJumpSensitivity, warningAlertCount, errorTradeCount), `limitStatusSummary` (priority ERROR > breach > warning > OK), `limitBreachReport` (sorted, with `breachRank` column — `rank` would shadow q's keyword), and `runPortfolioRiskWithLimits` wrapper. All inputs are float-cast inside `checkLimit` so the resulting table has consistent column types regardless of whether a metric is a long count or a float exposure. Reporting/risk-control layer only — no pricing-formula changes.
 
 AAPL / Barchart data under `data/barchart/aapl/options_history/` is a **technical validation dataset only** — it exists to exercise the parser/backtest path on real-shaped CSVs, not because equities are the target asset class. The long-term target remains commodity (oil, power/electricity) and multi-asset options.
 
