@@ -14,6 +14,7 @@ supported:.assetclass.supportedAssetClasses[];
 .testutil.assertTrue[`commodity=.assetclass.modelFamily `black76;"black76 -> commodity"];
 .testutil.assertTrue[`equity=.assetclass.modelFamily `blackScholes;"blackScholes -> equity"];
 .testutil.assertTrue[`commodity=.assetclass.modelFamily `schwartzOneFactor;"schwartzOneFactor -> commodity"];
+.testutil.assertTrue[`commodity=.assetclass.modelFamily `schwartzTwoFactor;"schwartzTwoFactor -> commodity"];
 
 / Invalid
 badAc:@[.assetclass.validateAssetClass;`crypto;{`ERROR}];

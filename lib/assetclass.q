@@ -1,7 +1,7 @@
 / assetclass.q - asset class registry and routing (v0.32)
 
 .assetclass.__productMap:`equityOption`asianOption`basketOption`lookbackOption`commodityFuture`commodityOption`spreadOption`sparkSpreadOption`powerForward!`equity`equity`equity`equity`commodity`commodity`commodity`electricity`electricity;
-.assetclass.__modelMap:`blackScholes`localVolatility`heston`merton`bates`sabr`black76`kirk`meanReversion`schwartzOneFactor!`equity`equity`equity`equity`equity`equity`commodity`commodity`commodity`commodity;
+.assetclass.__modelMap:`blackScholes`localVolatility`heston`merton`bates`sabr`black76`kirk`meanReversion`schwartzOneFactor`schwartzTwoFactor!`equity`equity`equity`equity`equity`equity`commodity`commodity`commodity`commodity`commodity;
 .assetclass.__supported:`equity`commodity`electricity`rates`fx;
 
 .assetclass.supportedAssetClasses:{[] .assetclass.__supported};

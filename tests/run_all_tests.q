@@ -234,7 +234,15 @@
     "tests/commodity/test_schwartz_european_call.q";
     "tests/commodity/test_schwartz_european_put.q";
     "tests/commodity/test_schwartz_gbm_limit.q";
-    "tests/commodity/test_schwartz_validation.q");
+    "tests/commodity/test_schwartz_validation.q";
+    "tests/commodity/test_schwartz2_factor_moments.q";
+    "tests/commodity/test_schwartz2_futures_price.q";
+    "tests/commodity/test_schwartz2_futures_curve_shape.q";
+    "tests/commodity/test_schwartz2_european_call.q";
+    "tests/commodity/test_schwartz2_european_put.q";
+    "tests/commodity/test_schwartz2_correlation_effect.q";
+    "tests/commodity/test_schwartz2_onefactor_limit.q";
+    "tests/commodity/test_schwartz2_validation.q");
 
 / --- Combine all suites ---
 
