@@ -355,11 +355,15 @@ A bare `/` line opens a multiline comment block that runs until the next bare `\
 
 **13. Seeded scan `f\[seed;list]` does NOT include the seed in the output**
 
-`(+)\[10; 1 2 3]` returns `11 12 13` — three states from three list elements. The seed `10` is the accumulator but is not part of the result. When you need to keep the initial state alongside the per-step results (typical for a backtest where step 0 IS the entry state), prepend explicitly: `states: enlist[initialState], f\[initialState; remainingRows]`. Or do `states: f\[initialState; pathRows]` and treat `pathRows[0]` as one of the step rows rather than the seed.
+`(+)\[10; 1 2 3]` returns `11 13 16` — three states from three list elements (cumulative sum from seed: 10+1=11, 11+2=13, 13+3=16). The seed `10` is the accumulator but is not part of the result. When you need to keep the initial state alongside the per-step results (typical for a backtest where step 0 IS the entry state), prepend explicitly: `states: enlist[initialState], f\[initialState; remainingRows]`. Or do `states: f\[initialState; pathRows]` and treat `pathRows[0]` as one of the step rows rather than the seed.
 
 **14. `.[fn;arglist;handler]` needs a LIST of args, not a dict**
 
 `.[fn;args;handler]` applies `fn` to `args` as a list (so `fn` is called with `args[0], args[1], ...`). If `fn` takes a single dict argument, pass `enlist dictArg`, not `dictArg` — otherwise q sees the dict's *values* as the arglist. Same for unary fn: use `enlist atomArg`.
+
+**15. A list of dicts with identical keys auto-promotes to a TABLE**
+
+`f\[seed;list]` returning a homogeneous list of state dicts is silently converted to a table by q. If you then prepend a single dict with a DIFFERENT key set via `enlist[d], that` you get `'mismatch` (table column-count vs the extra dict). Two safe fixes: (a) make the initial state share the post-step state shape exactly, so all states have the same keys — then prepending merges cleanly; (b) use a generic-list constructor like `(enlist d),`/`raze (enlist d;list)` only when you know q will keep the list-of-dicts representation. Option (a) is the more idiomatic and robust choice; it's also a useful design discipline for backtest state.
 
 ## q/kdb+ naming and namespace rules
 

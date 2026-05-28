@@ -305,7 +305,12 @@
     "tests/strategy/test_strategy_gamma_scalp_synthetic.q";
     "tests/strategy/test_strategy_gamma_scalp_band.q";
     "tests/strategy/test_strategy_gamma_scalp_reconciliation.q";
-    "tests/strategy/test_strategy_gamma_scalp_barchart.q");
+    "tests/strategy/test_strategy_gamma_scalp_barchart.q";
+    "tests/strategy/test_strategy_hedge_helper_shared.q";
+    "tests/strategy/test_strategy_short_variance_gate.q";
+    "tests/strategy/test_strategy_short_variance_synthetic.q";
+    "tests/strategy/test_strategy_short_variance_premium.q";
+    "tests/strategy/test_strategy_short_variance_recon.q");
 
 / --- Combine all suites ---
 

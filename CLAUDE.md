@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes, Crank-Nicolson, American, barriers, local vol) is the *technical validation case*; the long-term target is commodity (oil, power/electricity) and multi-asset options. Treat AAPL/equity tests as proof-of-correctness, not the end goal.
 
-Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.42).
+Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.43).
 
-Test status: `q tests/run_all_tests.q` → **267 passed / 0 failed**.
+Test status: `q tests/run_all_tests.q` → **272 passed / 0 failed**.
 
 v0.35.2 strengthened `.commodity.mrjump` validation with four benchmark tests (lambda-zero call/put vs Schwartz closed-form, stationary-variance limit, jump-intensity monotonicity, jump-mean sensitivity). No pricing logic was changed.
 
@@ -25,6 +25,8 @@ v0.40 adds commodity model-risk limit monitoring on top of the portfolio disagre
 v0.41 adds in-memory time-series limit history and trend analytics inside `.commodity.modelreport`: `limitSnapshot` (tags a limit table with `runId`/`runDate`/`portfolioName`), `limitSummarySnapshot`, `appendLimitHistory`, `limitHistorySummary` (per-limit observation/OK/warning/breach/error counts plus rates and latest), `limitBreachTrend` (latest vs avg-of-lookback, with worsening/improving/flat direction), `repeatedBreaches`, `limitHistoryDashboard`, and the top-level `runPortfolioRiskWithLimitHistory` wrapper. The wrapper bundles run metadata and existing histories into dicts because q lambdas allow at most 8 parameters. Reporting/aggregation layer only — no persistence and no pricing-formula changes.
 
 v0.42 adds a generic, registry-based strategy/backtest engine (`.strategy`) with data-source-agnostic path adapters (synthetic GBM + Barchart-normalised) and a first delta-hedged gamma-scalping strategy (`.strategy.gammaScalp`) that self-registers at load. The driver `.strategy.run` contains no strategy-specific branching; it folds `stepFn` over path rows via scan and builds the result table column-wise once. Gamma scalping produces per-step P&L attribution (option, hedge, financing, theta, theoretical-gamma) and a `gammaReconResidual` cross-check against the existing greeks engine — within 1% of initial option price on small-step paths. Calls `.engine.priceOption` and `.greeks.calculateGreeks`; no pricing-formula or routing changes.
+
+v0.43 adds a short-variance (variance-risk-premium) strategy (`.strategy.shortVariance`) on the generic strategy engine, sharing a single delta-hedge accounting helper (`.strategy.__hedgeStep` + `.strategy.__hedgeInit`) with gamma scalping, and proves registry extensibility on a real second strategy. shortVariance builds a two-leg ATM straddle from the input trade, gates entry on `impliedVol > forecastVol + entryMargin`, collects premium up front, and runs delta-hedged with the same accounting machinery. The driver is untouched. Gamma scalp output is byte-identical post-refactor (totalPnl, intervalRebals, residual all match v0.42 PASS lines). No pricing-formula changes.
 
 AAPL / Barchart data under `data/barchart/aapl/options_history/` is a **technical validation dataset only** — it exists to exercise the parser/backtest path on real-shaped CSVs, not because equities are the target asset class. The long-term target remains commodity (oil, power/electricity) and multi-asset options.
 

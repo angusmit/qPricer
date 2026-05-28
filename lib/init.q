@@ -79,4 +79,4 @@
 \l lib/strategy.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.42";
+.qfdm.version:"0.43";
