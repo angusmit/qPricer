@@ -373,6 +373,22 @@ A bare `/` line opens a multiline comment block that runs until the next bare `\
 
 When a strategy's position evolves mid-path (legs created/retired), keep the legs as a TABLE column in state. Then qSQL handles the lifecycle naturally: `select … from legs where remainingTime <= rollThr` finds expiring legs; `select … from legs where not isExpiring` keeps survivors; concatenation `,` joins new legs; `update currentMark:unitPrice from legs` updates marks in bulk. Pricing each leg per step is a single `each` over the leg rows (giving a list of mark dicts), then `lj` on `legId xkey markedRows` brings the new marks alongside the leg specs. Avoid index-loops over legs; the table-based pattern composes with the rest of the qSQL the rest of the strategy already uses.
 
+**18. `ss` is a q built-in (string-search); pick non-shadowing loop locals**
+
+`ss` triggers a load-time `'ss` error when used as a local variable inside a `while` body. Same for other two-letter builtins (`ll`, `ml`, `mm`, etc.). For loop counters and strategy specs prefer descriptive names: `stratIdx`, `pathIdx`, `stratSpec`, `pathBundle`. SKILL note #7 covers the rule; this is a concrete trap caught while writing the ensemble runner.
+
+**19. Initialise a "list of dicts" with `enlist d`, not `d`**
+
+`synthRows:dict; synthRows,:enlist dict2` silently mis-amends the dict with the second dict's content because q's `,:` treats the lhs as a dict (key-merge), not a list. The correct seed for accumulating dicts is `synthRows:enlist dict0; synthRows,:enlist dict1` — both sides are lists of dicts and `,` concatenates them. This bit a test fixture where the assembled "rows table" came out as a single corrupted dict.
+
+**20. `\`long$3.8` rounds half-up; use `floor` for truncating percentile indices**
+
+`\`long$3.8` returns `4`, not `3` — q casts to long with rounding, not truncation. For a percentile-by-index formula like `idx: floor (pct%100) * (count vec - 1)`, use `floor` explicitly. Using `\`long$` made `p95` of `(1; 2; -1; 3; 0.5)` return `3` (the max) instead of `2` (the rank-3 value sorted). `floor` (or `_` for floor of a long) gives the conventional nearest-rank percentile.
+
+**21. Inner lambdas can't see outer locals — inline or project tightly**
+
+When you build helpers inside a function (`corOne:{...}; rowBuilder:{[i;pnls] corOne[pnls i;] each pnls}` inside a parent lambda), the inner `rowBuilder` will fail with `'corOne` at call time because q lambdas don't capture outer locals (rule #5). Either inline the helper into the place that needs it (`{[i;...] {...}[...] each ...}[;captured] each ...`), or pass it explicitly in via a projection. Most natural for matrix-builder-style code: write the whole double `each` inline with projection-captured arguments.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.

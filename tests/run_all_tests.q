@@ -315,7 +315,22 @@
     "tests/strategy/test_strategy_calendar_roll_event.q";
     "tests/strategy/test_strategy_calendar_roll_accounting.q";
     "tests/strategy/test_strategy_calendar_roll_recon.q";
-    "tests/strategy/test_strategy_calendar_roll_unhedged.q");
+    "tests/strategy/test_strategy_calendar_roll_unhedged.q";
+    "tests/strategy/test_strategy_portfolio_value_helper.q";
+    "tests/strategy/test_strategy_risk_reversal.q";
+    "tests/strategy/test_strategy_risk_reversal_gate.q";
+    "tests/strategy/test_strategy_risk_reversal_accounting.q";
+    "tests/strategy/test_strategy_model_disagreement.q";
+    "tests/strategy/test_strategy_model_disagreement_gate.q";
+    "tests/strategy/test_strategy_model_disagreement_accounting.q";
+    "tests/strategy/test_strategy_delta_vega_hedge.q";
+    "tests/strategy/test_strategy_delta_vega_hedge_accounting.q";
+    "tests/strategy/test_strategy_delta_vega_hedge_neutrality.q";
+    "tests/strategy/test_strategy_path_ensemble.q";
+    "tests/strategy/test_strategy_portfolio_run_ensemble.q";
+    "tests/strategy/test_strategy_portfolio_performance.q";
+    "tests/strategy/test_strategy_portfolio_correlation.q";
+    "tests/strategy/test_strategy_portfolio_dashboard.q");
 
 / --- Combine all suites ---
 
