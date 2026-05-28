@@ -609,3 +609,346 @@
     .strategy.shortVariance.step;
     .strategy.shortVariance.summary;
     .strategy.shortVariance.defaultConfig];
+
+/ ==================================================================
+/ 6. Concrete strategy: calendar roll (mutable leg lifecycle)
+/ ==================================================================
+/ Holds a 2-leg calendar spread (same strike, same option type, two expiries) and
+/ rolls expiring legs to fresh tenors. First strategy whose position mutates mid-path.
+/ -----------------------------------------------------------------------------
+/ Accounting uses the portfolio-value identity, not __hedgeStep's positionPnl:
+/   PV_t = cash + sum(legSide * legUnits * legMark) + hedgePosition * spot
+/   stepPnl = PV_t - PV_{t-1}
+/         == positionPnl (surviving-leg mark changes)
+/          + rollPnl     (expiring-leg mark change from prev mark to settlement intrinsic)
+/          + hedgePnl
+/          + financingPnl
+/          - txnCost     (sum of hedge txn cost + roll txn cost on closed + opened legs)
+/ Cash flows: settlement intrinsic IN, new-leg entry mark OUT, roll txnCost OUT.
+/ Mark-to-cash conversions at roll are PV-neutral; only the mark changes show as PnL.
+/ -----------------------------------------------------------------------------
+/ __hedgeStep is reused for the hedge leg only. Its returned positionPnl/stepPnl are
+/ discarded; we use its hedge accounting (hedgeTrade/txnCost/hedgePnl/financingPnl/cash
+/ update). Helper does not mutate the leg book.
+/ -----------------------------------------------------------------------------
+/ Expiry edge case: a leg with remainingTime <= rollThresholdYears is settled at
+/ intrinsic via payoff (not priced via the FDM grid which is invalid at expiry).
+/ Intrinsic delta is 1 (or -1 for puts) when ITM, 0 OTM, 0 ATM; intrinsic gamma/theta = 0.
+/ -----------------------------------------------------------------------------
+/ Result schema extends spec with thetaPnl column so non-roll-step reconciliation
+/ can be computed from resultTable alone.
+/ Result columns:
+/   stepIndex, stepDate, spot, currentTimeYears, activeLegCount, frontRemainingTime,
+/   backRemainingTime, positionValue, netDelta, hedgePosition, hedgeTrade, txnCost,
+/   positionPnl, rollPnl, hedgePnl, financingPnl, thetaPnl, rollEvents, stepPnl,
+/   cumulativePnl, theoreticalGammaPnl, status, message
+
+.strategy.calendarRoll.__rowEmitCols:`stepIndex`stepDate`spot`currentTimeYears`activeLegCount`frontRemainingTime`backRemainingTime`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`rollPnl`hedgePnl`financingPnl`thetaPnl`rollEvents`stepPnl`cumulativePnl`theoreticalGammaPnl`status`message;
+
+.strategy.calendarRoll.__emptyLegTable:{[]
+    ([] legId:0#0; legRole:0#`; optionType:0#`; strike:0#0f; side:0#0f; units:0#0f;
+        expiryTimeYears:0#0f; entryTimeYears:0#0f; entrySpot:0#0f; entryPrice:0#0f;
+        currentMark:0#0f; currentDelta:0#0f; currentGamma:0#0f; currentTheta:0#0f)
+ };
+
+.strategy.calendarRoll.defaultConfig:{[]
+    `spreadType`optionType`frontTenorYears`backTenorYears`rollThresholdYears`rollBackLeg`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+        `longCalendar;
+        `call;
+        0.05;
+        0.20;
+        0.005;
+        1b;
+        1b;
+        `interval;
+        1;
+        0.05;
+        0f;
+        0f;
+        1f%252f)
+ };
+
+.strategy.calendarRoll.__validateConfig:{[stratCfg]
+    requiredKeys:`spreadType`optionType`frontTenorYears`backTenorYears`rollThresholdYears`rollBackLeg`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears;
+    missing:requiredKeys where not requiredKeys in key stratCfg;
+    if[0<count missing; '"calendarRoll config missing keys: ",", " sv string missing];
+    if[not stratCfg[`spreadType] in `longCalendar`shortCalendar;
+        '"calendarRoll spreadType must be longCalendar or shortCalendar"];
+    if[not stratCfg[`optionType] in `call`put;
+        '"calendarRoll optionType must be call or put"];
+    if[(stratCfg`frontTenorYears)<=0f; '"calendarRoll frontTenorYears must be positive"];
+    if[(stratCfg`backTenorYears)<=stratCfg`frontTenorYears;
+        '"calendarRoll backTenorYears must exceed frontTenorYears"];
+    if[(stratCfg`rollThresholdYears)<0f; '"calendarRoll rollThresholdYears must be non-negative"];
+    if[(stratCfg[`rebalanceMode]=`interval)&(stratCfg[`rebalanceInterval]<=0);
+        '"calendarRoll rebalanceInterval must be positive in interval mode"];
+    if[(stratCfg`stepYears)<=0f; '"calendarRoll stepYears must be positive"];
+ };
+
+/ Price (or settle at intrinsic) one leg at the given currentTimeYears. Returns a dict
+/ with unitPrice, unitDelta, unitGamma, unitTheta, remainingTime, isExpiring.
+.strategy.calendarRoll.__priceLeg:{[legRow;currentTimeYears;contextDict;model;fdmConfig]
+    rt:legRow[`expiryTimeYears]-currentTimeYears;
+    spot:contextDict`spot;
+    rollThr:contextDict`rollThresholdYears;
+    isExp:rt<=rollThr;
+    if[rt<=1e-10;
+        intrinsic:$[legRow[`optionType]=`call;
+            0f|spot-legRow`strike;
+            0f|(legRow`strike)-spot];
+        intrinsicDelta:$[legRow[`optionType]=`call;
+            $[spot>legRow`strike;1f;0f];
+            $[spot<legRow`strike;-1f;0f]];
+        :`unitPrice`unitDelta`unitGamma`unitTheta`remainingTime`isExpiring!(
+            intrinsic;intrinsicDelta;0f;0f;rt;1b)];
+    legTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
+        `crleg;contextDict`underlying;`equityOption;`european;legRow`optionType;legRow`strike;rt;1f);
+    mktData:.market.createFlatMarketData[
+        contextDict`underlying;spot;contextDict`riskFreeRate;contextDict`dividendYield;contextDict`volatility];
+    priceRes:.engine.priceOption[legTrade;mktData;model;fdmConfig];
+    greeksRes:.greeks.calculateGreeks[legTrade;mktData;model;fdmConfig];
+    `unitPrice`unitDelta`unitGamma`unitTheta`remainingTime`isExpiring!(
+        priceRes`unitPrice;first greeksRes`delta;first greeksRes`gamma;first greeksRes`theta;rt;isExp)
+ };
+
+/ Mark every leg in legs at currentTimeYears. Returns a table indexed in row order
+/ matching legs (joined back via legId in step).
+.strategy.calendarRoll.__markLegs:{[legs;currentTimeYears;contextDict;model;fdmConfig]
+    if[0=count legs; :([] legId:0#0; unitPrice:0#0f; unitDelta:0#0f; unitGamma:0#0f; unitTheta:0#0f; remainingTime:0#0f; isExpiring:0#0b)];
+    pricer:.strategy.calendarRoll.__priceLeg[;currentTimeYears;contextDict;model;fdmConfig];
+    rowDicts:pricer each legs;
+    markTbl:.strategy.__rowDictsToTable rowDicts;
+    update legId:legs`legId from markTbl
+ };
+
+/ Create one new leg, pricing it at the entry time. legSpec must contain
+/ legId, legRole, optionType, strike, side, units, expiryTimeYears, entryTimeYears.
+.strategy.calendarRoll.__createLeg:{[legSpec;contextDict;model;fdmConfig]
+    fullSpec:legSpec,`entrySpot`entryPrice`currentMark`currentDelta`currentGamma`currentTheta!(
+        contextDict`spot;0f;0f;0f;0f;0f);
+    pricing:.strategy.calendarRoll.__priceLeg[fullSpec;legSpec`entryTimeYears;contextDict;model;fdmConfig];
+    @[fullSpec;`entryPrice`currentMark`currentDelta`currentGamma`currentTheta;:;
+        (pricing`unitPrice;pricing`unitPrice;pricing`unitDelta;pricing`unitGamma;pricing`unitTheta)]
+ };
+
+/ Compute net position metrics (value, delta, gamma, theta) from a leg table.
+.strategy.calendarRoll.__netPosition:{[legs]
+    if[0=count legs; :`value`delta`gamma`theta!(0f;0f;0f;0f)];
+    `value`delta`gamma`theta!(
+        sum (legs`side)*(legs`units)*legs`currentMark;
+        sum (legs`side)*(legs`units)*legs`currentDelta;
+        sum (legs`side)*(legs`units)*legs`currentGamma;
+        sum (legs`side)*(legs`units)*legs`currentTheta)
+ };
+
+.strategy.calendarRoll.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.calendarRoll.__validateConfig stratCfg;
+    spot:firstStep`spot;
+    vol:firstStep`volatility;
+    initialTime:0f;
+    units:trade`notional;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying`rollThresholdYears!(
+        spot;vol;firstStep`riskFreeRate;firstStep`dividendYield;trade`underlying;stratCfg`rollThresholdYears);
+    longCal:(stratCfg`spreadType)=`longCalendar;
+    frontSide:$[longCal;-1f;1f];
+    backSide:$[longCal;1f;-1f];
+    optionTypeVal:stratCfg`optionType;
+    strikeVal:trade`strike;
+    frontSpec:`legId`legRole`optionType`strike`side`units`expiryTimeYears`entryTimeYears!(
+        0;`front;optionTypeVal;strikeVal;frontSide;units;initialTime+stratCfg`frontTenorYears;initialTime);
+    backSpec:`legId`legRole`optionType`strike`side`units`expiryTimeYears`entryTimeYears!(
+        1;`back;optionTypeVal;strikeVal;backSide;units;initialTime+stratCfg`backTenorYears;initialTime);
+    frontLeg:.strategy.calendarRoll.__createLeg[frontSpec;contextDict;model;fdmConfig];
+    backLeg:.strategy.calendarRoll.__createLeg[backSpec;contextDict;model;fdmConfig];
+    legs:.strategy.__rowDictsToTable (frontLeg;backLeg);
+    netPos:.strategy.calendarRoll.__netPosition legs;
+    positionValue:netPos`value;
+    netDelta:netPos`delta;
+    netGamma:netPos`gamma;
+    netTheta:netPos`theta;
+    legEntryTxnCost:sum (legs`units)*(abs legs`entryPrice)*stratCfg`txnCostRate;
+    hedgeDeltaOn:stratCfg`hedgeDelta;
+    hedgeInit:$[hedgeDeltaOn;
+        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
+    initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
+    initialStepPnl:neg initialTxnCost;
+    initialCash:((neg positionValue)-legEntryTxnCost)+hedgeInit`cashAdj;
+    rowEmit:.strategy.calendarRoll.__rowEmitCols!(
+        firstStep`stepIndex;firstStep`stepDate;spot;initialTime;2;
+        stratCfg`frontTenorYears;stratCfg`backTenorYears;
+        positionValue;netDelta;hedgeInit`hedgePosition;hedgeInit`hedgeTrade;initialTxnCost;
+        0f;0f;0f;0f;0f;0;
+        initialStepPnl;initialStepPnl;0f;
+        `OK;"");
+    `legs`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`currentTimeYears`totalRolls`nextLegId`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`rollPnl`thetaPnl`stepPnl`rollEvents`cumulativePnl`rowEmit!(
+        legs;initialCash;hedgeInit`hedgePosition;netDelta;1;spot;positionValue;netGamma;netTheta;initialTime;0;2;
+        hedgeInit`hedgeTrade;initialTxnCost;0f;0f;0f;0f;0f;initialStepPnl;0;initialStepPnl;rowEmit)
+ };
+
+.strategy.calendarRoll.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    spot:marketStep`spot;
+    vol:marketStep`volatility;
+    stepYears:stratCfg`stepYears;
+    rollThr:stratCfg`rollThresholdYears;
+    newTimeYears:(state`currentTimeYears)+stepYears;
+    contextDict:`spot`volatility`riskFreeRate`dividendYield`underlying`rollThresholdYears!(
+        spot;vol;marketStep`riskFreeRate;marketStep`dividendYield;trade`underlying;rollThr);
+
+    oldLegs:state`legs;
+    markedRows:.strategy.calendarRoll.__markLegs[oldLegs;newTimeYears;contextDict;model;fdmConfig];
+    legsWithNew:oldLegs lj `legId xkey markedRows;
+    legsWithNew:update markValueNew:side*units*unitPrice, markValuePrev:side*units*currentMark from legsWithNew;
+
+    expiringLegs:legsWithNew where legsWithNew`isExpiring;
+    survivingLegs:legsWithNew where not legsWithNew`isExpiring;
+
+    positionPnl:$[0<count survivingLegs; sum (survivingLegs`markValueNew)-survivingLegs`markValuePrev; 0f];
+    rollPnl:$[0<count expiringLegs; sum (expiringLegs`markValueNew)-expiringLegs`markValuePrev; 0f];
+    rollEventsVal:count expiringLegs;
+
+    txnCostRate:stratCfg`txnCostRate;
+    settlements:$[0<count expiringLegs; sum (expiringLegs`side)*(expiringLegs`units)*expiringLegs`unitPrice; 0f];
+    rollTxnCloseCost:$[0<count expiringLegs; sum (expiringLegs`units)*(abs expiringLegs`unitPrice)*txnCostRate; 0f];
+
+    units:trade`notional;
+    longCal:(stratCfg`spreadType)=`longCalendar;
+    frontSide:$[longCal;-1f;1f];
+    backSide:$[longCal;1f;-1f];
+    optionTypeVal:stratCfg`optionType;
+    strikeVal:trade`strike;
+    expiringRoles:$[0<count expiringLegs; expiringLegs`legRole; 0#`];
+    nextLegId:state`nextLegId;
+    newLegSpecs:();
+    if[`front in expiringRoles;
+        newLegSpecs,:enlist `legId`legRole`optionType`strike`side`units`expiryTimeYears`entryTimeYears!(
+            nextLegId;`front;optionTypeVal;strikeVal;frontSide;units;newTimeYears+stratCfg`frontTenorYears;newTimeYears);
+        nextLegId+:1];
+    if[(`back in expiringRoles)&stratCfg`rollBackLeg;
+        newLegSpecs,:enlist `legId`legRole`optionType`strike`side`units`expiryTimeYears`entryTimeYears!(
+            nextLegId;`back;optionTypeVal;strikeVal;backSide;units;newTimeYears+stratCfg`backTenorYears;newTimeYears);
+        nextLegId+:1];
+
+    newEntryRows:$[0<count newLegSpecs;
+        .strategy.calendarRoll.__createLeg[;contextDict;model;fdmConfig] each newLegSpecs;
+        ()];
+    newEntryTbl:$[0<count newEntryRows; .strategy.__rowDictsToTable newEntryRows; .strategy.calendarRoll.__emptyLegTable[]];
+    newEntryCost:$[0<count newEntryTbl; sum (newEntryTbl`side)*(newEntryTbl`units)*newEntryTbl`entryPrice; 0f];
+    rollTxnOpenCost:$[0<count newEntryTbl; sum (newEntryTbl`units)*(abs newEntryTbl`entryPrice)*txnCostRate; 0f];
+    rollTxnCost:rollTxnCloseCost+rollTxnOpenCost;
+    rollCashFlow:(settlements-newEntryCost)-rollTxnCost;
+
+    totalRolls:(state`totalRolls)+rollEventsVal;
+
+    survivingUpdated:$[0<count survivingLegs;
+        select legId,legRole,optionType,strike,side,units,expiryTimeYears,entryTimeYears,entrySpot,entryPrice,
+            currentMark:unitPrice,currentDelta:unitDelta,currentGamma:unitGamma,currentTheta:unitTheta
+            from survivingLegs;
+        .strategy.calendarRoll.__emptyLegTable[]];
+    newLegs:$[0<count newEntryTbl; survivingUpdated,newEntryTbl; survivingUpdated];
+
+    netPosNew:.strategy.calendarRoll.__netPosition newLegs;
+    newPositionValue:netPosNew`value;
+    netDelta:netPosNew`delta;
+    netGamma:netPosNew`gamma;
+    netTheta:netPosNew`theta;
+
+    cashPrev:state`cash;
+    prevHedgePos:state`hedgePosition;
+    hedgeDeltaOn:stratCfg`hedgeDelta;
+    financingRate:stratCfg`financingRate;
+
+    hedgeUpdate:$[hedgeDeltaOn;
+        .strategy.__hedgeStep[
+            `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
+                cashPrev;prevHedgePos;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
+            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stepYears;txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+        `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
+            cashPrev+(financingRate*cashPrev)*stepYears;
+            0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stepYears;0f)];
+
+    hedgeTradeVal:hedgeUpdate`hedgeTrade;
+    hedgeTxnCost:hedgeUpdate`txnCost;
+    financingPnl:hedgeUpdate`financingPnl;
+    hedgePnl:hedgeUpdate`hedgePnl;
+    newHedgePos:hedgeUpdate`hedgePosition;
+    newHedgedDelta:hedgeUpdate`hedgedDelta;
+    numRebalances:hedgeUpdate`numRebalances;
+    cashAfterHedge:hedgeUpdate`cash;
+    newCash:cashAfterHedge+rollCashFlow;
+
+    totalTxnCost:hedgeTxnCost+rollTxnCost;
+    stepPnl:(positionPnl+rollPnl+hedgePnl+financingPnl)-totalTxnCost;
+    spotMove:spot-state`prevSpot;
+    theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
+    thetaPnl:(state`prevPositionTheta)*stepYears;
+    cumulativePnl:(state`cumulativePnl)+stepPnl;
+
+    activeLegCount:count newLegs;
+    sortedByRemaining:$[0<activeLegCount; `expiryTimeYears xasc newLegs; ()];
+    frontRemainingTime:$[0<activeLegCount; (first sortedByRemaining)[`expiryTimeYears]-newTimeYears; 0Nf];
+    backRemainingTime:$[1<activeLegCount; (sortedByRemaining 1)[`expiryTimeYears]-newTimeYears; 0Nf];
+
+    rowEmit:.strategy.calendarRoll.__rowEmitCols!(
+        marketStep`stepIndex;marketStep`stepDate;spot;newTimeYears;activeLegCount;frontRemainingTime;backRemainingTime;
+        newPositionValue;netDelta;newHedgePos;hedgeTradeVal;totalTxnCost;
+        positionPnl;rollPnl;hedgePnl;financingPnl;thetaPnl;rollEventsVal;
+        stepPnl;cumulativePnl;theoreticalGammaPnl;
+        `OK;"");
+
+    @[state;
+        `legs`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`prevPositionGamma`prevPositionTheta`currentTimeYears`totalRolls`nextLegId`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`rollPnl`thetaPnl`stepPnl`rollEvents`cumulativePnl`rowEmit;:;
+        (newLegs;newCash;newHedgePos;newHedgedDelta;numRebalances;spot;newPositionValue;netGamma;netTheta;newTimeYears;totalRolls;nextLegId;hedgeTradeVal;totalTxnCost;financingPnl;hedgePnl;positionPnl;rollPnl;thetaPnl;stepPnl;rollEventsVal;cumulativePnl;rowEmit)]
+ };
+
+.strategy.calendarRoll.summary:{[resultTable;stratCfg]
+    emptyResult:`strategyName`spreadType`steps`totalRolls`totalPnl`positionPnlTotal`rollPnlTotal`hedgePnlTotal`financingTotal`txnCostTotal`numRebalances`theoreticalGammaPnlTotal`thetaPnlTotal`gammaReconResidual`maxDrawdown`meanStepPnl`stepPnlVol`status`errorMessage!(
+        `calendarRoll;stratCfg`spreadType;0;0;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty result table");
+    if[(0=count resultTable)|not 98h=type resultTable; :emptyResult];
+    okMask:(resultTable`status)=`OK;
+    okRows:resultTable where okMask;
+    stepCount:count resultTable;
+    if[0=count okRows; :@[emptyResult;`steps;:;stepCount]];
+
+    totalsDict:first 0!select
+        totalPnl:sum stepPnl,
+        positionPnlTotal:sum positionPnl,
+        rollPnlTotal:sum rollPnl,
+        hedgePnlTotal:sum hedgePnl,
+        financingTotal:sum financingPnl,
+        txnCostTotal:sum txnCost,
+        theoreticalGammaPnlTotal:sum theoreticalGammaPnl,
+        thetaPnlTotal:sum thetaPnl,
+        meanStepPnl:avg stepPnl,
+        stepPnlVol:dev stepPnl
+        from okRows;
+
+    nonRollRows:okRows where 0=okRows`rollEvents;
+    reconDict:first 0!select
+        nonRollStepPnl:sum stepPnl,
+        nonRollTxnCost:sum txnCost,
+        nonRollFinancing:sum financingPnl,
+        nonRollGamma:sum theoreticalGammaPnl,
+        nonRollTheta:sum thetaPnl
+        from nonRollRows;
+    pnlExclCosts:(reconDict[`nonRollStepPnl]+reconDict`nonRollTxnCost)-reconDict`nonRollFinancing;
+    gammaReconResidual:pnlExclCosts-(reconDict[`nonRollGamma]+reconDict`nonRollTheta);
+
+    cumPnlSeries:sums okRows`stepPnl;
+    drawdownSeries:(maxs cumPnlSeries)-cumPnlSeries;
+    maxDrawdownVal:max drawdownSeries;
+    numRebalancesVal:sum 0<>okRows`hedgeTrade;
+    totalRollsVal:last okRows[`rollEvents]+'sums okRows`rollEvents;
+    totalRollsFromTable:sum okRows`rollEvents;
+
+    totalsDict,`strategyName`spreadType`steps`totalRolls`numRebalances`gammaReconResidual`maxDrawdown`status`errorMessage!(
+        `calendarRoll;stratCfg`spreadType;stepCount;totalRollsFromTable;numRebalancesVal;gammaReconResidual;maxDrawdownVal;`OK;"")
+ };
+
+.strategy.register[
+    `calendarRoll;
+    .strategy.calendarRoll.init;
+    .strategy.calendarRoll.step;
+    .strategy.calendarRoll.summary;
+    .strategy.calendarRoll.defaultConfig];

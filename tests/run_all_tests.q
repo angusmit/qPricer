@@ -310,7 +310,12 @@
     "tests/strategy/test_strategy_short_variance_gate.q";
     "tests/strategy/test_strategy_short_variance_synthetic.q";
     "tests/strategy/test_strategy_short_variance_premium.q";
-    "tests/strategy/test_strategy_short_variance_recon.q");
+    "tests/strategy/test_strategy_short_variance_recon.q";
+    "tests/strategy/test_strategy_calendar_roll_legs.q";
+    "tests/strategy/test_strategy_calendar_roll_event.q";
+    "tests/strategy/test_strategy_calendar_roll_accounting.q";
+    "tests/strategy/test_strategy_calendar_roll_recon.q";
+    "tests/strategy/test_strategy_calendar_roll_unhedged.q");
 
 / --- Combine all suites ---
 

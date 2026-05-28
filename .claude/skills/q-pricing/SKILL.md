@@ -365,6 +365,14 @@ A bare `/` line opens a multiline comment block that runs until the next bare `\
 
 `f\[seed;list]` returning a homogeneous list of state dicts is silently converted to a table by q. If you then prepend a single dict with a DIFFERENT key set via `enlist[d], that` you get `'mismatch` (table column-count vs the extra dict). Two safe fixes: (a) make the initial state share the post-step state shape exactly, so all states have the same keys — then prepending merges cleanly; (b) use a generic-list constructor like `(enlist d),`/`raze (enlist d;list)` only when you know q will keep the list-of-dicts representation. Option (a) is the more idiomatic and robust choice; it's also a useful design discipline for backtest state.
 
+**16. `asc` sorts; the input order is not preserved**
+
+`asc \`front\`back` returns `` `back`front `` (symbols sorted alphabetically), not the entry-order tuple. Test assertions that compare against the input-order tuple should compare against the SORTED expected tuple, or use `~` with the sorted form. For "every expected element is present" use `all expected in actual` instead. Same trap for numeric vectors: `asc 3 1 2` is `1 2 3`, not your input.
+
+**17. Use a q TABLE as state for a mutable position book, not a list of dicts**
+
+When a strategy's position evolves mid-path (legs created/retired), keep the legs as a TABLE column in state. Then qSQL handles the lifecycle naturally: `select … from legs where remainingTime <= rollThr` finds expiring legs; `select … from legs where not isExpiring` keeps survivors; concatenation `,` joins new legs; `update currentMark:unitPrice from legs` updates marks in bulk. Pricing each leg per step is a single `each` over the leg rows (giving a list of mark dicts), then `lj` on `legId xkey markedRows` brings the new marks alongside the leg specs. Avoid index-loops over legs; the table-based pattern composes with the rest of the qSQL the rest of the strategy already uses.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.
