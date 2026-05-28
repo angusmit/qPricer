@@ -217,6 +217,17 @@
     "tests/realdata/test_barchart_model_pricing.q";
     "tests/realdata/test_barchart_model_vs_market.q");
 
+
+.test.commodityFiles:(
+    "tests/commodity/test_futures_curve.q";
+    "tests/commodity/test_front_roll_backtest.q";
+    "tests/commodity/test_calendar_spread_replay.q";
+    "tests/commodity/test_black76_price.q";
+    "tests/commodity/test_black76_implied_vol.q";
+    "tests/commodity/test_spread_option.q";
+    "tests/commodity/test_electricity_foundation.q";
+    "tests/core/test_assetclass_registry.q");
+
 / --- Combine all suites ---
 
 .test.suites:(
@@ -235,7 +246,8 @@
     (`calibration; .test.calibrationFiles);
     (`modelcheck; .test.modelcheckFiles);
     (`risk;       .test.riskFiles);
-    (`realdata;   .test.realdataFiles));
+    (`realdata;   .test.realdataFiles);
+    (`commodity;  .test.commodityFiles));
 
 / --- Runner ---
 

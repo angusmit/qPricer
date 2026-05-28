@@ -289,7 +289,7 @@
         count replay;okCnt;errCnt;sum pnlCol;min pnlCol;max pnlCol)
  };
 
--1 "bcParser.q loaded — .parser.barchart namespace ready";
+-1 "parser.q loaded - .parser.barchart namespace ready";
 
 / ══════════════════════════════════════════════════════════════════
 / USAGE
