@@ -809,3 +809,228 @@
     disagreementResult:.commodity.modelreport.modelDisagreementReport[comparisonResult;disagreementConfig];
     `comparison`disagreement!(comparisonResult;disagreementResult)
  };
+
+/ --- Portfolio-level disagreement (v0.39) ---------------------------
+/ Apply runComparisonRisk across a book of commodity option positions and
+/ aggregate results into priceRows/greeksRows/scenarioPnlRows/alertRows tables
+/ plus a positionSummary that drives portfolio dashboards.
+/ Public:  validatePortfolioPositions, runPositionRisk, runPortfolioRisk,
+/          portfolioAlertSummary, portfolioDisagreementExposure,
+/          worstOffenders, portfolioRiskDashboard, runPortfolioDashboard.
+/ Private: __tagTable, __unionConcat, __failedPositionSummary,
+/          __numericAtomTypes.
+
+.commodity.modelreport.__numericAtomTypes:-7 -8 -9h;
+
+.commodity.modelreport.__tagTable:{[tradeIdVal;commodityVal;tbl]
+    if[0=count tbl; :tbl];
+    update tradeId:tradeIdVal, commodity:commodityVal from tbl
+ };
+
+.commodity.modelreport.__unionConcat:{[tableList]
+    nonEmpty:tableList where (98h=type each tableList)&0<count each tableList;
+    if[0=count nonEmpty; :()];
+    (uj/) nonEmpty
+ };
+
+.commodity.modelreport.__failedPositionSummary:{[posDict;errMessage]
+    `tradeId`commodity`quantity`contractMultiplier`positionStatus`positionErrorMessage`priceRange`priceRangePct`priceRangeAlert`primarySensitivityRange`primarySensitivityAlert`volatilityVegaRange`volatilityVegaAlert`scenarioPnlRange`scenarioPnlAlert`jumpIntensitySensitivity`jumpSensitivityAlert!(
+        $[`tradeId in key posDict; posDict`tradeId; `];
+        $[`commodity in key posDict; posDict`commodity; `];
+        $[`quantity in key posDict; posDict`quantity; 0Nf];
+        $[`contractMultiplier in key posDict; posDict`contractMultiplier; 0Nf];
+        `ERROR;
+        errMessage;
+        0Nf;0Nf;0b;0Nf;0b;0Nf;0b;0Nf;0b;0Nf;0b)
+ };
+
+.commodity.modelreport.validatePortfolioPositions:{[positions]
+    if[0=count positions; '"validatePortfolioPositions: positions list is empty"];
+    requiredKeys:`tradeId`optionSetup`modelInputs`scenarioConfig`quantity`contractMultiplier;
+    validateOne:{[idx;posDict;reqKeys]
+        posKeys:key posDict;
+        missingKeysHere:reqKeys where not reqKeys in posKeys;
+        if[0<count missingKeysHere;
+            '"validatePortfolioPositions: position ",string[idx]," missing keys: ",", " sv string missingKeysHere];
+        if[not (type posDict`quantity) in .commodity.modelreport.__numericAtomTypes;
+            '"validatePortfolioPositions: position ",string[idx]," quantity must be numeric atom"];
+        if[not (type posDict`contractMultiplier) in .commodity.modelreport.__numericAtomTypes;
+            '"validatePortfolioPositions: position ",string[idx]," contractMultiplier must be numeric atom"];
+        };
+    validateOne[;;requiredKeys]'[til count positions;positions];
+ };
+
+.commodity.modelreport.runPositionRisk:{[positionDict;greekConfig;disagreementConfig]
+    bodyFn:{[posDict;gCfg;dCfg]
+        if[not all `tradeId`optionSetup`modelInputs`scenarioConfig`quantity`contractMultiplier in key posDict;
+            '"runPositionRisk: position dictionary missing required keys"];
+        tradeIdVal:posDict`tradeId;
+        commodityVal:$[`commodity in key posDict; posDict`commodity; `];
+        comparisonRes:.commodity.modelreport.runComparisonRisk[posDict`optionSetup;posDict`modelInputs;posDict`scenarioConfig;posDict`quantity;posDict`contractMultiplier;gCfg;dCfg];
+        comparisonOut:comparisonRes`comparison;
+        disagreementOut:comparisonRes`disagreement;
+        priceTbl:comparisonOut`basePrices;
+        greeksTbl:comparisonOut`greeksTable;
+        scenPnLTbl:comparisonOut`scenarioPnL;
+        alertsTbl:disagreementOut`alerts;
+        tagFn:.commodity.modelreport.__tagTable[tradeIdVal;commodityVal;];
+        priceDis:disagreementOut`priceDisagreement;
+        greeksDis:disagreementOut`greeksDisagreement;
+        scenDis:disagreementOut`scenarioDisagreement;
+        positionSummaryDict:`tradeId`commodity`quantity`contractMultiplier`positionStatus`positionErrorMessage`priceRange`priceRangePct`priceRangeAlert`primarySensitivityRange`primarySensitivityAlert`volatilityVegaRange`volatilityVegaAlert`scenarioPnlRange`scenarioPnlAlert`jumpIntensitySensitivity`jumpSensitivityAlert!(
+            tradeIdVal;commodityVal;posDict`quantity;posDict`contractMultiplier;`OK;"";
+            priceDis`priceRange;priceDis`priceRangePct;priceDis`priceRangeAlert;
+            greeksDis`primarySensitivityRange;greeksDis`primarySensitivityAlert;
+            greeksDis`volatilityVegaRange;greeksDis`volatilityVegaAlert;
+            scenDis`scenarioPnlRange;scenDis`scenarioPnlAlert;
+            greeksDis`jumpIntensitySensitivity;greeksDis`jumpSensitivityAlert);
+        `tradeId`commodity`comparison`disagreement`priceRows`greeksRows`scenarioPnlRows`alertRows`positionSummary`status`errorMessage!(
+            tradeIdVal;commodityVal;comparisonOut;disagreementOut;
+            tagFn priceTbl;tagFn greeksTbl;tagFn scenPnLTbl;tagFn alertsTbl;
+            positionSummaryDict;`OK;"")
+        };
+    result:.[bodyFn;(positionDict;greekConfig;disagreementConfig);{x}];
+    if[10h=type result;
+        failedSummary:.commodity.modelreport.__failedPositionSummary[positionDict;result];
+        :`tradeId`commodity`comparison`disagreement`priceRows`greeksRows`scenarioPnlRows`alertRows`positionSummary`status`errorMessage!(
+            failedSummary`tradeId;failedSummary`commodity;()!();()!();();();();();failedSummary;`ERROR;result)];
+    result
+ };
+
+.commodity.modelreport.runPortfolioRisk:{[positions;greekConfig;disagreementConfig]
+    .commodity.modelreport.validatePortfolioPositions positions;
+    posResults:.commodity.modelreport.runPositionRisk[;greekConfig;disagreementConfig] each positions;
+    priceRowsTbl:.commodity.modelreport.__unionConcat posResults[;`priceRows];
+    greeksRowsTbl:.commodity.modelreport.__unionConcat posResults[;`greeksRows];
+    scenarioPnlRowsTbl:.commodity.modelreport.__unionConcat posResults[;`scenarioPnlRows];
+    alertRowsTbl:.commodity.modelreport.__unionConcat posResults[;`alertRows];
+    positionSummaryTbl:.commodity.modelreport.__dictsToTable posResults[;`positionSummary];
+    okMask:(positionSummaryTbl`positionStatus)=`OK;
+    errMask:(positionSummaryTbl`positionStatus)=`ERROR;
+    okTradeCountVal:sum okMask;
+    errorTradeCountVal:sum errMask;
+    totalTradeCountVal:count positionSummaryTbl;
+    portfolioStatusVal:`OK;
+    portfolioErrMsgVal:"";
+    if[okTradeCountVal=0;
+        portfolioStatusVal:`ERROR;
+        portfolioErrMsgVal:"No OK positions in portfolio"];
+    if[(okTradeCountVal>0)&(errorTradeCountVal>0);
+        portfolioStatusVal:`warning;
+        portfolioErrMsgVal:"Some positions failed: ",string[errorTradeCountVal],"/",string totalTradeCountVal];
+    portfolioSummary:`tradeCount`okTradeCount`errorTradeCount`status`errorMessage!(
+        totalTradeCountVal;okTradeCountVal;errorTradeCountVal;portfolioStatusVal;portfolioErrMsgVal);
+    `positionResults`priceRows`greeksRows`scenarioPnlRows`alertRows`positionSummary`portfolioSummary`status`errorMessage!(
+        posResults;priceRowsTbl;greeksRowsTbl;scenarioPnlRowsTbl;alertRowsTbl;positionSummaryTbl;portfolioSummary;portfolioStatusVal;portfolioErrMsgVal)
+ };
+
+.commodity.modelreport.portfolioAlertSummary:{[alertRows]
+    if[(0=count alertRows)|not 98h=type alertRows;
+        :([] alertType:0#`;okCount:0#0;warningCount:0#0;errorCount:0#0;totalCount:0#0;warningRate:0#0f)];
+    bySev:select okCount:sum severity=`OK,
+                  warningCount:sum severity=`warning,
+                  errorCount:sum severity=`ERROR,
+                  totalCount:count i
+        by alertType from alertRows;
+    bySev:update warningRate:`float$warningCount%totalCount from bySev;
+    0!bySev
+ };
+
+.commodity.modelreport.portfolioDisagreementExposure:{[portfolioRiskResult]
+    positionSummaryTbl:portfolioRiskResult`positionSummary;
+    portfolioSum:portfolioRiskResult`portfolioSummary;
+    okRows:positionSummaryTbl where (positionSummaryTbl`positionStatus)=`OK;
+    okCount:count okRows;
+    statusVal:`OK; errMsg:"";
+    if[okCount=0;
+        statusVal:`ERROR;
+        errMsg:"No OK positions for disagreement exposure"];
+    warningTradeCountVal:0;
+    grossPriceRangeExposureVal:0Nf;
+    netScenarioPnlRangeVal:0Nf;
+    grossScenarioPnlRangeVal:0Nf;
+    maxPriceRangeVal:0Nf;
+    maxPrimarySensitivityRangeVal:0Nf;
+    maxVolatilityVegaRangeVal:0Nf;
+    maxScenarioPnlRangeVal:0Nf;
+    maxJumpSensitivityVal:0Nf;
+    if[okCount>0;
+        priceRanges:okRows`priceRange;
+        scenPnlRanges:okRows`scenarioPnlRange;
+        quantities:okRows`quantity;
+        multipliers:okRows`contractMultiplier;
+        warnedMask:(okRows`priceRangeAlert)|(okRows`primarySensitivityAlert)|(okRows`volatilityVegaAlert)|(okRows`scenarioPnlAlert)|okRows`jumpSensitivityAlert;
+        warningTradeCountVal:sum warnedMask;
+        grossPriceRangeExposureVal:sum (abs priceRanges)*(abs quantities)*abs multipliers;
+        netScenarioPnlRangeVal:sum scenPnlRanges;
+        grossScenarioPnlRangeVal:sum abs scenPnlRanges;
+        maxPriceRangeVal:max abs priceRanges;
+        maxPrimarySensitivityRangeVal:max abs okRows`primarySensitivityRange;
+        maxVolatilityVegaRangeVal:max abs okRows`volatilityVegaRange;
+        maxScenarioPnlRangeVal:max abs scenPnlRanges;
+        jumpSeries:okRows`jumpIntensitySensitivity;
+        nonNullJumps:jumpSeries where not null jumpSeries;
+        if[0<count nonNullJumps; maxJumpSensitivityVal:max abs nonNullJumps]];
+    `tradeCount`okTradeCount`warningTradeCount`errorTradeCount`grossPriceRangeExposure`netScenarioPnlRange`grossScenarioPnlRange`maxPriceRange`maxPrimarySensitivityRange`maxVolatilityVegaRange`maxScenarioPnlRange`maxJumpSensitivity`status`errorMessage!(
+        portfolioSum`tradeCount;
+        portfolioSum`okTradeCount;
+        warningTradeCountVal;
+        portfolioSum`errorTradeCount;
+        grossPriceRangeExposureVal;
+        netScenarioPnlRangeVal;
+        grossScenarioPnlRangeVal;
+        maxPriceRangeVal;
+        maxPrimarySensitivityRangeVal;
+        maxVolatilityVegaRangeVal;
+        maxScenarioPnlRangeVal;
+        maxJumpSensitivityVal;
+        statusVal;
+        errMsg)
+ };
+
+/ Note: column is named offenderRank (not rank) to avoid shadowing q's rank keyword.
+.commodity.modelreport.worstOffenders:{[portfolioRiskResult;topN]
+    positionSummaryTbl:portfolioRiskResult`positionSummary;
+    okRows:positionSummaryTbl where (positionSummaryTbl`positionStatus)=`OK;
+    if[0=count okRows;
+        :([] tradeId:0#`; commodity:0#`; metricName:0#`; metricValue:0#0Nf; severity:0#`; offenderRank:0#0)];
+    metricsList:`priceRangePct`scenarioPnlRange`primarySensitivityRange`volatilityVegaRange`jumpIntensitySensitivity;
+    alertList:`priceRangeAlert`scenarioPnlAlert`primarySensitivityAlert`volatilityVegaAlert`jumpSensitivityAlert;
+    pickFn:{[okRowsLocal;topNLocal;metricNameVal;alertFieldName]
+        rawValues:okRowsLocal metricNameVal;
+        absValues:abs rawValues;
+        sortIdx:idesc absValues;
+        keepCount:topNLocal&count okRowsLocal;
+        selectedIdx:keepCount#sortIdx;
+        selectedRows:okRowsLocal selectedIdx;
+        rankSeries:1+til keepCount;
+        alertFlags:selectedRows alertFieldName;
+        severityValues:`OK`warning alertFlags;
+        ([] tradeId:selectedRows`tradeId;
+            commodity:selectedRows`commodity;
+            metricName:keepCount#metricNameVal;
+            metricValue:selectedRows metricNameVal;
+            severity:severityValues;
+            offenderRank:rankSeries)
+        };
+    tablesByMetric:pickFn[okRows;topN;;]'[metricsList;alertList];
+    (,/) tablesByMetric
+ };
+
+.commodity.modelreport.portfolioRiskDashboard:{[portfolioRiskResult]
+    portfolioSum:portfolioRiskResult`portfolioSummary;
+    alertSum:.commodity.modelreport.portfolioAlertSummary portfolioRiskResult`alertRows;
+    exposureSum:.commodity.modelreport.portfolioDisagreementExposure portfolioRiskResult;
+    offenders:.commodity.modelreport.worstOffenders[portfolioRiskResult;3];
+    `portfolioSummary`alertSummary`disagreementExposure`worstOffenders!(
+        portfolioSum;alertSum;exposureSum;offenders)
+ };
+
+.commodity.modelreport.runPortfolioDashboard:{[positions;greekConfig;disagreementConfig;topN]
+    portfolioRiskRes:.commodity.modelreport.runPortfolioRisk[positions;greekConfig;disagreementConfig];
+    alertSum:.commodity.modelreport.portfolioAlertSummary portfolioRiskRes`alertRows;
+    exposureSum:.commodity.modelreport.portfolioDisagreementExposure portfolioRiskRes;
+    offenders:.commodity.modelreport.worstOffenders[portfolioRiskRes;topN];
+    `portfolioRisk`portfolioSummary`alertSummary`disagreementExposure`worstOffenders!(
+        portfolioRiskRes;portfolioRiskRes`portfolioSummary;alertSum;exposureSum;offenders)
+ };

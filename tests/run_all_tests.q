@@ -274,7 +274,15 @@
     "tests/commodity/test_modelreport_scenario_disagreement.q";
     "tests/commodity/test_modelreport_disagreement_alerts.q";
     "tests/commodity/test_modelreport_comparison_risk.q";
-    "tests/commodity/test_modelreport_disagreement_insufficient_models.q");
+    "tests/commodity/test_modelreport_disagreement_insufficient_models.q";
+    "tests/commodity/test_modelreport_portfolio_positions.q";
+    "tests/commodity/test_modelreport_run_position_risk.q";
+    "tests/commodity/test_modelreport_run_portfolio_risk.q";
+    "tests/commodity/test_modelreport_portfolio_alert_summary.q";
+    "tests/commodity/test_modelreport_portfolio_exposure.q";
+    "tests/commodity/test_modelreport_worst_offenders.q";
+    "tests/commodity/test_modelreport_portfolio_dashboard.q";
+    "tests/commodity/test_modelreport_portfolio_error_isolation.q");
 
 / --- Combine all suites ---
 
