@@ -1,4 +1,9 @@
-/ run_all_tests.q - grouped test runner (v0.14)
+/ run_all_tests.q - grouped test runner (v0.14; v0.48 adds timing instrumentation)
+/ Available test commands:
+/   q tests/run_all_tests.q                    - full suite, prints timing report
+/   q tests/run_fast_tests.q                   - fast tier (deterministic, no MC), < ~2 min
+/   q tests/run_smoke_tests.q                  - very short core smoke tests, < 30 s
+/   q tests/run_group.q <group> -q             - single group, e.g. strategy, core, commodity
 \l lib/init.q
 
 / --- Test suites by domain ---
@@ -338,7 +343,29 @@
     "tests/strategy/test_strategy_collar_tail_hedge_mode.q";
     "tests/strategy/test_strategy_collar_tail_hedge_accounting.q";
     "tests/strategy/test_strategy_put_ratio_backspread.q";
-    "tests/strategy/test_strategy_put_ratio_backspread_accounting.q");
+    "tests/strategy/test_strategy_put_ratio_backspread_accounting.q";
+    "tests/strategy/test_strategy_iron_condor.q";
+    "tests/strategy/test_strategy_iron_condor_payoff.q";
+    "tests/strategy/test_strategy_iron_condor_accounting.q";
+    "tests/strategy/test_strategy_barrier_hedge.q";
+    "tests/strategy/test_strategy_barrier_hedge_knockout.q";
+    "tests/strategy/test_strategy_barrier_hedge_accounting.q";
+    "tests/strategy/test_strategy_jump_premium.q";
+    "tests/strategy/test_strategy_jump_premium_gate.q";
+    "tests/strategy/test_strategy_jump_premium_accounting.q";
+    "tests/strategy/test_strategy_path_correlated_determinism.q";
+    "tests/strategy/test_strategy_path_correlated_schema.q";
+    "tests/strategy/test_strategy_dispersion.q";
+    "tests/strategy/test_strategy_dispersion_correlation.q";
+    "tests/strategy/test_strategy_dispersion_accounting.q";
+    "tests/strategy/test_strategy_path_futures_curve_determinism.q";
+    "tests/strategy/test_strategy_path_futures_curve_schema.q";
+    "tests/strategy/test_strategy_power_spike.q";
+    "tests/strategy/test_strategy_power_spike_gate.q";
+    "tests/strategy/test_strategy_power_spike_accounting.q";
+    "tests/strategy/test_strategy_commodity_calendar.q";
+    "tests/strategy/test_strategy_commodity_calendar_roll.q";
+    "tests/strategy/test_strategy_commodity_calendar_accounting.q");
 
 / --- Combine all suites ---
 
@@ -362,17 +389,22 @@
     (`commodity;  .test.commodityFiles);
     (`strategy;   .test.strategyFiles));
 
-/ --- Runner ---
+/ --- Runner with timing ---
 
 .test.pass:0;
 .test.fail:0;
+.test.timings:();
+.test.currentGroup:`unknown;
 
 .test.runOne:{[testPath]
     -1 "  --- ",testPath," ---";
     codeLines:read0 hsym `$testPath;
     filteredLines:codeLines where not codeLines like "\\l *";
     codeBlock:"\n" sv filteredLines;
+    startTime:.z.p;
     testResult:@[{value x;`OK};codeBlock;{x}];
+    elapsedMs:(.z.p-startTime)%1000000;
+    .test.timings,:enlist `groupName`testPath`elapsedMs`status!(.test.currentGroup;testPath;`float$elapsedMs;$[testResult~`OK;`OK;`FAIL]);
     if[testResult~`OK; .test.pass+:1];
     if[not testResult~`OK; -2 "    FAILED: ",$[10h=type testResult;testResult;string testResult]; .test.fail+:1];
  };
@@ -382,7 +414,30 @@
     testFiles:suitePair 1;
     -1 "";
     -1 "--- Suite: ",string[suiteName]," (",string[count testFiles]," tests) ---";
+    .test.currentGroup:suiteName;
     .test.runOne each testFiles;
+ };
+
+.test.printTimingReport:{[]
+    if[0=count .test.timings; :()];
+    timingsTbl:.test.timings;
+    -1 "";
+    -1 "=============================================================================";
+    -1 " Timing report";
+    -1 "=============================================================================";
+    totalMs:sum timingsTbl`elapsedMs;
+    -1 " Total wall time: ",string[`long$totalMs]," ms (",string[`long$totalMs%1000]," s)";
+    -1 "";
+    -1 " Per-group subtotals:";
+    groupSums:0!select totalMs:sum elapsedMs, testCount:count i by groupName from timingsTbl;
+    groupSumsSorted:`totalMs xdesc groupSums;
+    {[r] -1 "   ",(-12$string r`groupName)," ",(-8$string `long$r`totalMs)," ms (",string[r`testCount]," tests)"} each groupSumsSorted;
+    -1 "";
+    -1 " Slowest 20 tests:";
+    slowestSorted:`elapsedMs xdesc timingsTbl;
+    takeN:20&count slowestSorted;
+    slowest:takeN#slowestSorted;
+    {[r] -1 "   ",(-8$string `long$r`elapsedMs)," ms  ",r`testPath} each slowest;
  };
 
 .test.runAll:{[]
@@ -395,7 +450,10 @@
     -1 " Results: ",string[.test.pass]," passed, ",string[.test.fail]," failed";
     -1 "=============================================================================";
     if[.test.fail=0; -1 "All tests passed."];
+    .test.printTimingReport[];
     if[.test.fail>0; '"Some tests failed: ",string[.test.fail]," failures"];
  };
 
-.test.runAll[];
+/ Run unless a downstream runner pre-set .test.skipAutoRun (used by run_group.q,
+/ run_fast_tests.q to reuse suite definitions without firing the full suite).
+if[not `skipAutoRun in key `.test; .test.runAll[]];
