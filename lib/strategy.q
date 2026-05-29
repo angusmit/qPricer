@@ -3382,3 +3382,340 @@
  };
 
 .strategy.register[`commodityCalendar;.strategy.commodityCalendar.init;.strategy.commodityCalendar.step;.strategy.commodityCalendar.summary;.strategy.commodityCalendar.defaultConfig];
+
+/ ==================================================================
+/ 22. Path adapter: fromCorrelatedCurves (multi-commodity spread complex) (v0.49)
+/ ==================================================================
+/ Evolve n correlated commodity futures curves jointly: Cholesky-correlated GBM
+/ fronts (one per commodity) plus an additive per-tenor contango on each curve.
+/ Reuses .correlation.__cholesky and the shared MC normal generator, exactly as
+/ .strategy.path.fromCorrelated does for equity baskets. Returns one bundle per
+/ name (key-compatible with .strategy.path.fromFuturesCurve output) so any
+/ single-curve commodity strategy can consume curves[name], plus top-level
+/ correlation/names metadata for spread strategies (spark/crack).
+/ pathCfg keys: names, correlationMatrix, spot0s, drifts, vols, contangos,
+/   tenors, steps, stepYears, riskFreeRate, seed; optional startDate.
+
+.strategy.path.fromCorrelatedCurves:{[pathCfg]
+    required:`names`correlationMatrix`spot0s`drifts`vols`contangos`tenors`steps`stepYears`riskFreeRate`seed;
+    missing:required where not required in key pathCfg;
+    if[0<count missing; '"strategy.path.fromCorrelatedCurves missing keys: ",", " sv string missing];
+    namesList:pathCfg`names;
+    corrMat:pathCfg`correlationMatrix;
+    spot0Vec:`float$pathCfg`spot0s;
+    driftVec:`float$pathCfg`drifts;
+    volsVec:`float$pathCfg`vols;
+    contangoVec:`float$pathCfg`contangos;
+    tenorsVec:`float$pathCfg`tenors;
+    stepsTotal:pathCfg`steps;
+    dt:`float$pathCfg`stepYears;
+    rfr:`float$pathCfg`riskFreeRate;
+    seed:pathCfg`seed;
+    n:count namesList;
+    if[stepsTotal<=1; '"fromCorrelatedCurves steps must be > 1"];
+    if[dt<=0f; '"fromCorrelatedCurves stepYears must be positive"];
+    if[n<2; '"fromCorrelatedCurves need at least 2 names"];
+    if[n<>count spot0Vec; '"fromCorrelatedCurves spot0s length mismatch"];
+    if[n<>count driftVec; '"fromCorrelatedCurves drifts length mismatch"];
+    if[n<>count volsVec; '"fromCorrelatedCurves vols length mismatch"];
+    if[n<>count contangoVec; '"fromCorrelatedCurves contangos length mismatch"];
+    if[0=count tenorsVec; '"fromCorrelatedCurves tenors must be non-empty"];
+    if[any tenorsVec<=0f; '"fromCorrelatedCurves tenors must be positive"];
+    if[any volsVec<0f; '"fromCorrelatedCurves vols must be non-negative"];
+    if[any spot0Vec<=0f; '"fromCorrelatedCurves spot0s must be positive"];
+    if[n<>count corrMat; '"fromCorrelatedCurves correlationMatrix not n x n"];
+    if[not all n=count each corrMat; '"fromCorrelatedCurves correlationMatrix not square"];
+    if[not .correlation.isSymmetric[corrMat;1e-10]; '"fromCorrelatedCurves correlationMatrix not symmetric"];
+    cholL:.correlation.__cholesky corrMat;
+    nIncr:stepsTotal-1;
+    flatNormals:.montecarlo.__generateNormals[n*nIncr;seed];
+    rawMat:nIncr cut flatNormals;
+    correlatedFull:cholL mmu rawMat;
+    sqrtDt:sqrt dt;
+    halfVarVec:0.5*volsVec*volsVec;
+    fullDrift:(driftVec-halfVarVec)*dt;
+    startDate:$[`startDate in key pathCfg; pathCfg`startDate; 2024.01.01];
+    stepDates:startDate+til stepsTotal;
+    nTenors:count tenorsVec;
+    nRowsLong:stepsTotal*nTenors;
+    nameIdx:0;
+    curveBundles:();
+    while[nameIdx<n;
+        zN:correlatedFull[nameIdx];
+        incr:fullDrift[nameIdx]+volsVec[nameIdx]*sqrtDt*zN;
+        logFronts:(log spot0Vec nameIdx)+sums incr;
+        frontLevels:spot0Vec[nameIdx],exp logFronts;
+        frontPath:flip .strategy.path.__schemaCols!(
+            til stepsTotal;
+            stepDates;
+            frontLevels;
+            stepsTotal#volsVec nameIdx;
+            stepsTotal#rfr;
+            stepsTotal#0f;
+            stepsTotal#0Nf;
+            stepsTotal#`OK);
+        contango:contangoVec nameIdx;
+        snapshotStepIdx:nRowsLong#0;
+        snapshotDates:nRowsLong#startDate;
+        snapshotTenors:nRowsLong#0f;
+        snapshotPrices:nRowsLong#0f;
+        rowFiller:0;
+        stepIdxLoop:0;
+        while[stepIdxLoop<stepsTotal;
+            tenorIdxLoop:0;
+            while[tenorIdxLoop<nTenors;
+                snapshotStepIdx[rowFiller]:stepIdxLoop;
+                snapshotDates[rowFiller]:stepDates stepIdxLoop;
+                snapshotTenors[rowFiller]:tenorsVec tenorIdxLoop;
+                snapshotPrices[rowFiller]:(frontLevels stepIdxLoop)+contango*tenorsVec tenorIdxLoop;
+                rowFiller+:1;
+                tenorIdxLoop+:1];
+            stepIdxLoop+:1];
+        curveSnapshots:flip `stepIndex`stepDate`tenor`futuresPrice!(snapshotStepIdx;snapshotDates;snapshotTenors;snapshotPrices);
+        evolParams:`spot0`drift`volatility`contango`riskFreeRate!(spot0Vec nameIdx;driftVec nameIdx;volsVec nameIdx;contango;rfr);
+        bundle:`frontPath`curveSnapshots`tenors`evolutionModel`evolutionParams`frontLevels`jumpCountsAtStep!(
+            frontPath;curveSnapshots;tenorsVec;`simple;evolParams;frontLevels;stepsTotal#0);
+        curveBundles,:enlist bundle;
+        nameIdx+:1];
+    curvesDict:namesList!curveBundles;
+    `names`tenors`correlationMatrix`vols`riskFreeRate`steps`stepYears`curves!(
+        namesList;tenorsVec;corrMat;volsVec;rfr;stepsTotal;dt;curvesDict)
+ };
+
+/ ==================================================================
+/ 23. Shared spread-option strategy core (v0.49)
+/ ==================================================================
+/ Long one Kirk-priced commodity spread option (F1 - mult*F2), delta-hedged in
+/ BOTH underlying futures. Uses the FUTURES mark-to-market convention: each
+/ leg's hedge P&L is settled to cash every step and the futures positions carry
+/ zero mark value, so the portfolio identity is simply
+/   PV = cash + optionMark   (optionMark = notional * Kirk price)
+/ and stepPnl = optionPnl + hedgePnl + financing - txnCost decomposes deltaPV
+/ exactly (machine precision), independent of the hedge sizing. Kirk is closed
+/ form (Black-76), so no FDM grid is touched on the path. Deltas to each leg are
+/ central finite differences on the Kirk price. sparkSpread and crackSpread are
+/ thin wrappers that differ only in their leg-2 multiplier convention (heatRate
+/ vs crackRatio), default commodity names, and reported strategyName.
+
+.strategy.spreadOption.__rowEmitCols:`stepIndex`stepDate`spot`leg1Front`leg2Front`leg2Mult`spreadValue`optionPrice`optionValue`delta1`delta2`hedge1`hedge2`txnCost`optionPnl`hedgePnl`financingPnl`stepPnl`cumulativePnl`status`message;
+
+.strategy.spreadOption.__validateConfig:{[stratCfg;normSpec]
+    requiredKeys:`curveBundle`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears;
+    missing:requiredKeys where not requiredKeys in key stratCfg;
+    if[0<count missing; '(string normSpec`strategyName),": config missing keys: ",", " sv string missing];
+    if[not (stratCfg`optType) in `call`put; '"spreadOption optType must be call or put"];
+    if[(stratCfg`vol1)<=0f; '"spreadOption vol1 must be positive"];
+    if[(stratCfg`vol2)<=0f; '"spreadOption vol2 must be positive"];
+    if[(stratCfg`expiry)<=0f; '"spreadOption expiry must be positive"];
+    if[(stratCfg`stepYears)<=0f; '"spreadOption stepYears must be positive"];
+    if[((stratCfg`correlation)< -1f) or (stratCfg`correlation)>1f; '"spreadOption correlation out of range"];
+    if[(stratCfg`bumpSize)<=0f; '"spreadOption bumpSize must be positive"];
+    if[(normSpec`mult)<=0f; '"spreadOption leg2 multiplier must be positive"];
+    bundle:stratCfg`curveBundle;
+    bundleKeys:`names`tenors`correlationMatrix`curves;
+    bundleMissing:bundleKeys where not bundleKeys in key bundle;
+    if[0<count bundleMissing; '"spreadOption curveBundle missing keys: ",", " sv string bundleMissing];
+    if[not (normSpec`leg1Name) in bundle`names; '"spreadOption leg1Name not in curveBundle names"];
+    if[not (normSpec`leg2Name) in bundle`names; '"spreadOption leg2Name not in curveBundle names"];
+ };
+
+/ Kirk price + central-difference deltas to raw leg1 (F1) and raw leg2 (F2).
+/ The leg-2 forward enters Kirk scaled by mult; delta2 is taken w.r.t. raw F2.
+.strategy.spreadOption.__priceWithDeltas:{[spec;fwd1;fwd2;rfr]
+    mult:spec`mult; strike:spec`strike; expiry:spec`expiry;
+    vol1:spec`vol1; vol2:spec`vol2; corr:spec`correlation;
+    optType:spec`optType; bump:spec`bumpSize;
+    / kirkAt[f1;f2eff] prices the spread option at the given leg forwards; the
+    / remaining inputs are closed over via the captured spec/rfr locals.
+    kirkAt:{[ot;f1;f2eff;sp;rt]
+        .commodity.spread.kirkPrice[ot;`fwd1`fwd2`strike`expiry`vol1`vol2`correlation`riskFreeRate!(
+            f1;f2eff;sp`strike;sp`expiry;sp`vol1;sp`vol2;sp`correlation;rt)]}[optType;;;spec;rfr];
+    base:kirkAt[fwd1;mult*fwd2];
+    h1:bump*fwd1;
+    h2:bump*fwd2;
+    p1up:kirkAt[fwd1+h1;mult*fwd2];
+    p1dn:kirkAt[fwd1-h1;mult*fwd2];
+    p2up:kirkAt[fwd1;mult*(fwd2+h2)];
+    p2dn:kirkAt[fwd1;mult*(fwd2-h2)];
+    delta1:(p1up-p1dn)%2f*h1;
+    delta2:(p2up-p2dn)%2f*h2;
+    `value`delta1`delta2!(base;delta1;delta2)
+ };
+
+.strategy.spreadOption.coreInit:{[trade;firstStep;stratCfg;normSpec]
+    .strategy.spreadOption.__validateConfig[stratCfg;normSpec];
+    bundle:stratCfg`curveBundle;
+    leg2Bundle:(bundle`curves) normSpec`leg2Name;
+    leg2Fronts:leg2Bundle`frontLevels;
+    notional:trade`notional;
+    spec:`mult`strike`expiry`vol1`vol2`correlation`optType`bumpSize!(
+        normSpec`mult;stratCfg`strike;stratCfg`expiry;stratCfg`vol1;stratCfg`vol2;stratCfg`correlation;stratCfg`optType;stratCfg`bumpSize);
+    stepIndex0:firstStep`stepIndex;
+    f1:firstStep`spot;
+    f2:leg2Fronts stepIndex0;
+    rfr:firstStep`riskFreeRate;
+    pr:.strategy.spreadOption.__priceWithDeltas[spec;f1;f2;rfr];
+    optValue:notional*pr`value;
+    delta1:notional*pr`delta1;
+    delta2:notional*pr`delta2;
+    hedgeEnabled:stratCfg`hedgeEnabled;
+    h1:$[hedgeEnabled;neg delta1;0f];
+    h2:$[hedgeEnabled;neg delta2;0f];
+    txnRate:stratCfg`txnCostRate;
+    optTxn:(abs optValue)*txnRate;
+    hedgeTxn:(((abs h1)*f1)+(abs h2)*f2)*txnRate;
+    txnEntry:optTxn+hedgeTxn;
+    cash0:(neg optValue)-txnEntry;
+    initialStepPnl:neg txnEntry;
+    spreadValue:f1-(normSpec`mult)*f2;
+    rowEmit:.strategy.spreadOption.__rowEmitCols!(
+        stepIndex0;firstStep`stepDate;f1;f1;f2;normSpec`mult;spreadValue;pr`value;optValue;
+        pr`delta1;pr`delta2;h1;h2;txnEntry;0f;0f;0f;initialStepPnl;initialStepPnl;`OK;"");
+    `spec`strategyName`notional`leg2Fronts`hedgeEnabled`cash`hedge1`hedge2`hedgedDelta1`hedgedDelta2`numRebalances`prevF1`prevF2`optionMark`cumulativePnl`rowEmit!(
+        spec;normSpec`strategyName;notional;leg2Fronts;hedgeEnabled;cash0;h1;h2;delta1;delta2;0;f1;f2;optValue;initialStepPnl;rowEmit)
+ };
+
+.strategy.spreadOption.coreStep:{[state;marketStep;stratCfg]
+    spec:state`spec;
+    notional:state`notional;
+    leg2Fronts:state`leg2Fronts;
+    hedgeEnabled:state`hedgeEnabled;
+    stepIndex:marketStep`stepIndex;
+    f1:marketStep`spot;
+    f2:leg2Fronts stepIndex;
+    rfr:marketStep`riskFreeRate;
+    pr:.strategy.spreadOption.__priceWithDeltas[spec;f1;f2;rfr];
+    optValueN:notional*pr`value;
+    delta1N:notional*pr`delta1;
+    delta2N:notional*pr`delta2;
+    prevF1:state`prevF1;
+    prevF2:state`prevF2;
+    prevH1:state`hedge1;
+    prevH2:state`hedge2;
+    cashPrev:state`cash;
+    optionPnl:optValueN-state`optionMark;
+    hedgePnl:(prevH1*(f1-prevF1))+(prevH2*(f2-prevF2));
+    financingPnl:(stratCfg`financingRate)*cashPrev*stratCfg`stepYears;
+    rebalanceMode:stratCfg`rebalanceMode;
+    rebalanceInterval:stratCfg`rebalanceInterval;
+    deltaBand:stratCfg`deltaBand;
+    intervalTrigger:0=stepIndex mod rebalanceInterval;
+    bandTrigger:((abs delta1N-state`hedgedDelta1)>deltaBand) or (abs delta2N-state`hedgedDelta2)>deltaBand;
+    shouldRebalance:hedgeEnabled and $[rebalanceMode=`interval;intervalTrigger;bandTrigger];
+    newH1:$[shouldRebalance;neg delta1N;prevH1];
+    newH2:$[shouldRebalance;neg delta2N;prevH2];
+    trade1:newH1-prevH1;
+    trade2:newH2-prevH2;
+    txnRate:stratCfg`txnCostRate;
+    txnCost:(((abs trade1)*f1)+(abs trade2)*f2)*txnRate;
+    newHedgedDelta1:$[shouldRebalance;delta1N;state`hedgedDelta1];
+    newHedgedDelta2:$[shouldRebalance;delta2N;state`hedgedDelta2];
+    rebInc:$[shouldRebalance and ((0<>trade1) or 0<>trade2);1;0];
+    numReb:(state`numRebalances)+rebInc;
+    stepPnl:((optionPnl+hedgePnl)+financingPnl)-txnCost;
+    newCash:((cashPrev+hedgePnl)+financingPnl)-txnCost;
+    cumulativePnl:(state`cumulativePnl)+stepPnl;
+    spreadValue:f1-(spec`mult)*f2;
+    rowEmit:.strategy.spreadOption.__rowEmitCols!(
+        stepIndex;marketStep`stepDate;f1;f1;f2;spec`mult;spreadValue;pr`value;optValueN;
+        pr`delta1;pr`delta2;newH1;newH2;txnCost;optionPnl;hedgePnl;financingPnl;stepPnl;cumulativePnl;`OK;"");
+    @[state;`cash`hedge1`hedge2`hedgedDelta1`hedgedDelta2`numRebalances`prevF1`prevF2`optionMark`cumulativePnl`rowEmit;:;
+        (newCash;newH1;newH2;newHedgedDelta1;newHedgedDelta2;numReb;f1;f2;optValueN;cumulativePnl;rowEmit)]
+ };
+
+.strategy.spreadOption.coreSummary:{[resultTable;stratCfg;strategyName]
+    base:`strategyName`steps`leg2Mult`optionPriceAtEntry`spreadAtEntry`hedgeEnabled`totalPnl`optionPnlTotal`hedgePnlTotal`financingTotal`txnCostTotal`maxDrawdown`status`errorMessage!(
+        strategyName;0;0Nf;0Nf;0Nf;stratCfg`hedgeEnabled;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty");
+    if[(0=count resultTable)|not 98h=type resultTable; :base];
+    okRows:resultTable where (resultTable`status)=`OK;
+    stepCount:count resultTable;
+    if[0=count okRows; :@[base;`steps;:;stepCount]];
+    totalsDict:first 0!select
+        totalPnl:sum stepPnl, optionPnlTotal:sum optionPnl, hedgePnlTotal:sum hedgePnl, financingTotal:sum financingPnl, txnCostTotal:sum txnCost
+        from okRows;
+    cumPnl:sums okRows`stepPnl;
+    maxDrawdownVal:max (maxs cumPnl)-cumPnl;
+    firstRow:first resultTable;
+    totalsDict,`strategyName`steps`leg2Mult`optionPriceAtEntry`spreadAtEntry`hedgeEnabled`maxDrawdown`status`errorMessage!(
+        strategyName;stepCount;firstRow`leg2Mult;firstRow`optionPrice;firstRow`spreadValue;stratCfg`hedgeEnabled;maxDrawdownVal;`OK;"")
+ };
+
+/ ==================================================================
+/ 24. Concrete strategy: sparkSpread (power vs gas) (v0.49)
+/ ==================================================================
+/ Long a spark-spread option: payoff max(P_power - heatRate*P_gas - K, 0). The
+/ heat rate (MMBtu per MWh) converts the gas leg into the fuel cost of one unit
+/ of generation. leg1 = power front (driving path), leg2 = gas front (from the
+/ correlated curve bundle). Delta-hedged in power and gas futures.
+
+.strategy.sparkSpread.defaultConfig:{[]
+    `curveBundle`leg1Name`leg2Name`heatRate`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+        ()!();
+        `power;`gas;
+        8f;
+        0f;
+        `call;
+        0.45;0.35;0.4;
+        0.25;
+        1b;
+        0.01;
+        `interval;1;0.05;0f;0f;1f%252f)
+ };
+
+.strategy.sparkSpread.__normSpec:{[stratCfg]
+    `leg1Name`leg2Name`mult`strategyName!(stratCfg`leg1Name;stratCfg`leg2Name;stratCfg`heatRate;`sparkSpread)
+ };
+
+.strategy.sparkSpread.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.spreadOption.coreInit[trade;firstStep;stratCfg;.strategy.sparkSpread.__normSpec stratCfg]
+ };
+
+.strategy.sparkSpread.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    .strategy.spreadOption.coreStep[state;marketStep;stratCfg]
+ };
+
+.strategy.sparkSpread.summary:{[resultTable;stratCfg]
+    .strategy.spreadOption.coreSummary[resultTable;stratCfg;`sparkSpread]
+ };
+
+.strategy.register[`sparkSpread;.strategy.sparkSpread.init;.strategy.sparkSpread.step;.strategy.sparkSpread.summary;.strategy.sparkSpread.defaultConfig];
+
+/ ==================================================================
+/ 25. Concrete strategy: crackSpread (refined product vs crude) (v0.49)
+/ ==================================================================
+/ Long a crack-spread option: payoff max(P_product - crackRatio*P_crude - K, 0).
+/ crackRatio is the barrels-of-crude per barrel-of-product conversion (1 for a
+/ simple 1:1 crack). leg1 = product front (driving path), leg2 = crude front
+/ (from the correlated curve bundle). Delta-hedged in product and crude futures.
+
+.strategy.crackSpread.defaultConfig:{[]
+    `curveBundle`leg1Name`leg2Name`crackRatio`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+        ()!();
+        `product;`crude;
+        1f;
+        0f;
+        `call;
+        0.35;0.30;0.6;
+        0.25;
+        1b;
+        0.01;
+        `interval;1;0.05;0f;0f;1f%252f)
+ };
+
+.strategy.crackSpread.__normSpec:{[stratCfg]
+    `leg1Name`leg2Name`mult`strategyName!(stratCfg`leg1Name;stratCfg`leg2Name;stratCfg`crackRatio;`crackSpread)
+ };
+
+.strategy.crackSpread.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    .strategy.spreadOption.coreInit[trade;firstStep;stratCfg;.strategy.crackSpread.__normSpec stratCfg]
+ };
+
+.strategy.crackSpread.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    .strategy.spreadOption.coreStep[state;marketStep;stratCfg]
+ };
+
+.strategy.crackSpread.summary:{[resultTable;stratCfg]
+    .strategy.spreadOption.coreSummary[resultTable;stratCfg;`crackSpread]
+ };
+
+.strategy.register[`crackSpread;.strategy.crackSpread.init;.strategy.crackSpread.step;.strategy.crackSpread.summary;.strategy.crackSpread.defaultConfig];

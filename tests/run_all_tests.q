@@ -230,6 +230,8 @@
     "tests/commodity/test_black76_price.q";
     "tests/commodity/test_black76_implied_vol.q";
     "tests/commodity/test_spread_option.q";
+    "tests/commodity/test_spread_option_margrabe.q";
+    "tests/commodity/test_spread_option_mc.q";
     "tests/commodity/test_electricity_foundation.q";
     "tests/core/test_assetclass_registry.q";
     "tests/commodity/test_schwartz_transition_moments.q";
@@ -365,7 +367,13 @@
     "tests/strategy/test_strategy_power_spike_accounting.q";
     "tests/strategy/test_strategy_commodity_calendar.q";
     "tests/strategy/test_strategy_commodity_calendar_roll.q";
-    "tests/strategy/test_strategy_commodity_calendar_accounting.q");
+    "tests/strategy/test_strategy_commodity_calendar_accounting.q";
+    "tests/strategy/test_strategy_path_correlated_curves_schema.q";
+    "tests/strategy/test_strategy_path_correlated_curves_determinism.q";
+    "tests/strategy/test_strategy_spark_spread.q";
+    "tests/strategy/test_strategy_spark_spread_accounting.q";
+    "tests/strategy/test_strategy_crack_spread.q";
+    "tests/strategy/test_strategy_crack_spread_accounting.q");
 
 / --- Combine all suites ---
 

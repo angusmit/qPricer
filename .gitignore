@@ -6,3 +6,4 @@ tmp_*.q
 *.log
 
 data/barchart/aapl/options_history/*.csv
+/data/barchart/CRUDE/
