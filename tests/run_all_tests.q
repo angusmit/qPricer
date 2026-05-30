@@ -220,7 +220,11 @@
     "tests/realdata/test_barchart_multiday_replay.q";
     "tests/realdata/test_barchart_performance.q";
     "tests/realdata/test_barchart_model_pricing.q";
-    "tests/realdata/test_barchart_model_vs_market.q");
+    "tests/realdata/test_barchart_model_vs_market.q";
+    "tests/realdata/test_parser_crude_filename.q";
+    "tests/realdata/test_parser_crude_loadcontract.q";
+    "tests/realdata/test_parser_crude_curve.q";
+    "tests/realdata/test_parser_crude_curve_empty.q");
 
 
 .test.commodityFiles:(

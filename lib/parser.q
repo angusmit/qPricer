@@ -289,7 +289,185 @@
         count replay;okCnt;errCnt;sum pnlCol;min pnlCol;max pnlCol)
  };
 
--1 "parser.q loaded - .parser.barchart namespace ready";
+/ ══════════════════════════════════════════════════════════════════
+/ CRUDE FUTURES-CURVE PARSER  (.parser.crude.*)  (v0.50)
+/ ══════════════════════════════════════════════════════════════════
+/ Turns Barchart WTI daily settle CSVs into (tenor, price) forward-curve
+/ snapshots for the v0.51 commodity calibration. Standalone like the equity
+/ parser above (no qFDM library dependency).
+/ -----------------------------------------------------------------
+/ FILES   : data/barchart/CRUDE/Day_CRUDE_YYYYMM00.csv (one per delivery month;
+/           YYYYMM is the delivery year-month, trailing "00" is Barchart's day
+/           filler). Hour_* files are NOT used.
+/ COLUMNS : Time,Open,High,Low,Latest,Volume  (header present, no footer).
+/           Time is ISO8601 with a DST-shifting offset (e.g.
+/           2018-12-27T06:00:00+0000); the date is the first 10 chars only.
+/           Latest is the SETTLE/close (the curve price). Volume is a long.
+/ EXPIRY  : derived from the data, NOT a hardcoded CME rule -> a contract's
+/           expiry (last-trade date) is the MAX date in its own file, and its
+/           firstDate is the MIN date. (Verified: the Jan-2020 file ends
+/           2019-12-19, the actual last trade.)
+/ TESTS   : driven by synthetic in-memory CSV TEXT only; the real CSVs are
+/           gitignored. examples/load_crude_curve.q reads the real folder.
+
+.parser.crude.cfg.fnPrefix: "Day_CRUDE_";
+.parser.crude.cfg.monthCodes: "FGHJKMNQUVXZ";
+
+/ ── private helpers (__) ──────────────────────────────────────────
+
+/ Normalise the loadContract input into a list of CSV lines. Accepts either a
+/ multi-line CSV TEXT string (contains a newline), a single-line PATH string
+/ (no newline -> read from disk), or an already-split list of lines.
+.parser.crude.__toLines:{[csvTextOrPath]
+    if[10h=type csvTextOrPath;
+       :$[any csvTextOrPath="\n";
+            "\n" vs csvTextOrPath except "\r";
+            .parser.crude.__readFileLines csvTextOrPath]];
+    csvTextOrPath
+ };
+
+.parser.crude.__readFileLines:{[path]
+    read0 hsym `$ssr[path;"\\";"/"]
+ };
+
+/ Locate a required column by (lower-cased) header name; controlled error if absent.
+.parser.crude.__findCol:{[lowerHeader;colName]
+    idx:lowerHeader?colName;
+    if[idx=count lowerHeader; '"crude parser: missing required column '",colName,"'"];
+    idx
+ };
+
+/ ── public API ────────────────────────────────────────────────────
+
+/ CL futures month code for a 1-12 month (F G H J K M N Q U V X Z).
+.parser.crude.monthCode:{[deliveryMonth]
+    if[(deliveryMonth<1)|deliveryMonth>12; '"crude parser: month out of range"];
+    .parser.crude.cfg.monthCodes deliveryMonth-1
+ };
+
+/ Parse "Day_CRUDE_YYYYMM00.csv" -> (deliveryYear; deliveryMonth) as longs.
+.parser.crude.contractMonthFromFilename:{[filename]
+    fpath:ssr[filename;"\\";"/"];
+    baseName:first "." vs last "/" vs fpath;
+    parts:"_" vs baseName;
+    if[3>count parts; '"crude parser: expected Day_CRUDE_YYYYMM00.csv, got ",filename];
+    ymToken:last parts;
+    if[8>count ymToken; '"crude parser: bad YYYYMM00 token in ",filename];
+    deliveryYear:"J"$4#ymToken;
+    deliveryMonth:"J"$ymToken 4 5;
+    if[(deliveryMonth<1)|deliveryMonth>12; '"crude parser: invalid delivery month in ",filename];
+    (deliveryYear;deliveryMonth)
+ };
+
+/ Load one contract from CSV text (or a file path) -> typed OHLCV+settle table
+/ sorted by date. Schema: date, open, high, low, settle, volume. The contract's
+/ expiry/firstDate are derived downstream as max/min of the date column.
+.parser.crude.loadContract:{[csvTextOrPath]
+    lines:.parser.crude.__toLines csvTextOrPath;
+    lines:lines where 0<count each lines;
+    if[2>count lines; '"crude parser: empty or header-only CSV"];
+    header:"," vs first lines;
+    lowerHeader:lower each header;
+    timeIdx:.parser.crude.__findCol[lowerHeader;"time"];
+    openIdx:.parser.crude.__findCol[lowerHeader;"open"];
+    highIdx:.parser.crude.__findCol[lowerHeader;"high"];
+    lowIdx:.parser.crude.__findCol[lowerHeader;"low"];
+    settleIdx:.parser.crude.__findCol[lowerHeader;"latest"];
+    volumeIdx:.parser.crude.__findCol[lowerHeader;"volume"];
+    bodyRows:"," vs/: 1_lines;
+    nCols:count header;
+    bodyRows:bodyRows where nCols=count each bodyRows;
+    if[0=count bodyRows; '"crude parser: no valid data rows"];
+    colVecs:flip bodyRows;
+    dateVec:"D"$10#/:colVecs timeIdx;
+    settleVec:"F"$colVecs settleIdx;
+    tbl:flip `date`open`high`low`settle`volume!(
+        dateVec;
+        "F"$colVecs openIdx;
+        "F"$colVecs highIdx;
+        "F"$colVecs lowIdx;
+        settleVec;
+        "J"$colVecs volumeIdx);
+    `date xasc tbl
+ };
+
+/ Expiry / first-trade dates of a loaded contract table (derived from the data).
+.parser.crude.contractExpiry:{[contractTable] max contractTable`date};
+.parser.crude.contractFirstDate:{[contractTable] min contractTable`date};
+
+/ List Day_CRUDE_*.csv files under a directory (Hour_* excluded), Win or Linux.
+.parser.crude.listFiles:{[rootDir]
+    rootDir:ssr[rootDir;"\\";"/"];
+    winDir:ssr[rootDir;"/";"\\"];
+    rawPaths:@[system;"dir /s /b \"",winDir,"\\*.csv\" 2>NUL";{()}];
+    if[0=count rawPaths;
+       rawPaths:@[system;"find \"",rootDir,"\" -name \"*.csv\" -type f 2>/dev/null";{()}]];
+    if[0=count rawPaths; '"crude parser: no CSVs found under ",rootDir];
+    rawPaths:{ssr[x except "\r";"\\";"/"]} each rawPaths;
+    baseNames:{last "/" vs x} each rawPaths;
+    rawPaths where baseNames like (.parser.crude.cfg.fnPrefix,"*")
+ };
+
+/ Per-file loader tagged with contractYM/expiry/firstDate, isolated by try-catch
+/ so one bad file never crashes the whole load.
+.parser.crude.__loadOneTagged:{[fpath]
+    @[.parser.crude.__loadOneTaggedRaw;fpath;{[fp;e] -1 "  SKIP ",fp," - ",e; ()}[fpath;]]
+ };
+
+.parser.crude.__loadOneTaggedRaw:{[fpath]
+    deliveryYM:.parser.crude.contractMonthFromFilename fpath;
+    contractYM:(100*deliveryYM 0)+deliveryYM 1;
+    tbl:.parser.crude.loadContract fpath;
+    expiry:.parser.crude.contractExpiry tbl;
+    firstDate:.parser.crude.contractFirstDate tbl;
+    tagged:update contractYM:contractYM, expiry:expiry, firstDate:firstDate from tbl;
+    `contractYM`expiry`firstDate`date`settle`open`high`low`volume xcols tagged
+ };
+
+/ Load all Day_CRUDE_*.csv under dir into one long table across contracts.
+/ Schema: contractYM, expiry, firstDate, date, settle, open, high, low, volume.
+.parser.crude.loadAll:{[rootDir]
+    fps:.parser.crude.listFiles rootDir;
+    -1 "crudeParser: loading ",string[count fps]," contract file(s)...";
+    pieces:.parser.crude.__loadOneTagged each fps;
+    nonEmpty:pieces where 0<count each pieces;
+    if[0=count nonEmpty; '"crude parser: no rows loaded from any file"];
+    longTable:raze nonEmpty;
+    -1 "crudeParser: ",string[count longTable]," rows from ",string[count nonEmpty]," of ",string[count fps]," file(s)";
+    `contractYM`date xasc longTable
+ };
+
+/ Forward curve as-of a date: (tenor, price) for every contract alive AND quoted
+/ on asof (firstDate<=asof<=expiry and a settle row exists on asof). tenor =
+/ (expiry-asof)/365 in years. Sorted ascending by tenor. This is the marketCurve
+/ shape the v0.51 calibration consumes. Controlled error if nothing is alive.
+.parser.crude.curveAt:{[longTable;asofArg]
+    if[not 98h=type longTable; '"crude curveAt: expected a table"];
+    asofDate:$[-14h=type asofArg; asofArg; "D"$asofArg];
+    alive:select from longTable where firstDate<=asofDate, expiry>=asofDate, date=asofDate;
+    if[0=count alive; '"crude curveAt: no contracts alive/quoted on ",string asofDate];
+    grouped:0!select expiry:first expiry, price:first settle by contractYM from alive;
+    grouped:update tenor:(`float$expiry-asofDate)%365f from grouped;
+    `tenor xasc `tenor`price`contractYM`expiry xcols grouped
+ };
+
+.parser.crude.__curveAtSafe:{[longTable;asofArg]
+    builder:{[lt;a] curve:.parser.crude.curveAt[lt;a]; update asofDate:a from curve};
+    @[builder[longTable;];asofArg;{[e] ()}]
+ };
+
+/ Curve per asof date (curve evolution over time for calibration). Dates with no
+/ alive contracts are skipped (not fatal). Schema: asofDate, tenor, price,
+/ contractYM, expiry. (Column is asofDate, not asof: asof is a q built-in.)
+.parser.crude.curveHistory:{[longTable;asofDates]
+    asofVec:$[-14h=type asofDates; enlist asofDates; asofDates];
+    pieces:.parser.crude.__curveAtSafe[longTable;] each asofVec;
+    nonEmpty:pieces where 0<count each pieces;
+    if[0=count nonEmpty; '"crude curveHistory: no curves on any asof date"];
+    `asofDate`tenor`price`contractYM`expiry xcols raze nonEmpty
+ };
+
+-1 "parser.q loaded - .parser.barchart + .parser.crude namespaces ready";
 
 / ══════════════════════════════════════════════════════════════════
 / USAGE
