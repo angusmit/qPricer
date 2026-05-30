@@ -53,8 +53,10 @@
 \l lib/meanRevertingJump.q
 \l lib/commodityModelReport.q
 \l lib/commoditySpread.q
+\l lib/seasonality.q
 \l lib/electricity.q
 \l lib/commodityBacktest.q
+\l lib/calibrateCurve.q
 / Dashboard and orchestration
 \l lib/dashboard.q
 \l lib/dailyrisk.q
@@ -79,4 +81,4 @@
 \l lib/strategy.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.50";
+.qfdm.version:"0.51";

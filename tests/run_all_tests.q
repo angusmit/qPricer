@@ -236,6 +236,12 @@
     "tests/commodity/test_spread_option.q";
     "tests/commodity/test_spread_option_margrabe.q";
     "tests/commodity/test_spread_option_mc.q";
+    "tests/commodity/test_seasonality_factor.q";
+    "tests/commodity/test_seasonality_overlay_baseline.q";
+    "tests/commodity/test_seasonality_overlay_pattern.q";
+    "tests/commodity/test_calibrate_curve_roundtrip.q";
+    "tests/commodity/test_calibrate_curve_economic.q";
+    "tests/commodity/test_calibrate_curve_guards.q";
     "tests/commodity/test_electricity_foundation.q";
     "tests/core/test_assetclass_registry.q";
     "tests/commodity/test_schwartz_transition_moments.q";

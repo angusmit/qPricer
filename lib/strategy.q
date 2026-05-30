@@ -3050,6 +3050,11 @@
             tenorIdxLoop+:1];
         stepIdxLoop+:1];
     curveSnapshots:flip `stepIndex`stepDate`tenor`futuresPrice!(snapshotStepIdx;snapshotDates;snapshotTenors;snapshotPrices);
+    / Opt-in seasonal overlay: shape each (step,tenor) forward by exp(factor) using
+    / the delivery time (dt*stepIndex + tenor). Absent -> curveSnapshots unchanged.
+    if[`seasonCfg in key pathCfg;
+        seasonCfg:pathCfg`seasonCfg;
+        curveSnapshots:update futuresPrice:futuresPrice*exp .commodity.seasonality.factor[(dt*stepIndex)+tenor;seasonCfg] from curveSnapshots];
     `frontPath`curveSnapshots`tenors`evolutionModel`evolutionParams`frontLevels`jumpCountsAtStep!(
         frontPath;curveSnapshots;tenorsVec;evolModel;evolParams;frontLevels;jumpCountsAtStep)
  };
@@ -3472,6 +3477,11 @@
                 tenorIdxLoop+:1];
             stepIdxLoop+:1];
         curveSnapshots:flip `stepIndex`stepDate`tenor`futuresPrice!(snapshotStepIdx;snapshotDates;snapshotTenors;snapshotPrices);
+        / Opt-in seasonal overlay (shared seasonCfg applied to each name's curve).
+        / Absent -> curveSnapshots byte-identical to the baseline adapter.
+        if[`seasonCfg in key pathCfg;
+            seasonCfg:pathCfg`seasonCfg;
+            curveSnapshots:update futuresPrice:futuresPrice*exp .commodity.seasonality.factor[(dt*stepIndex)+tenor;seasonCfg] from curveSnapshots];
         evolParams:`spot0`drift`volatility`contango`riskFreeRate!(spot0Vec nameIdx;driftVec nameIdx;volsVec nameIdx;contango;rfr);
         bundle:`frontPath`curveSnapshots`tenors`evolutionModel`evolutionParams`frontLevels`jumpCountsAtStep!(
             frontPath;curveSnapshots;tenorsVec;`simple;evolParams;frontLevels;stepsTotal#0);
