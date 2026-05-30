@@ -8,6 +8,9 @@
 / may regroup the load sequence strictly by layer once the dependency edges are
 / confirmed clean; this step changes locations and paths only, never code.
 / ----------------------------------------------------------------------------
+/ Configuration layer (v0.57): populate .cfg (config/base.q + optional
+/ config/{env}.q via QPRICER_ENV) FIRST, before any module that reads it.
+\l core/cfg.q
 / Core (math / RNG / stats / infra)
 \l core/utilities.q
 \l core/config.q
@@ -93,4 +96,4 @@
 \l backtest/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.56";
+.qfdm.version:"0.57";

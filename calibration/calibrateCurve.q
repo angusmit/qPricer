@@ -41,16 +41,7 @@
 / At least 3 curve points are required (3 free linear parameters per kappa).
 
 .commodity.curveCal.defaultCalCfg:{[]
-    `shortVolatility`longVolatility`correlation`riskFreeRate`meanReversionSpeedRange`gridSteps`refineRounds`refineShrink`kappaFloor!(
-        0.30;
-        0.15;
-        0.30;
-        0.02;
-        0.1 3.0;
-        25;
-        5;
-        0.3;
-        0.05)
+    .cfg.calib.curve
  };
 
 / Validate the market curve and return it sorted ascending by tenor (unkeyed dict
@@ -168,7 +159,7 @@
 / (regime-flip table backwardation<->contango).
 
 .commodity.curveCal.defaultSeriesCfg:{[]
-    `kappa`shortVolatility`longVolatility`correlation`riskFreeRate!(1.0;0.30;0.15;0.30;0.02)
+    .cfg.calib.curveSeries
  };
 
 .commodity.curveCal.__seriesEmpty:{[]

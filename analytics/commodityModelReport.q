@@ -306,15 +306,7 @@
 / FD noise.
 
 .commodity.modelreport.defaultGreekConfig:{[]
-    `spotBumpPct`volBump`meanReversionBump`longRunLogMeanBump`jumpIntensityBump`jumpMeanBump`correlationBump`useCentralDifference!(
-        0.01;
-        0.01;
-        0.01;
-        0.01;
-        0.10;
-        0.01;
-        0.01;
-        1b)
+    .cfg.analytics.greek
  };
 
 .commodity.modelreport.bumpDict:{[paramDict;paramName;bumpAmount]
@@ -588,14 +580,7 @@
 / can be built without re-passing the disagreementConfig.
 
 .commodity.modelreport.defaultDisagreementConfig:{[]
-    `priceRangeAbsThreshold`priceRangePctThreshold`primaryDeltaRangeThreshold`volatilityVegaRangeThreshold`scenarioPnlRangeThreshold`jumpSensitivityThreshold`minimumOkModels!(
-        5f;
-        0.10;
-        10f;
-        10f;
-        1000f;
-        5f;
-        2)
+    .cfg.analytics.disagreement
  };
 
 .commodity.modelreport.__primaryFieldFor:{[modelName]
@@ -1045,21 +1030,7 @@
 / Private: __severityPriority.
 
 .commodity.modelreport.defaultModelRiskLimitConfig:{[]
-    `grossPriceRangeExposureWarning`grossPriceRangeExposureBreach`maxScenarioPnlRangeWarning`maxScenarioPnlRangeBreach`maxPrimarySensitivityRangeWarning`maxPrimarySensitivityRangeBreach`maxVolatilityVegaRangeWarning`maxVolatilityVegaRangeBreach`maxJumpSensitivityWarning`maxJumpSensitivityBreach`warningAlertCountWarning`warningAlertCountBreach`errorTradeCountWarning`errorTradeCountBreach!(
-        5000f;
-        10000f;
-        1000f;
-        2500f;
-        25f;
-        50f;
-        20f;
-        40f;
-        5f;
-        10f;
-        5;
-        10;
-        1;
-        3)
+    .cfg.analytics.modelRiskLimit
  };
 
 .commodity.modelreport.__severityPriority:{[statusSymbol]

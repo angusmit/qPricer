@@ -115,8 +115,7 @@
 / --- Config ---
 
 .montecarlo.defaultMcConfig:{[]
-    `pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(
-        50000;50;42;1b;0b;0.95)
+    .cfg.mc
  };
 
 .montecarlo.validateMcConfig:{[mcConfig]

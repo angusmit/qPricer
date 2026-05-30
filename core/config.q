@@ -10,7 +10,7 @@
  };
 
 .config.withDefaults:{[cfg]
-    defaults:`minimumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(0f;`linear;1b;1b);
+    defaults:`minimumSpot`interpolationMethod`returnFullGrid`stabilityCheck#.cfg.fdm;
     missingKeys:(key defaults) where not (key defaults) in key cfg;
     cfg,missingKeys#defaults
  };
@@ -31,8 +31,7 @@
 / --- Default configs (v0.13) ---
 
 .config.defaultPricingConfig:{[]
-    `method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(
-        `explicit;200;2000;0f;300f;`linear;1b;1b)
+    .cfg.fdm
  };
 
 .config.defaultScenarioConfig:{[]
@@ -40,7 +39,7 @@
  };
 
 .config.defaultImpliedVolConfig:{[]
-    `lowerVolatilityBound`upperVolatilityBound`tolerance`maximumIterations!(0.0001;5.0;1e-8;100)
+    .cfg.iv
  };
 
 .config.validatePricingConfig:{[configDict]

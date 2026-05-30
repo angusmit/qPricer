@@ -54,7 +54,7 @@
  };
 
 .commodity.kalman.defaultParams:{[]
-    `kappa`muXi`sigChi`sigXi`correlation`lamChi`lamXi`measSigma!(1.0;0.0;0.30;0.15;0.0;0.0;0.0;0.02)
+    .cfg.calib.kalmanParams
  };
 
 / A(tau) deterministic log-futures term, vectorised over a tenor vector.
@@ -160,13 +160,7 @@
 / ----------------------------------------------------------------------------
 
 .commodity.kalman.defaultEstCfg:{[]
-    `bounds`init`gridSteps`refineRounds`refineShrink`nSweeps!(
-        `kappa`muXi`sigChi`sigXi`correlation`measSigma!((0.05 5.0);(-0.5 0.5);(0.01 1.5);(0.01 1.0);(-0.95 0.95);(0.0001 0.3));
-        `kappa`muXi`sigChi`sigXi`correlation`measSigma!(1.0;0.0;0.30;0.15;0.0;0.02);
-        11;
-        4;
-        0.4;
-        5)
+    .cfg.calib.kalmanEst
  };
 
 .commodity.kalman.__freeNames:`kappa`muXi`sigChi`sigXi`correlation`measSigma;
