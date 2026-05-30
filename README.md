@@ -4,6 +4,8 @@ A kdb+/q finite-difference pricing and risk framework for equity options.
 
 kdb+/q finite-difference pricing and risk framework for equity options, including explicit FDM, Crank-Nicolson, Greeks, scenario risk, American puts, barriers, local volatility and portfolio analytics.
 
+> **Commodity narrative:** the equity FDM is the correctness-validation case; the project's target is commodity. See **[docs/COMMODITY_DESK.md](docs/COMMODITY_DESK.md)** for the end-to-end story (WTI curve → two-factor calibration → Kalman state-space estimation → the 2020-2021 convenience-yield regimes) told with real numbers.
+
 ## Why This Project Exists
 
 qFDM is a kdb+/q pricing and risk analytics framework for equity options. It implements finite-difference pricing under Black-Scholes, American early exercise, simple knock-out barriers, Crank-Nicolson for European vanilla options, local volatility experiments, Greeks, scenario risk, and portfolio-level batch analytics.
