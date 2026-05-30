@@ -80,6 +80,7 @@
 \l lib/backtest.q
 / Strategy / backtest engine
 \l lib/strategy.q
+\l lib/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.52";
+.qfdm.version:"0.53";

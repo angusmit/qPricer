@@ -388,7 +388,13 @@
     "tests/strategy/test_strategy_spark_spread.q";
     "tests/strategy/test_strategy_spark_spread_accounting.q";
     "tests/strategy/test_strategy_crack_spread.q";
-    "tests/strategy/test_strategy_crack_spread_accounting.q");
+    "tests/strategy/test_strategy_crack_spread_accounting.q";
+    "tests/strategy/test_commodity_signals_roll.q";
+    "tests/strategy/test_commodity_signals_causality.q";
+    "tests/strategy/test_strategy_convenience_carry.q";
+    "tests/strategy/test_strategy_chi_reversion.q";
+    "tests/strategy/test_strategy_real_curve_calendar_roll.q";
+    "tests/strategy/test_commodity_score.q");
 
 / --- Combine all suites ---
 
