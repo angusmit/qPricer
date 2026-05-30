@@ -175,7 +175,79 @@ The deeply negative **April-20-21 settlement prices are excluded** throughout: t
 models are log-price and cannot represent a non-positive price, so those dates are guarded out
 of the lognormal domain rather than fed to the fit.
 
-## 8. Engineering rigor
+## 8. Does it trade? — out-of-sample strategy verdict
+
+The point of the models is signals. Eight strategies trade the WTI curve on a
+**causal signal-augmented path**: a roll-adjusted continuous front-return series
+plus per-date convenience-yield, Kalman χ/ξ, momentum and curve-residual signals
+— each computed using only data up to that date. The Kalman parameters are
+estimated **once on a training window** and filtered forward; positions are
+**vol-targeted** to a common 15% (so the ranking compares edge, not leverage),
+**lagged one step**, charged **transaction costs**, and booked under the
+futures mark-to-market identity (`PV = cash`, `ΔPV = stepPnl`).
+
+**A single split flatters to deceive.** On the obvious split — train 2020, test
+2021 — the ranking is:
+
+| strategy | 2021 OOS Sharpe |
+|---|---|
+| curveRelativeValue | **2.19** |
+| timeSeriesMomentum | 0.48 |
+| twoTimescale | 0.42 |
+| carryMomentumCombo | 0.12 |
+| convenienceYieldCarry | −0.31 |
+| chiReversion | 0.0 (didn't trigger) |
+| storageCashCarry | −2.63 |
+
+Taken alone this says "relative value wins." **It doesn't survive walk-forward.**
+Re-running over **5 rolling splits** (180-trading-day train, 63-day test, sliding
+across 2020-01 → 2021-12), the distribution of out-of-sample Sharpe is:
+
+| strategy | mean OOS Sharpe | dispersion (std) | splits positive |
+|---|---|---|---|
+| **twoTimescale** | **+1.77** | 1.28 | **4 / 5** |
+| chiReversion | +0.94 | 0.63 | 4 / 5 |
+| carryMomentumCombo | +0.44 | 1.75 | 3 / 5 |
+| timeSeriesMomentum | +0.43 | 1.64 | 2 / 5 |
+| convenienceYieldCarry | −0.28 | 1.92 | 1 / 5 |
+| storageCashCarry | −1.95 | 3.23 | 1 / 5 |
+| **curveRelativeValue** | **−1.76** | 1.71 | **0 / 5** |
+
+The single-split "winner" (curveRelativeValue, +2.19) is **negative in every one
+of the five splits** (mean −1.76): the 2021 result was one lucky draw. The
+robust performer is **twoTimescale** (revert the fast χ factor + trend-follow the
+slow ξ factor), positive in 4 of 5 splits — and even it has a dispersion (1.28)
+comparable to its mean, i.e. a wide error bar.
+
+**The honest read** — and the negative findings are the valuable ones:
+- A one-to-few-year Sharpe has a standard error of order ±1-2 (visible in the
+  dispersions above), so a point estimate is not a verdict; the *distribution* is.
+- The cross-sectional **relative-value** edge was a single-draw artifact, not a
+  repeatable signal — exactly the trap walk-forward exists to catch.
+- **Momentum** being positive in a trending year is partly mechanical, and it was
+  positive in only 2 of 5 splits — regime-dependent, not a free lunch.
+- **Carry** underperformed because its convenience-yield signal leans on a Kalman
+  κ that **railed high on the COVID-distorted 2020 training window** — a model is
+  only as good as the regime it is trained on.
+- **chi-reversion** didn't trade at all in the single calm 2021 split, yet across
+  the volatile rolling splits it was positive in 4 of 5: the signal needs a regime
+  with dislocations to act on.
+- The two-timescale combination being the most consistent is the one mild
+  positive: combining a fast mean-reverting and a slow trend factor diversifies
+  the regime dependence of either alone.
+
+**Limitations & caveats (stated plainly).** This is a *single commodity* (WTI) over
+a *finite liquid history* dominated by one extraordinary regime (the 2020 COVID
+shock); the lognormal models structurally **exclude the April-2020 negative-price
+window**; single-curve calibration **fixes the volatilities** (only the curve-
+shaping parameters are identified from one snapshot); convergence trades look
+flatter and more attractive in-sample than they trade net of cost; and five
+overlapping rolling splits are not five independent experiments. The framework's
+contribution is the *discipline* — causal signals, out-of-sample walk-forward,
+common vol target, costs, and an accounting identity checked by independent
+revaluation — not a claim of a money-making strategy.
+
+## 9. Engineering rigor
 
 A few properties make the numbers above trustworthy rather than merely present:
 
@@ -186,15 +258,15 @@ A few properties make the numbers above trustworthy rather than merely present:
 - **Byte-identical guarantees.** Every milestone preserves prior behavior exactly: opt-in
   features (e.g. seasonality) leave the existing adapters byte-for-byte unchanged, and the
   canonical reference tests keep their reference numbers.
-- **345 tests, all green**, run in ~431 s — kept under a 10-minute ceiling by deliberate
+- **361 tests, all green**, run in ~6-7 min — kept under a 10-minute ceiling by deliberate
   test-suite-performance work (per-test timing, tiered runners, and grid/path tuning that
   preserves the machine-epsilon identities).
 - **Honest validation.** Where a method has a limitation (single-curve κ under-identification),
   it is stated and then *addressed* by a better method, not hidden.
 
-## 9. How to reproduce
+## 10. How to reproduce
 
-All four read the real (gitignored) WTI CSVs and print the numbers quoted above:
+These read the real (gitignored) WTI CSVs and print the numbers quoted above:
 
 | script | prints |
 |---|---|
@@ -202,8 +274,11 @@ All four read the real (gitignored) WTI CSVs and print the numbers quoted above:
 | `examples/calibrate_crude_curve.q` | the two-factor fit, RMSE, and convenience-yield-vs-rate read |
 | `examples/convenience_yield_series.q` | the 2020-2021 cy series + regime-transition dates |
 | `examples/kalman_schwartz_smith.q` | the Kalman-MLE params (κ identified) + filtered χ/ξ factors |
+| `examples/commodity_strategy_backtest.q` | the single-split (train 2020 / test 2021) ranked OOS table + correlations |
 
-Run any of them from the repo root, e.g. `q examples/kalman_schwartz_smith.q`. The synthetic
+The walk-forward distribution in §8 comes from `.strategy.commodityBT.walkForward` over
+rolling splits (run inside the backtest harness; see `lib/commodityStrategies.q`). Run any
+example from the repo root, e.g. `q examples/kalman_schwartz_smith.q`. The synthetic
 identifiability round-trip lives in `tests/commodity/test_kalman_schwartz_smith_roundtrip.q`.
 
 ---

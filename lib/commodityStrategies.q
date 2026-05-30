@@ -540,3 +540,77 @@
     corMat:{[i;pnlsL] {[vi;vj] $[(0=dev vi)|0=dev vj; $[vi~vj;1f;0n]; vi cor vj]}[pnlsL i;] each pnlsL}[;pnls] each til nS;
     `ranked`correlationNames`correlationMatrix`results!(ranked;names;corMat;runs)
  };
+
+/ ============================================================================
+/ Part A (v0.54). Walk-forward robustness: the OOS verdict as a DISTRIBUTION.
+/ ----------------------------------------------------------------------------
+/ A single year's Sharpe has a standard error on the order of +/-1, so a point
+/ estimate is not a verdict. walkForward runs the existing per-run backtest over
+/ multiple sequential train/test splits (rolling or expanding), each estimating
+/ the Kalman params on THAT split's train only (causal, no cross-split leak),
+/ and aggregates each strategy's OOS metrics into mean +/- dispersion + how many
+/ splits were positive. Splits are INDEX-BASED over the distinct curve dates, so
+/ appending future data adds new splits without changing existing ones (the
+/ cross-split causality guarantee). Spans are in number-of-dates.
+/ ============================================================================
+
+.strategy.commodityBT.defaultSplitCfg:{[]
+    `scheme`trainSpan`testSpan`maxSplits!(`expanding;120;60;8)
+ };
+
+/ Index-based split specs over nDates dated points. Returns a list of dicts
+/ (trainStartIdx, trainEndIdx, testEndIdx); stops when a test window runs past
+/ the data. Expanding: train grows from 0; rolling: fixed-width train slides.
+.strategy.commodityBT.__splits:{[scheme;nDates;trainSpan;testSpan;maxSplits]
+    splits:();
+    i:0;
+    while[i<maxSplits;
+        trainStartIdx:$[scheme=`rolling; i*testSpan; 0];
+        trainEndIdx:$[scheme=`rolling; trainStartIdx+trainSpan-1; trainSpan+(i*testSpan)-1];
+        testEndIdx:trainEndIdx+testSpan;
+        if[testEndIdx>=nDates; :splits];
+        splits,:enlist `trainStartIdx`trainEndIdx`testEndIdx!(trainStartIdx;trainEndIdx;testEndIdx);
+        i+:1];
+    splits
+ };
+
+/ Aggregate the per-split detail (one row per strategy per split) into a per-
+/ strategy distribution. avg / dev skip nulls (strategies that never traded).
+.strategy.commodityBT.__aggregateSplits:{[detail]
+    if[(0=count detail)|not 98h=type detail;
+        :([] strategyName:0#`; nSplits:0#0; nTraded:0#0; meanSharpe:0#0Nf; sharpeStd:0#0Nf; splitsPositive:0#0; meanAnnReturn:0#0Nf; meanMaxDrawdown:0#0Nf)];
+    0!select
+        nSplits:count i,
+        nTraded:sum not null testSharpe,
+        meanSharpe:avg testSharpe,
+        sharpeStd:dev testSharpe,
+        splitsPositive:sum testSharpe>0f,
+        meanAnnReturn:avg testAnnualReturn,
+        meanMaxDrawdown:avg testMaxDrawdown
+        by strategyName from detail
+ };
+
+.strategy.commodityBT.walkForward:{[strategies;trade;curveHistory;sigCfg;splitCfg]
+    if[not 98h=type curveHistory; '"walkForward: curveHistory must be a table"];
+    cfg:.strategy.commodityBT.defaultSplitCfg[];
+    if[count splitCfg; cfg:cfg,splitCfg];
+    dates:asc distinct curveHistory`asofDate;
+    nDates:count dates;
+    splits:.strategy.commodityBT.__splits[cfg`scheme;nDates;cfg`trainSpan;cfg`testSpan;cfg`maxSplits];
+    if[0=count splits; '"walkForward: no valid splits for the given spans and history window"];
+    / Bundle fixed args into a ctx dict (8-param lambda cap).
+    ctx:`strategies`trade`curveHistory`sigCfg`dates`model`fdmCfg!(
+        strategies;trade;curveHistory;sigCfg;dates;.model.createBlackScholesModel[];()!());
+    runSplit:{[spec;ctx;splitId]
+        dts:ctx`dates;
+        ts:dts spec`trainStartIdx; te:dts spec`trainEndIdx; xe:dts spec`testEndIdx;
+        subHist:select from (ctx`curveHistory) where asofDate within (ts;xe);
+        sig:.strategy.path.commoditySignals[subHist;@[ctx`sigCfg;`trainEndDate;:;te]];
+        suite:.strategy.commodityBT.runSuite[ctx`strategies;ctx`trade;sig`path;ctx`model;ctx`fdmCfg;()!()];
+        perf:select strategyName,testSharpe,testAnnualReturn,testMaxDrawdown,testHitRate from suite`ranked;
+        update splitId:splitId, trainEnd:te, testEnd:xe from perf};
+    detail:raze runSplit[;ctx;]'[splits;til count splits];
+    splitDates:([] splitId:til count splits;
+        trainStart:dates splits[;`trainStartIdx]; trainEnd:dates splits[;`trainEndIdx]; testEnd:dates splits[;`testEndIdx]);
+    `aggregate`detail`splits!(.strategy.commodityBT.__aggregateSplits detail;detail;splitDates)
+ };

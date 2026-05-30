@@ -467,7 +467,54 @@
     `asofDate`tenor`price`contractYM`expiry xcols raze nonEmpty
  };
 
--1 "parser.q loaded - .parser.barchart + .parser.crude namespaces ready";
+/ ══════════════════════════════════════════════════════════════════
+/ GENERALISED FUTURES PARSER  (.parser.futures.*)  (v0.54)
+/ ══════════════════════════════════════════════════════════════════
+/ Generalises the CRUDE parser to ANY product whose files follow the same
+/ convention Day_<TAG>_YYYYMM00.csv (e.g. GAS, RB, HO). The CSV parsing, expiry
+/ derivation and curve construction are product-INDEPENDENT, so the tag only
+/ enters the filename filter; the tag-independent functions are reused verbatim
+/ from .parser.crude.*. .parser.crude.* is left UNTOUCHED and therefore stays
+/ byte-identical (crude output == .parser.futures.loadAll[dir;`CRUDE]).
+
+.parser.futures.__fnPrefix:{[productTag] "Day_",(string productTag),"_"};
+
+/ Tag-independent functions reused directly from the crude parser.
+.parser.futures.loadContract:.parser.crude.loadContract;
+.parser.futures.contractMonthFromFilename:.parser.crude.contractMonthFromFilename;
+.parser.futures.contractExpiry:.parser.crude.contractExpiry;
+.parser.futures.contractFirstDate:.parser.crude.contractFirstDate;
+.parser.futures.curveAt:.parser.crude.curveAt;
+.parser.futures.curveHistory:.parser.crude.curveHistory;
+.parser.futures.monthCode:.parser.crude.monthCode;
+
+/ List Day_<TAG>_*.csv files under a directory (Win or Linux).
+.parser.futures.listFiles:{[rootDir;productTag]
+    rootDir:ssr[rootDir;"\\";"/"];
+    winDir:ssr[rootDir;"/";"\\"];
+    rawPaths:@[system;"dir /s /b \"",winDir,"\\*.csv\" 2>NUL";{()}];
+    if[0=count rawPaths;
+       rawPaths:@[system;"find \"",rootDir,"\" -name \"*.csv\" -type f 2>/dev/null";{()}]];
+    if[0=count rawPaths; '"futures parser: no CSVs found under ",rootDir];
+    rawPaths:{ssr[x except "\r";"\\";"/"]} each rawPaths;
+    baseNames:{last "/" vs x} each rawPaths;
+    rawPaths where baseNames like (.parser.futures.__fnPrefix[productTag]),"*"
+ };
+
+/ Load all Day_<TAG>_*.csv under dir into one long table across contracts.
+/ Schema: contractYM, expiry, firstDate, date, settle, open, high, low, volume.
+.parser.futures.loadAll:{[rootDir;productTag]
+    fps:.parser.futures.listFiles[rootDir;productTag];
+    -1 "futuresParser[",(string productTag),"]: loading ",string[count fps]," contract file(s)...";
+    pieces:.parser.crude.__loadOneTagged each fps;
+    nonEmpty:pieces where 0<count each pieces;
+    if[0=count nonEmpty; '"futures parser: no rows loaded from any file"];
+    longTable:raze nonEmpty;
+    -1 "futuresParser[",(string productTag),"]: ",string[count longTable]," rows from ",string[count nonEmpty]," of ",string[count fps]," file(s)";
+    `contractYM`date xasc longTable
+ };
+
+-1 "parser.q loaded - .parser.barchart + .parser.crude + .parser.futures namespaces ready";
 
 / ══════════════════════════════════════════════════════════════════
 / USAGE

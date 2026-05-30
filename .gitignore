@@ -7,3 +7,8 @@ tmp_*.q
 
 data/barchart/aapl/options_history/*.csv
 /data/barchart/CRUDE/*.csv
+# Real futures CSVs (user-supplied) are never committed - any product folder.
+/data/barchart/GAS/*.csv
+/data/barchart/RB/*.csv
+/data/barchart/HO/*.csv
+/data/barchart/*/Day_*.csv

@@ -247,6 +247,8 @@
     "tests/commodity/test_kalman_filter_correctness.q";
     "tests/commodity/test_kalman_missing_observations.q";
     "tests/commodity/test_kalman_schwartz_smith_roundtrip.q";
+    "tests/commodity/test_parser_futures.q";
+    "tests/commodity/test_seasonality_fit.q";
     "tests/commodity/test_electricity_foundation.q";
     "tests/core/test_assetclass_registry.q";
     "tests/commodity/test_schwartz_transition_moments.q";
@@ -399,7 +401,10 @@
     "tests/strategy/test_strategy_two_timescale.q";
     "tests/strategy/test_strategy_storage_cash_carry.q";
     "tests/strategy/test_strategy_carry_momentum_combo.q";
-    "tests/strategy/test_strategy_curve_relative_value.q");
+    "tests/strategy/test_strategy_curve_relative_value.q";
+    "tests/strategy/test_walk_forward_splits.q";
+    "tests/strategy/test_walk_forward_aggregate.q";
+    "tests/strategy/test_walk_forward_run.q");
 
 / --- Combine all suites ---
 

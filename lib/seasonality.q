@@ -31,3 +31,13 @@
     phaseYears:`float$seasonCfg`phaseYears;
     amplitude*cos .commodity.seasonality.__twoPi*timeYears-phaseYears
  };
+
+/ Fit a 12-vector of monthly seasonal factors from observed (timeYears, value)
+/ pairs by averaging the values within each calendar month (the fractional part
+/ of timeYears selects the month). The recovered vector is exactly the
+/ monthlyFactors a seasonal overlay would use. Months with no observation -> null.
+.commodity.seasonality.fitMonthlyFactors:{[timeYears;values]
+    if[not (count timeYears)=count values; '"fitMonthlyFactors: timeYears/values length mismatch"];
+    months:floor 12f*timeYears-floor timeYears;
+    {[months;values;m] monthValues:values where months=m; $[0=count monthValues;0n;avg monthValues]}[months;`float$values;] each til 12
+ };
