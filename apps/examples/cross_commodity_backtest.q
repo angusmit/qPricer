@@ -15,23 +15,34 @@ sigCfgBase:`rollDaysBeforeExpiry`momentumLookback`txnCostRate`targetVol`riskFree
 splitCfg:`scheme`trainSpan`testSpan`maxSplits!(`rolling;252;63;10);
 bsModel:.model.createBlackScholesModel[]; fc:()!();
 
+/ Prefer the splayed HDB (v0.59) for the data-load if built; else parse the CSVs.
+/ The HDB only replaces the parse with a columnar read - curveHistory is byte-identical.
+hdbPath:.cfg.paths`hdb;
+useHdb:0<count @[{[p] key hsym `$p,"/sym"};hdbPath;{[e] ()}];
+if[useHdb; -1 "Data source: HDB (",hdbPath,")"; .data.hdb.open hdbPath];
+
 / --- extended WTI walk-forward over all liquid dates ---
-clLong:.parser.futures.loadAll["data/barchart/CRUDE";`CRUDE];
-clDates:asc distinct clLong`date;
-clHist:.parser.crude.curveHistory[clLong;clDates];
+$[useHdb;
+    [clDates:.data.hdb.dates `CRUDE; clHist:.data.hdb.curveHistory[`CRUDE;clDates]];
+    [clLong:.parser.futures.loadAll["data/barchart/CRUDE";`CRUDE];
+     clDates:asc distinct clLong`date;
+     clHist:.parser.crude.curveHistory[clLong;clDates]]];
 -1 "WTI: ",(string count clDates)," liquid dates ",(string first clDates)," .. ",string last clDates;
 wfCL:.strategy.commodityBT.walkForward[strategies;trade;clHist;sigCfgBase;splitCfg];
 -1 "WTI extended walk-forward (",(string count wfCL`splits)," rolling 252/63 splits):";
 show `meanSharpe xdesc wfCL`aggregate;
 
 / --- NG (deseasonalized), data-conditional ---
+gasInHdb:$[useHdb; 0<count .data.hdb.dates `GAS; 0b];
 gasFiles:@[{key hsym `$x};"data/barchart/GAS";{[e] ()}];
-if[0=count gasFiles;
-    -1 "";-1 "NG cross-commodity leg SKIPPED - no data/barchart/GAS (data-conditional).";
+if[not (gasInHdb or 0<count gasFiles);
+    -1 "";-1 "NG cross-commodity leg SKIPPED - no GAS in HDB or data/barchart/GAS (data-conditional).";
     exit 0];
-gasLong:.parser.futures.loadAll["data/barchart/GAS";`GAS];
-gasDates:asc distinct gasLong`date;
-gasHist:.parser.futures.curveHistory[gasLong;gasDates];
+$[gasInHdb;
+    [gasDates:.data.hdb.dates `GAS; gasHist:.data.hdb.curveHistory[`GAS;gasDates]];
+    [gasLong:.parser.futures.loadAll["data/barchart/GAS";`GAS];
+     gasDates:asc distinct gasLong`date;
+     gasHist:.parser.futures.curveHistory[gasLong;gasDates]]];
 -1 "";-1 "NG: ",(string count gasDates)," liquid dates ",(string first gasDates)," .. ",string last gasDates;
 wfNG:.strategy.commodityBT.walkForward[strategies;trade;gasHist;sigCfgBase,enlist[`deseasonalize]!enlist 1b;splitCfg];
 -1 "NG (deseasonalized) walk-forward (",(string count wfNG`splits)," splits):";

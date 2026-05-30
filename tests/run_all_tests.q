@@ -224,7 +224,8 @@
     "tests/realdata/test_parser_crude_filename.q";
     "tests/realdata/test_parser_crude_loadcontract.q";
     "tests/realdata/test_parser_crude_curve.q";
-    "tests/realdata/test_parser_crude_curve_empty.q");
+    "tests/realdata/test_parser_crude_curve_empty.q";
+    "tests/realdata/test_hdb_ingest_query_equivalence.q");
 
 
 .test.commodityFiles:(

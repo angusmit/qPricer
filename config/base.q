@@ -63,12 +63,13 @@
 / directories as explicit arguments (apps supply them), so these are a documented
 / default registry for apps/pipeline; not read by tests, so they do not affect the
 / byte-identical guarantee. Repointing apps to read these is deferred.
-.cfg.paths:`barchartRoot`crudeDir`gasDir`aaplOptionsDir`outputDir!(
+.cfg.paths:`barchartRoot`crudeDir`gasDir`aaplOptionsDir`outputDir`hdb!(
     "data/barchart";
     "data/barchart/CRUDE";
     "data/barchart/GAS";
     "data/barchart/aapl/options_history";
-    "output");
+    "output";
+    "data/hdb");
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and

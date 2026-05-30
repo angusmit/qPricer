@@ -55,14 +55,14 @@ Format, by data kind (this is the best-practice split):
 
 ---
 
-## 3. Data & storage — partitioned HDB
+## 3. Data & storage — splayed HDB
 
-Historical data moves off loose `Day_*.csv` files onto a **date-partitioned, splayed kdb+ HDB** — the core reason to use kdb+ at all, and the source of end-to-end query speed.
+**Status: done (v0.59).** Historical data moves off loose `Day_*.csv` files onto an on-disk **columnar kdb+ HDB** — the source of end-to-end query speed.
 
-- Partition by date; splay columns; `p#` (parted) attribute on the contract/`sym` column; `g#` where useful.
-- Core tables: `futures` (date, commodity, contractYM, OHLC, settle, volume), `curves` (date, commodity, tenor, price), `calibrations` (date, commodity, model, params...), `backtestRuns` (runId, strategy, metrics...).
-- Ingestion: parse a Barchart CSV -> write into the HDB via `.Q.dpft`. Everything downstream queries the HDB (columnar, memory-mapped), never re-parses CSVs.
-- The HDB directory is **gitignored**, like the CSVs. CSVs are an *ingestion source*, not the store.
+- **Splayed, UNPARTITIONED** (revised from the original date-partitioned plan): the dataset is ~48k rows total (tiny for kdb+), so ~1900 daily partition directories would be slow and Windows-hostile (tens of thousands of small files + antivirus). A single splayed `futures/` directory is far faster. `p#` (parted) attribute on the `commodity` column; sym columns enumerated via `.Q.en`, written with `set`. If the data ever grows to many millions of rows, revisit date-partitioning then.
+- Table `futures` (commodity, contractYM, expiry, firstDate, date, OHLC, settle, volume). (`curves` / `calibrations` / `backtestRuns` tables remain future work.)
+- Ingestion (`scripts/ingest_hdb.q` → `.data.hdb.ingest`): **reuses `.parser.futures.loadAll` verbatim** (expiry/firstDate derived exactly as the parser), then enumerates + writes the splay. Everything downstream queries the HDB (`.data.hdb.curveAt`/`curveHistory`/`dates`), which is byte-identical to the parser by construction; the parser is now the CSV-read stage feeding ingestion, not re-run per query. `.data.hdb.open` uses `get` (not `\l`) to avoid changing the process working directory. Measured CRUDE data-load: 1884 ms (CSV parse) → 396 ms (HDB) ≈ 4.8× faster.
+- The HDB directory (`.cfg.paths.hdb`, default `data/hdb`) is **gitignored**, like the CSVs. CSVs are an *ingestion source*, not the store. `core/init.q` never opens the HDB at import (library-load independence).
 
 ---
 
@@ -126,7 +126,7 @@ The ~360-test green suite is what makes a large refactor safe. Each step keeps e
 
 1. **Layer the folders.** Move files into the layer tree; fix load paths; restructure the loader. Pure move — **no behavior change**. Lowest risk; do first.
 2. **Config layer.** Add `.cfg`; replace hardcoded constants module by module. *(DONE — v0.57: core/calibration/analytics + paths; v0.58: all backtest strategy + signal configs.)*
-3. **HDB.** Stand up the partitioned database + an ingestion script; repoint queries to the HDB; keep CSV ingestion as the source.
+3. **HDB.** Stand up the database + an ingestion script; repoint queries to the HDB; keep CSV ingestion as the source. *(DONE — v0.59: splayed (not partitioned) HDB, `.data.hdb.*` + `scripts/ingest_hdb.q`, examples repointed, ~4.8× faster data-load, byte-identical.)*
 4. **Execution layer.** Build `execution/`; route the backtest through it instead of the flat cost rate.
 5. **Portfolio optimizer.** Add `portfolio/` (allocation across strategies).
 6. **IPC services** *(optional, last)* — gateway + HDB service + workers, only if always-on / multi-core scale is actually needed.

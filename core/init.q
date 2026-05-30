@@ -88,12 +88,13 @@
 \l analytics/perfdiag.q
 \l core/cache.q
 \l analytics/perfopt.q
-/ Data (parsers + real-data backtest)
+/ Data (parsers + real-data backtest + HDB query layer)
 \l data/parser.q
+\l data/hdb.q
 \l data/backtest.q
 / Backtest (strategy engine + strategies)
 \l backtest/strategy.q
 \l backtest/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.58";
+.qfdm.version:"0.59";

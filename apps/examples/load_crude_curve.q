@@ -12,24 +12,32 @@
 / does not depend on this folder.
 / ============================================================================
 
-crudeDir:"data/barchart/CRUDE";
--1 "Loading CRUDE futures curve from ",crudeDir," ...";
-
-longTable:.parser.crude.loadAll crudeDir;
--1 "Loaded ",(string count longTable)," daily settle rows across ",
-    (string count distinct longTable`contractYM)," contracts.";
--1 "Date range: ",(string min longTable`date)," .. ",string max longTable`date;
+crudeDir:.cfg.paths`crudeDir;
+hdbPath:.cfg.paths`hdb;
+/ Prefer the splayed HDB (v0.59) if it has been built; fall back to parsing the
+/ CSVs directly otherwise (fresh checkout with CSVs but no HDB yet). Both yield
+/ a byte-identical curve - the HDB only replaces the parse with a columnar read.
+useHdb:0<count @[{[p] key hsym `$p,"/sym"};hdbPath;{[e] ()}];
+$[useHdb;
+    [-1 "Source: HDB (",hdbPath,", splayed columnar) ...";
+     .data.hdb.open hdbPath;
+     tradedDates:.data.hdb.dates `CRUDE;
+     curveAtD:{[d] .data.hdb.curveAt[`CRUDE;d]}];
+    [-1 "Source: CSV parse (",crudeDir,") ...";
+     longTable:.parser.crude.loadAll crudeDir;
+     tradedDates:asc distinct longTable`date;
+     curveAtD:{[lt;d] .parser.crude.curveAt[lt;d]}[longTable;]]];
+-1 "Trade dates: ",(string count tradedDates)," from ",(string first tradedDates)," .. ",string last tradedDates;
 
 / Pick a sample as-of date that sits inside the data range and has several alive
 / contracts (early 2020). Fall back to the median traded date if absent.
 sampleAsof:2020.01.06;
-tradedDates:asc distinct longTable`date;
 if[not sampleAsof in tradedDates;
    sampleAsof:tradedDates (count tradedDates) div 2];
 
 -1 "";
 -1 "Forward curve as of ",(string sampleAsof),":";
-curve:.parser.crude.curveAt[longTable;sampleAsof];
+curve:curveAtD sampleAsof;
 show curve;
 
 / Contango (upward) vs backwardation (downward): compare the near vs far price.
@@ -42,3 +50,4 @@ shape:$[farPrice>nearPrice;"CONTANGO (far > near)";
 -1 "Near tenor ",(string first curve`tenor)," yr  price ",string nearPrice;
 -1 "Far  tenor ",(string last curve`tenor)," yr  price ",string farPrice;
 -1 "Curve shape: ",shape;
+exit 0;

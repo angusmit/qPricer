@@ -14,11 +14,18 @@
 / The CSVs are user-supplied and gitignored - not committed. The test suite
 / exercises calibration on synthetic curves only.
 / ============================================================================
-crudeDir:"data/barchart/CRUDE";
+crudeDir:.cfg.paths`crudeDir;
+hdbPath:.cfg.paths`hdb;
 asofSnap:2020.01.06;
--1 "Loading WTI curve from ",crudeDir," , as of ",(string asofSnap)," ...";
-longTable:.parser.crude.loadAll crudeDir;
-curve:.parser.crude.curveAt[longTable;asofSnap];
+/ Prefer the splayed HDB (v0.59) if built; else parse the CSVs (byte-identical curve).
+useHdb:0<count @[{[p] key hsym `$p,"/sym"};hdbPath;{[e] ()}];
+$[useHdb;
+    [-1 "Loading WTI curve from HDB (",hdbPath,"), as of ",(string asofSnap)," ...";
+     .data.hdb.open hdbPath;
+     curve:.data.hdb.curveAt[`CRUDE;asofSnap]];
+    [-1 "Loading WTI curve from CSV (",crudeDir,"), as of ",(string asofSnap)," ...";
+     longTable:.parser.crude.loadAll crudeDir;
+     curve:.parser.crude.curveAt[longTable;asofSnap]]];
 -1 "Market curve (",(string count curve)," contracts):";
 show curve;
 
@@ -42,3 +49,4 @@ shapeRead:$[cyVal>rateVal;"EXCEEDS the rate -> BACKWARDATION (convenience yield 
 -1 "impliedFrontSlope   = ",string res`impliedFrontSlope;
 -1 "netConvenienceYield = ",string cyVal;
 -1 "Economic read: convenience yield ",shapeRead;
+exit 0;
