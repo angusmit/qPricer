@@ -30,7 +30,8 @@ trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`not
     `BT;`WTI;`equityOption;`european;`call;60f;0.25;1f);
 bsModel:.model.createBlackScholesModel[];
 fdmCfg:()!();
-suite:.strategy.commodityBT.runSuite[`convenienceYieldCarry`chiReversion;trade;p;bsModel;fdmCfg;()!()];
+allStrategies:`convenienceYieldCarry`chiReversion`timeSeriesMomentum`twoTimescale`storageCashCarry`carryMomentumCombo`curveRelativeValue;
+suite:.strategy.commodityBT.runSuite[allStrategies;trade;p;bsModel;fdmCfg;()!()];
 
 -1 "";
 -1 "Out-of-sample (2021) ranked performance:";

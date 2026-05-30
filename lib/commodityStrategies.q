@@ -121,13 +121,47 @@
     cySeries:cyOut`series;
     cyByDate:(cySeries`asofDate)!cySeries`netConvenienceYield;
     convenienceYield:cyByDate[dates];
-    / --- vol-target scale from TRAIN front-return vol (annualised) ---
-    trainReturns:(0f^frontReturn) where isTrain;
-    dailyVol:dev 1_trainReturns;
-    annVol:dailyVol*sqrt cfg`annualizationDays;
-    volTargetScale:$[annVol>0f; (cfg`targetVol)%annVol; 1f];
+    / --- xi (equilibrium-level) momentum: trailing-N change in the slow factor ---
+    xiMomentum:0f^xi-(cfg`momentumLookback) xprev xi;
+    / --- deferred (next) contract roll-adjusted return + near-far calendar spread ---
+    allContracts:asc distinct curveHist`contractYM;
+    nextContract:allContracts!(1_allContracts),0N;
+    deferredSeq:nextContract heldSeq;
+    deferredReturn:0n,{[priceMap;dates;deferredSeq;t]
+        dy:deferredSeq t;
+        pNow:priceMap[dates t]dy; pPrev:priceMap[dates t-1]dy;
+        $[(null dy)|(null pNow)|null pPrev; 0n; (pNow%pPrev)-1f]}[priceMap;dates;deferredSeq;] each 1+til nDates-1;
+    nearFarSpreadReturn:(0f^frontReturn)-0f^deferredReturn;
+    / --- vol-target scales from TRAIN-window vol of each traded series (annualised) ---
+    annScale:sqrt cfg`annualizationDays;
+    volScaleOf:{[retVec;isTrain;targetVol;annScale]
+        v:(dev 1_retVec where isTrain)*annScale; $[v>0f; targetVol%v; 1f]}[;isTrain;cfg`targetVol;annScale];
+    volTargetScale:volScaleOf 0f^frontReturn;
+    volTargetScaleNearFar:volScaleOf 0f^nearFarSpreadReturn;
+    / --- curve relative value: per-date schwartz2 residuals -> cheap/rich legs ---
+    / error = modelPrice - marketPrice; >0 cheap (long), <0 rich (short). kappa fixed.
+    rvCalCfg:cyCalCfg,`meanReversionSpeedRange`gridSteps`refineRounds!((kappaEst;kappaEst);1;1);
+    rvIdent:{[curveHistL;rvCalCfgL;d]
+        sub:`tenor xasc select tenor,price,contractYM from curveHistL where asofDate=d;
+        if[3>count sub; :`longYM`shortYM`gap!(0N;0N;0n)];
+        res:@[.commodity.calibrateCurve[;`schwartz2;rvCalCfgL];select tenor,price from sub;{[e] `rvError}];
+        if[-11h=type res; :`longYM`shortYM`gap!(0N;0N;0n)];
+        err:(res`perTenorError)`error;
+        contracts:sub`contractYM;
+        `longYM`shortYM`gap!(contracts err?max err;contracts err?min err;(max err)-min err)
+        }[curveHist;rvCalCfg;];
+    rvList:rvIdent each dates;
+    rvLongSeq:rvList[;`longYM]; rvShortSeq:rvList[;`shortYM];
+    rvSignal:0f^rvList[;`gap];
+    rvSpreadReturn:0n,{[priceMap;dates;rvLongSeq;rvShortSeq;t]
+        ly:rvLongSeq t-1; sy:rvShortSeq t-1;
+        lpNow:priceMap[dates t]ly; lpPrev:priceMap[dates t-1]ly;
+        spNow:priceMap[dates t]sy; spPrev:priceMap[dates t-1]sy;
+        $[(null ly)|(null sy)|(null lpNow)|(null lpPrev)|(null spNow)|null spPrev; 0n;
+          ((lpNow%lpPrev)-1f)-((spNow%spPrev)-1f)]}[priceMap;dates;rvLongSeq;rvShortSeq;] each 1+til nDates-1;
+    volTargetScaleRV:volScaleOf 0f^rvSpreadReturn;
     / --- assemble standard-schema path + signal columns ---
-    pathTbl:flip `stepIndex`stepDate`spot`volatility`riskFreeRate`dividendYield`marketPrice`status`frontReturn`frontPrice`frontContractYM`daysToExpiry`curveSlopeCarry`momentum`chi`xi`chiZ`convenienceYield`isTrain`volTargetScale!(
+    pathTbl:flip `stepIndex`stepDate`spot`volatility`riskFreeRate`dividendYield`marketPrice`status`frontReturn`frontPrice`frontContractYM`daysToExpiry`curveSlopeCarry`momentum`chi`xi`chiZ`xiMomentum`convenienceYield`deferredReturn`nearFarSpreadReturn`rvSignal`rvSpreadReturn`isTrain`volTargetScale`volTargetScaleNearFar`volTargetScaleRV!(
         til nDates;
         dates;
         frontPrice;
@@ -145,11 +179,18 @@
         chi;
         xi;
         chiZ;
+        xiMomentum;
         convenienceYield;
+        0f^deferredReturn;
+        nearFarSpreadReturn;
+        rvSignal;
+        0f^rvSpreadReturn;
         isTrain;
-        nDates#volTargetScale);
-    `path`kalmanParams`trainEndDate`nTrain`nTest`volTargetScale`stationaryStd`heldContracts!(
-        pathTbl;kalParams;trainEndDate;sum isTrain;sum not isTrain;volTargetScale;stationaryStd;distinct heldSeq)
+        nDates#volTargetScale;
+        nDates#volTargetScaleNearFar;
+        nDates#volTargetScaleRV);
+    `path`kalmanParams`trainEndDate`nTrain`nTest`volTargetScale`volTargetScaleNearFar`volTargetScaleRV`stationaryStd`heldContracts!(
+        pathTbl;kalParams;trainEndDate;sum isTrain;sum not isTrain;volTargetScale;volTargetScaleNearFar;volTargetScaleRV;stationaryStd;distinct heldSeq)
  };
 
 / ============================================================================
@@ -162,26 +203,31 @@
 
 .strategy.commodityBT.__rowEmitCols:`stepIndex`stepDate`frontPrice`signal`rawTarget`position`frontReturn`positionPnl`turnoverCost`stepPnl`cumulativePnl`isTrain`status`message;
 
+/ The traded return / vol-scale columns default to the front series; spread
+/ strategies (B2/B4) override them via returnColumn / volScaleColumn in stratCfg.
+.strategy.commodityBT.__returnColumn:{[stratCfg] $[`returnColumn in key stratCfg; stratCfg`returnColumn; `frontReturn]};
+.strategy.commodityBT.__volScaleColumn:{[stratCfg] $[`volScaleColumn in key stratCfg; stratCfg`volScaleColumn; `volTargetScale]};
+
 .strategy.commodityBT.coreInit:{[trade;firstStep;stratCfg;rawTarget0;signalVal0]
     notional:trade`notional;
-    scale:firstStep`volTargetScale;
+    scale:firstStep .strategy.commodityBT.__volScaleColumn stratCfg;
     txnRate:stratCfg`txnCostRate;
     position0:rawTarget0*scale*notional;
     entryCost:(abs position0)*txnRate;
     stepPnl0:neg entryCost;
     rowEmit:.strategy.commodityBT.__rowEmitCols!(
         firstStep`stepIndex;firstStep`stepDate;firstStep`frontPrice;signalVal0;rawTarget0;position0;
-        firstStep`frontReturn;0f;entryCost;stepPnl0;stepPnl0;firstStep`isTrain;`OK;"");
+        firstStep .strategy.commodityBT.__returnColumn stratCfg;0f;entryCost;stepPnl0;stepPnl0;firstStep`isTrain;`OK;"");
     `cash`prevPosition`prevRawTarget`cumulativePnl`notional`rowEmit!(
         neg entryCost;position0;rawTarget0;stepPnl0;notional;rowEmit)
  };
 
 .strategy.commodityBT.coreStep:{[state;marketStep;stratCfg;rawTarget;signalVal]
     notional:state`notional;
-    scale:marketStep`volTargetScale;
+    scale:marketStep .strategy.commodityBT.__volScaleColumn stratCfg;
     txnRate:stratCfg`txnCostRate;
     prevPos:state`prevPosition;
-    ret:marketStep`frontReturn;
+    ret:marketStep .strategy.commodityBT.__returnColumn stratCfg;
     desired:rawTarget*scale*notional;
     positionPnl:prevPos*ret;
     turnover:(abs desired-prevPos)*txnRate;
@@ -340,6 +386,132 @@
     rollByRegime:0!select rollPnlTotal:sum rollPnl, positionPnlTotal:sum positionPnl, steps:count i by regime:regimeCol from okRes;
     `result`summary`rollByRegime`bundle!(res;runB`summary;rollByRegime;bundle)
  };
+
+/ ============================================================================
+/ B1. timeSeriesMomentum - the commodity trend premium (sign of trailing return)
+/ ============================================================================
+.strategy.timeSeriesMomentum.defaultConfig:{[]
+    `momentumMargin`txnCostRate`annualizationDays`notional!(0f;0.0005;252f;1f)
+ };
+.strategy.timeSeriesMomentum.__rawTarget:{[mom;stratCfg]
+    m:stratCfg`momentumMargin; $[mom>m;1f;mom<neg m;-1f;0f]
+ };
+.strategy.timeSeriesMomentum.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    mom:firstStep`momentum;
+    .strategy.commodityBT.coreInit[trade;firstStep;stratCfg;.strategy.timeSeriesMomentum.__rawTarget[mom;stratCfg];mom]
+ };
+.strategy.timeSeriesMomentum.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    mom:marketStep`momentum;
+    .strategy.commodityBT.coreStep[state;marketStep;stratCfg;.strategy.timeSeriesMomentum.__rawTarget[mom;stratCfg];mom]
+ };
+.strategy.timeSeriesMomentum.summary:{[resultTable;stratCfg]
+    .strategy.commodityBT.coreSummary[resultTable;stratCfg;`timeSeriesMomentum]
+ };
+.strategy.register[`timeSeriesMomentum;.strategy.timeSeriesMomentum.init;.strategy.timeSeriesMomentum.step;.strategy.timeSeriesMomentum.summary;.strategy.timeSeriesMomentum.defaultConfig];
+
+/ ============================================================================
+/ B3. twoTimescale - trend-follow the slow factor xi + mean-revert the fast chi
+/ ============================================================================
+/ Combines a thresholded chi-reversion signal (fast timescale) with xi-momentum
+/ trend-following (slow timescale), config-weighted. (Uses a thresholded rather
+/ than hysteretic chi signal so the combined target is stateless.)
+.strategy.twoTimescale.defaultConfig:{[]
+    `revertWeight`trendWeight`entryZ`txnCostRate`annualizationDays`notional!(0.5;0.5;1.0;0.0005;252f;1f)
+ };
+.strategy.twoTimescale.__rawTarget:{[chiZ;xiMom;stratCfg]
+    entryZ:stratCfg`entryZ;
+    revertRaw:$[chiZ<neg entryZ;1f;chiZ>entryZ;-1f;0f];
+    trendRaw:signum xiMom;
+    ((stratCfg`revertWeight)*revertRaw)+(stratCfg`trendWeight)*trendRaw
+ };
+.strategy.twoTimescale.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    raw:.strategy.twoTimescale.__rawTarget[firstStep`chiZ;firstStep`xiMomentum;stratCfg];
+    .strategy.commodityBT.coreInit[trade;firstStep;stratCfg;raw;firstStep`chiZ]
+ };
+.strategy.twoTimescale.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    raw:.strategy.twoTimescale.__rawTarget[marketStep`chiZ;marketStep`xiMomentum;stratCfg];
+    .strategy.commodityBT.coreStep[state;marketStep;stratCfg;raw;marketStep`chiZ]
+ };
+.strategy.twoTimescale.summary:{[resultTable;stratCfg]
+    .strategy.commodityBT.coreSummary[resultTable;stratCfg;`twoTimescale]
+ };
+.strategy.register[`twoTimescale;.strategy.twoTimescale.init;.strategy.twoTimescale.step;.strategy.twoTimescale.summary;.strategy.twoTimescale.defaultConfig];
+
+/ ============================================================================
+/ B4. storageCashCarry - harvest contango above storage cost via a calendar spread
+/ ============================================================================
+/ When contango (negative curve carry) exceeds the storage cost, put on a long-
+/ near / short-far calendar spread (trade the precomputed nearFarSpreadReturn);
+/ flat otherwise. The spread is spot-neutral, so it isolates the carry.
+.strategy.storageCashCarry.defaultConfig:{[]
+    `storageCostRate`carryMargin`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
+        0.01;0.0f;0.0005;252f;1f;`nearFarSpreadReturn;`volTargetScaleNearFar)
+ };
+.strategy.storageCashCarry.__rawTarget:{[curveCarry;stratCfg]
+    contango:neg curveCarry;
+    $[contango>(stratCfg`storageCostRate)+stratCfg`carryMargin;1f;0f]
+ };
+.strategy.storageCashCarry.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    cc:firstStep`curveSlopeCarry;
+    .strategy.commodityBT.coreInit[trade;firstStep;stratCfg;.strategy.storageCashCarry.__rawTarget[cc;stratCfg];cc]
+ };
+.strategy.storageCashCarry.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    cc:marketStep`curveSlopeCarry;
+    .strategy.commodityBT.coreStep[state;marketStep;stratCfg;.strategy.storageCashCarry.__rawTarget[cc;stratCfg];cc]
+ };
+.strategy.storageCashCarry.summary:{[resultTable;stratCfg]
+    .strategy.commodityBT.coreSummary[resultTable;stratCfg;`storageCashCarry]
+ };
+.strategy.register[`storageCashCarry;.strategy.storageCashCarry.init;.strategy.storageCashCarry.step;.strategy.storageCashCarry.summary;.strategy.storageCashCarry.defaultConfig];
+
+/ ============================================================================
+/ B5. carryMomentumCombo - the documented backbone (carry + momentum, weighted)
+/ ============================================================================
+.strategy.carryMomentumCombo.defaultConfig:{[]
+    `carryWeight`momentumWeight`riskFreeRate`carryMargin`momentumMargin`txnCostRate`annualizationDays`notional!(
+        0.5;0.5;0.02;0.0f;0.0f;0.0005;252f;1f)
+ };
+.strategy.carryMomentumCombo.__rawTarget:{[cy;mom;stratCfg]
+    rate:stratCfg`riskFreeRate; cm:stratCfg`carryMargin; mm:stratCfg`momentumMargin;
+    carryRaw:$[cy>rate+cm;1f;cy<rate-cm;-1f;0f];
+    momRaw:$[mom>mm;1f;mom<neg mm;-1f;0f];
+    ((stratCfg`carryWeight)*carryRaw)+(stratCfg`momentumWeight)*momRaw
+ };
+.strategy.carryMomentumCombo.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    raw:.strategy.carryMomentumCombo.__rawTarget[firstStep`convenienceYield;firstStep`momentum;stratCfg];
+    .strategy.commodityBT.coreInit[trade;firstStep;stratCfg;raw;firstStep`convenienceYield]
+ };
+.strategy.carryMomentumCombo.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    raw:.strategy.carryMomentumCombo.__rawTarget[marketStep`convenienceYield;marketStep`momentum;stratCfg];
+    .strategy.commodityBT.coreStep[state;marketStep;stratCfg;raw;marketStep`convenienceYield]
+ };
+.strategy.carryMomentumCombo.summary:{[resultTable;stratCfg]
+    .strategy.commodityBT.coreSummary[resultTable;stratCfg;`carryMomentumCombo]
+ };
+.strategy.register[`carryMomentumCombo;.strategy.carryMomentumCombo.init;.strategy.carryMomentumCombo.step;.strategy.carryMomentumCombo.summary;.strategy.carryMomentumCombo.defaultConfig];
+
+/ ============================================================================
+/ B2. curveRelativeValue - long the cheapest / short the richest tenor (by the
+/ schwartz2 calibration residual), expecting convergence. Trades the precomputed
+/ rvSpreadReturn (cheap-leg return minus rich-leg return), level-neutral.
+/ ============================================================================
+.strategy.curveRelativeValue.defaultConfig:{[]
+    `minGap`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
+        0.0f;0.0005;252f;1f;`rvSpreadReturn;`volTargetScaleRV)
+ };
+.strategy.curveRelativeValue.__rawTarget:{[gap;stratCfg] $[gap>stratCfg`minGap;1f;0f]};
+.strategy.curveRelativeValue.init:{[trade;firstStep;model;fdmConfig;stratCfg]
+    g:firstStep`rvSignal;
+    .strategy.commodityBT.coreInit[trade;firstStep;stratCfg;.strategy.curveRelativeValue.__rawTarget[g;stratCfg];g]
+ };
+.strategy.curveRelativeValue.step:{[state;marketStep;trade;model;fdmConfig;stratCfg]
+    g:marketStep`rvSignal;
+    .strategy.commodityBT.coreStep[state;marketStep;stratCfg;.strategy.curveRelativeValue.__rawTarget[g;stratCfg];g]
+ };
+.strategy.curveRelativeValue.summary:{[resultTable;stratCfg]
+    .strategy.commodityBT.coreSummary[resultTable;stratCfg;`curveRelativeValue]
+ };
+.strategy.register[`curveRelativeValue;.strategy.curveRelativeValue.init;.strategy.curveRelativeValue.step;.strategy.curveRelativeValue.summary;.strategy.curveRelativeValue.defaultConfig];
 
 / ============================================================================
 / Part C. Scoring & ranking on a single real history (time-series metrics).

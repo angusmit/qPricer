@@ -394,7 +394,12 @@
     "tests/strategy/test_strategy_convenience_carry.q";
     "tests/strategy/test_strategy_chi_reversion.q";
     "tests/strategy/test_strategy_real_curve_calendar_roll.q";
-    "tests/strategy/test_commodity_score.q");
+    "tests/strategy/test_commodity_score.q";
+    "tests/strategy/test_strategy_time_series_momentum.q";
+    "tests/strategy/test_strategy_two_timescale.q";
+    "tests/strategy/test_strategy_storage_cash_carry.q";
+    "tests/strategy/test_strategy_carry_momentum_combo.q";
+    "tests/strategy/test_strategy_curve_relative_value.q");
 
 / --- Combine all suites ---
 
