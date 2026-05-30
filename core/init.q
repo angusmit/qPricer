@@ -97,6 +97,8 @@
 / Backtest (strategy engine + strategies)
 \l backtest/strategy.q
 \l backtest/commodityStrategies.q
+/ Portfolio (strategy allocation optimizer; consumes backtest returns)
+\l portfolio/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.61";
+.qfdm.version:"0.62";

@@ -82,6 +82,14 @@
 .cfg.exec:`costMode`proportionalRate`slippageBps`impactCoef`volScaledSlippage`fixedPerTrade`participationCap!(
     `proportional;0.0005;0f;0f;0b;0f;0n);
 
+/ --- portfolio layer: strategy allocator (portfolio/portfolio.q) ---
+/ Defaults for .alloc.* : long-only + fully-invested (a strategy-sleeve allocator),
+/ weightCap off (1f), no turnover penalty, riskAversion 1 (meanVariance), no
+/ covariance shrinkage, 300 ERC iterations, 252-day annualisation. riskParity is
+/ the recommended method (covariance-only, no return forecast); equalWeight is the baseline.
+.cfg.alloc:`longOnly`fullyInvested`weightCap`turnoverPenalty`riskAversion`shrinkage`rpMaxIter`annualizationDays!(
+    1b;1b;1f;0f;1f;0f;300;252f);
+
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
 / key order are verbatim from the prior function literals (1f%252f kept as the

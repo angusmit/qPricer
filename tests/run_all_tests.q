@@ -323,6 +323,10 @@
     "tests/commodity/test_modelreport_limit_history_dashboard.q";
     "tests/commodity/test_modelreport_limit_history_wrapper.q");
 
+.test.allocFiles:(
+    "tests/portfolio/test_alloc_weights.q";
+    "tests/portfolio/test_alloc_backtest.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -438,6 +442,7 @@
     (`realdata;   .test.realdataFiles);
     (`commodity;  .test.commodityFiles);
     (`execution;  .test.executionFiles);
+    (`alloc;      .test.allocFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

@@ -130,7 +130,7 @@ The ~360-test green suite is what makes a large refactor safe. Each step keeps e
 2. **Config layer.** Add `.cfg`; replace hardcoded constants module by module. *(DONE — v0.57: core/calibration/analytics + paths; v0.58: all backtest strategy + signal configs.)*
 3. **HDB.** Stand up the database + an ingestion script; repoint queries to the HDB; keep CSV ingestion as the source. *(DONE — v0.59: splayed (not partitioned) HDB, `.data.hdb.*` + `scripts/ingest_hdb.q`, examples repointed, ~4.8× faster data-load, byte-identical.)*
 4. **Execution layer.** Build `execution/`; route the backtest through it instead of the flat cost rate. *(v0.60: commodity BT wired; v0.61: equity engine wired via the shared hedge helper (frictionless default = byte-identical, identity preserved), gross-vs-net reporting. Step 4c remainder: per-strategy equity option-leg costs.)*
-5. **Portfolio optimizer.** Add `portfolio/` (allocation across strategies).
+5. **Portfolio optimizer.** Add `portfolio/` (allocation across strategies). *(DONE — v0.62: `.alloc.*` — equalWeight/inverseVol/minVariance/riskParity(default)/maxSharpe/meanVariance + long-only/cap/turnover constraints; causal walk-forward `.alloc.compare` ranks methods OOS vs the 1/N baseline.)*
 6. **IPC services** *(optional, last)* — gateway + HDB service + workers, only if always-on / multi-core scale is actually needed.
 7. **CI + scheduled pipeline.**
 

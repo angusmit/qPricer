@@ -287,6 +287,30 @@ units mean even the "robust" momentum result has wide error bars. True multi-reg
 robustness needs pre-2020 history (and more commodities); the honest conclusion is
 *momentum is the least fragile of these signals here*, not that it is a proven edge.
 
+### Portfolio allocation: does optimization beat 1/N? (v0.62)
+
+Given the seven strategies' **net-of-execution** daily return series, the `.alloc`
+layer allocates across them and compares methods **out-of-sample** (causal
+walk-forward, weights from each split's train window only). Real WTI, 10 rolling
+252/63-day splits:
+
+| method | OOS Sharpe | OOS ann. return | max drawdown | avg turnover |
+|---|---|---|---|---|
+| **equalWeight (1/N)** | **0.80** | 0.044 | 0.090 | 0.00 |
+| riskParity | 0.55 | 0.040 | 0.158 | 0.43 |
+| maxSharpe / meanVariance | 0.55 | 0.031 | 0.064 | 0.22 |
+| minVariance | 0.06 | 0.001 | 0.032 | 0.44 |
+| inverseVol | −0.18 | −0.017 | 0.197 | 0.33 |
+
+**The honest finding: optimization does not beat 1/N here.** Equal-weight has the
+best OOS Sharpe (0.80) and zero rebalancing turnover; every optimizer — even the
+covariance-only ones (riskParity, minVariance) that avoid the noisy expected-return
+estimate — underperforms the naive baseline out-of-sample. This is the allocation-level
+echo of the strategy-level verdict: with seven sleeves over a short, regime-dominated
+window, the covariance is estimated too noisily for optimization to add value, and the
+return-using methods (maxSharpe/meanVariance) overfit. riskParity remains the *defensible*
+default (stable, no return forecast), but the table is the point, not a winner.
+
 ## 9. Engineering rigor
 
 A few properties make the numbers above trustworthy rather than merely present:
@@ -315,6 +339,7 @@ These read the real (gitignored) WTI CSVs and print the numbers quoted above:
 | `apps/examples/convenience_yield_series.q` | the 2020-2021 cy series + regime-transition dates |
 | `apps/examples/kalman_schwartz_smith.q` | the Kalman-MLE params (κ identified) + filtered χ/ξ factors |
 | `apps/examples/commodity_strategy_backtest.q` | the single-split (train 2020 / test 2021) ranked OOS table + correlations |
+| `apps/examples/portfolio_allocation.q` | the OOS allocation-method comparison (`.alloc.compare`) — does optimization beat 1/N? |
 
 The walk-forward distribution in §8 comes from `.strategy.commodityBT.walkForward` over
 rolling splits (run inside the backtest harness; see `backtest/commodityStrategies.q`). Run any

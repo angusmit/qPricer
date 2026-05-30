@@ -8,7 +8,7 @@ A kdb+/q pricing, calibration, risk, and backtest framework. The equity finite-d
 
 The repository is one monorepo organized into layers (dependencies flow downward only); see **[ARCHITECTURE.md](ARCHITECTURE.md)** and the per-layer `README.md`:
 
-`core` (math/RNG/stats + loader + config loader) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `apps` (examples + demos). Reserved: `portfolio`, `services`, `scripts` (partial). Load everything with `\l core/init.q`.
+`core` (math/RNG/stats + loader + config loader) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `portfolio` (strategy allocator `.alloc`) · `apps` (examples + demos). Reserved: `services`, `scripts` (partial). Load everything with `\l core/init.q`.
 
 ## Feature Summary
 
@@ -24,14 +24,14 @@ The repository is one monorepo organized into layers (dependencies flow downward
 | Backtest | Generic strategy engine + registry, equity + commodity strategy suites, walk-forward, cross-commodity robustness |
 | Execution | Daily fill-and-cost simulation (slippage, participation cap, cost attribution), gross-vs-net Sharpe |
 | Config | `.cfg` layer (`config/base.q` + `QPRICER_ENV` overrides) |
-| Tests | 368 passing tests (`q tests/run_all_tests.q`) |
+| Portfolio | Strategy allocator (`.alloc`): equal-weight / inverse-vol / min-variance / risk-parity / max-Sharpe / mean-variance, long-only + cap + turnover constraints, causal walk-forward OOS comparison |
+| Tests | 372 passing tests (`q tests/run_all_tests.q`) |
 
 ### Not Yet Supported
 
 - Dupire local-vol calibration
 - XVA
 - Equity strategy engine wired to the execution layer (migration step 4b)
-- Portfolio optimizer / allocation (step 5)
 - IPC services: gateway / HDB service / worker pool (optional, step 6)
 - CI + scheduled pipeline (step 7)
 - Production trading controls / live trading (out of scope by design — batch research system)
@@ -92,7 +92,7 @@ q-fdm-option-pricer/
 ├── signals/       # seasonality
 ├── execution/     # daily fill-and-cost simulation (.exec) — commodity BT wired
 ├── backtest/      # strategy engine + commodity strategy suite + walk-forward
-├── portfolio/     # (reserved — allocation/optimizer, step 5)
+├── portfolio/     # strategy allocator (.alloc) — risk-parity / min-var / etc., OOS compare
 ├── services/      # (reserved — optional IPC gateway/HDB/workers, step 6)
 ├── scripts/       # ingest_hdb.q (+ CI/pipeline reserved, step 7)
 ├── apps/
