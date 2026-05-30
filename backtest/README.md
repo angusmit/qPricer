@@ -14,6 +14,6 @@ Depends on `core/`, `models/`, `calibration/`, `signals/`, `data/`, and `executi
 `.strategy.register`, `.strategy.run`/`runAndSummarize`, `.strategy.defaultConfig`, `.strategy.path.commoditySignals`, `.strategy.commodityBT.runSuite`/`walkForward`/`crossCommodity`.
 
 ## Notes
-- The commodity backtest books **net-of-execution** PnL via the `execution/` layer (`.exec.fill`); the default exec config is frictionless and byte-identical to the legacy flat cost. The equity engine is not yet wired to execution (step 4b).
-- Per-strategy default configs live in `.cfg.strategy.*`; pass a per-run `exec` sub-config to enable slippage / cap realism.
-- `coreSummary` reports GROSS vs NET (grossSharpe) + cost attribution; the walk-forward `aggregate`/`splits` schemas are fixed (tests pin them).
+- Both engines book **net-of-execution** PnL via the `execution/` layer (`.exec.fill`); the default exec config is frictionless and byte-identical to the legacy flat cost. The commodity BT routes through `coreInit`/`coreStep` (v0.60); the equity engine routes its delta-hedge leg through the shared `.strategy.__hedgeStep`/`__hedgeInit` helper (v0.61), preserving the `deltaPV==stepPnl` identity. Per-strategy equity OPTION-LEG costs are still legacy flat cost (step 4c).
+- Per-strategy default configs live in `.cfg.strategy.*`; pass a per-run `exec` sub-config to enable slippage / cap realism (threaded into the hedge via `.strategy.__withExec` for gammaScalp + shortVariance).
+- `commodityBT.coreSummary` reports GROSS vs NET (grossSharpe) + cost attribution; the walk-forward `aggregate`/`splits` schemas are fixed (tests pin them).

@@ -193,13 +193,29 @@
 /   cash, hedgePosition, hedgedDelta, numRebalances, prevSpot, prevPositionValue,
 /   hedgeTrade, txnCost, financingPnl, hedgePnl, positionPnl, stepPnl
 
+/ Forward a strategy's optional per-run `exec` sub-config into a hedge-input dict so
+/ __hedgeInit/__hedgeStep can resolve it (absent -> frictionless default -> byte-identical).
+.strategy.__withExec:{[hedgeInputs;stratCfg] $[`exec in key stratCfg; hedgeInputs,(enlist `exec)!enlist stratCfg`exec; hedgeInputs]};
+
+/ Routed through .exec.fill (v0.61): the hedge order is the dollar NOTIONAL traded
+/ (hedgeTrade*spot) with refPrice=1, so the generic proportional cost
+/ (rate*|notional|) reproduces the legacy price-scaled cost |hedgeTrade|*spot*rate
+/ exactly, and slippage = |notional|*bps. Default .cfg.exec (frictionless,
+/ proportionalRate = the strategy's txnCostRate via __resolve) is byte-identical to
+/ the legacy flat cost. A participation cap fills partially (hedge lags target).
 .strategy.__hedgeInit:{[hedgeInputs]
     spot:hedgeInputs`spot;
     positionDelta:hedgeInputs`positionDelta;
-    txnCostRate:hedgeInputs`txnCostRate;
-    hedgePosition:neg positionDelta;
+    desiredHedge:neg positionDelta;
+    order:desiredHedge*spot;
+    execCfg:.exec.__resolve hedgeInputs;
+    ctx:`refPrice`barVolume`volatility`currentPos!(
+        1f;$[`barVolume in key hedgeInputs;hedgeInputs`barVolume;0n];$[`volatility in key hedgeInputs;hedgeInputs`volatility;0n];0f);
+    fillRes:.exec.fill[order;ctx;execCfg];
+    fillFraction:$[order=0f;0f;(fillRes`filledQty)%order];
+    hedgePosition:desiredHedge*fillFraction;
+    txnCost:fillRes`totalCost;
     hedgeTrade:hedgePosition;
-    txnCost:(abs hedgeTrade)*spot*txnCostRate;
     cashAdj:neg ((hedgePosition*spot)+txnCost);
     `hedgePosition`hedgeTrade`txnCost`cashAdj!(hedgePosition;hedgeTrade;txnCost;cashAdj)
  };
@@ -222,7 +238,6 @@
     positionDelta:stepInputs`positionDelta;
     stepIndexVal:stepInputs`stepIndex;
     stepYears:stepInputs`stepYears;
-    txnCostRate:stepInputs`txnCostRate;
     financingRate:stepInputs`financingRate;
     rebalanceMode:stepInputs`rebalanceMode;
     rebalanceInterval:stepInputs`rebalanceInterval;
@@ -243,15 +258,29 @@
     bandTrigger:(abs positionDelta-prevHedgedDelta)>deltaBand;
     shouldRebalance:$[rebalanceMode=`interval; intervalTrigger; bandTrigger];
 
-    newHedgePos:$[shouldRebalance; neg positionDelta; prevHedgePos];
-    hedgeTrade:newHedgePos-prevHedgePos;
-    txnCost:(abs hedgeTrade)*spot*txnCostRate;
+    / Route the hedge rebalance through the execution layer (v0.61): order is the
+    / dollar notional (desiredTrade*spot), refPrice=1 -> proportional cost
+    / rate*|notional| == legacy |hedgeTrade|*spot*rate; slippage = |notional|*bps.
+    / fillFraction (== 1f under no cap, exactly) keeps the default byte-identical and
+    / lets a participation cap fill partially so the held hedge lags target.
+    targetHedgePos:$[shouldRebalance; neg positionDelta; prevHedgePos];
+    desiredTrade:targetHedgePos-prevHedgePos;
+    order:desiredTrade*spot;
+    execCfg:.exec.__resolve stepInputs;
+    ctx:`refPrice`barVolume`volatility`currentPos!(
+        1f;$[`barVolume in key stepInputs;stepInputs`barVolume;0n];$[`volatility in key stepInputs;stepInputs`volatility;0n];prevHedgePos*spot);
+    fillRes:.exec.fill[order;ctx;execCfg];
+    fillFraction:$[order=0f;0f;(fillRes`filledQty)%order];
+    filledShares:desiredTrade*fillFraction;
+    txnCost:fillRes`totalCost;
+    newHedgePos:$[fillFraction=1f; targetHedgePos; prevHedgePos+filledShares];
+    hedgeTrade:filledShares;
     newHedgedDelta:$[shouldRebalance; positionDelta; prevHedgedDelta];
-    rebalanceIncrement:$[shouldRebalance&0<>hedgeTrade; 1; 0];
+    rebalanceIncrement:$[shouldRebalance&0<>filledShares; 1; 0];
     numRebalances:numRebalancesPrev+rebalanceIncrement;
 
     stepPnl:(positionPnl+hedgePnl+financingPnl)-txnCost;
-    newCash:((cashPrev+financingPnl)-hedgeTrade*spot)-txnCost;
+    newCash:((cashPrev+financingPnl)-filledShares*spot)-txnCost;
 
     `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue`hedgeTrade`txnCost`financingPnl`hedgePnl`positionPnl`stepPnl!(
         newCash;newHedgePos;newHedgedDelta;numRebalances;spot;positionValue;hedgeTrade;txnCost;financingPnl;hedgePnl;positionPnl;stepPnl)
@@ -302,7 +331,7 @@
     positionDelta:optionUnits*deltaVal;
     positionGamma:optionUnits*gammaVal;
     positionTheta:optionUnits*thetaVal;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialStepPnl:neg hedgeInit`txnCost;
     rowEmit:.strategy.gammaScalp.__rowEmitCols!(
         firstStep`stepIndex;firstStep`stepDate;spot;vol;optionPrice;deltaVal;
@@ -332,8 +361,8 @@
     positionTheta:optionUnits*thetaVal;
 
     hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
     newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
 
     spotMove:spot-state`prevSpot;
@@ -495,7 +524,7 @@
     positionGamma:neg notional*callGamma+putGamma;
     positionTheta:neg notional*callTheta+putTheta;
     premiumCollected:notional*callPrice+putPrice;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialCash:premiumCollected+hedgeInit`cashAdj;
     initialStepPnl:neg hedgeInit`txnCost;
     rowEmit:.strategy.shortVariance.__rowEmitCols!(
@@ -535,8 +564,8 @@
     positionGamma:neg notional*callGamma+putGamma;
     positionTheta:neg notional*callTheta+putTheta;
     hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
     newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
     spotMove:spot-state`prevSpot;
     theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;

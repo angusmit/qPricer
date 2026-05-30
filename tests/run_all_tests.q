@@ -326,7 +326,9 @@
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
-    "tests/execution/test_exec_realism.q");
+    "tests/execution/test_exec_realism.q";
+    "tests/execution/test_exec_equity_legacy.q";
+    "tests/execution/test_exec_equity_realism.q");
 
 .test.strategyFiles:(
     "tests/strategy/test_strategy_registry.q";
