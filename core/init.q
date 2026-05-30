@@ -96,4 +96,4 @@
 \l backtest/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.57";
+.qfdm.version:"0.58";

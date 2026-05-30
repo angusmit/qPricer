@@ -262,15 +262,7 @@
 / ==================================================================
 
 .strategy.gammaScalp.defaultConfig:{[]
-    `optionSide`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`useModelDelta!(
-        `long;
-        `interval;
-        1;
-        0.05;
-        0f;
-        0f;
-        1f%252f;
-        1b)
+    .cfg.strategy.gammaScalp
  };
 
 / Column-key order for per-step row emit dicts; must match init and step output.
@@ -436,15 +428,7 @@
 .strategy.shortVariance.__rowEmitCols:`stepIndex`stepDate`spot`volatility`callPrice`putPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`premiumCollected`status`message;
 
 .strategy.shortVariance.defaultConfig:{[]
-    `forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        0.20;
-        0.02;
-        `interval;
-        1;
-        0.05;
-        0f;
-        0f;
-        1f%252f)
+    .cfg.strategy.shortVariance
  };
 
 .strategy.shortVariance.__validateConfig:{[stratCfg]
@@ -664,20 +648,7 @@
  };
 
 .strategy.calendarRoll.defaultConfig:{[]
-    `spreadType`optionType`frontTenorYears`backTenorYears`rollThresholdYears`rollBackLeg`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        `longCalendar;
-        `call;
-        0.05;
-        0.20;
-        0.005;
-        1b;
-        1b;
-        `interval;
-        1;
-        0.05;
-        0f;
-        0f;
-        1f%252f)
+    .cfg.strategy.calendarRoll
  };
 
 .strategy.calendarRoll.__validateConfig:{[stratCfg]
@@ -978,8 +949,7 @@
 .strategy.riskReversal.__rowEmitCols:`stepIndex`stepDate`spot`callStrike`putStrike`callVol`putVol`callPrice`putPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`gateOpen`status`message;
 
 .strategy.riskReversal.defaultConfig:{[]
-    `riskReversalDirection`wingOffsetPct`skewSlope`fairSkew`skewMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`hedgeDelta!(
-        `auto;0.05;-0.5;-0.2;0.05;`interval;1;0.05;0f;0f;1f%252f;1b)
+    .cfg.strategy.riskReversal
  };
 
 .strategy.riskReversal.__validateConfig:{[stratCfg]
@@ -1192,8 +1162,7 @@
 .strategy.modelDisagreement.__rowEmitCols:`stepIndex`stepDate`spot`volatility`optionPrice`delta`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`gateOpen`tradeSide`status`message;
 
 .strategy.modelDisagreement.defaultConfig:{[]
-    `modelAVolBump`modelBVolBump`disagreementThreshold`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`hedgeDelta!(
-        0f;0.05;0.30;`auto;`interval;1;0.05;0f;0f;1f%252f;1b)
+    .cfg.strategy.modelDisagreement
  };
 
 .strategy.modelDisagreement.__validateConfig:{[stratCfg]
@@ -1354,8 +1323,7 @@
 .strategy.deltaVegaHedge.__rowEmitCols:`stepIndex`stepDate`spot`volatility`bookPrice`hedgeOptionPrice`vegaHedgeUnits`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`bookPnl`vegaHedgePnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`residualVega`status`message;
 
 .strategy.deltaVegaHedge.defaultConfig:{[]
-    `hedgeOptionType`hedgeStrikeRatio`hedgeOptionExpiryYears`vegaRebalanceMode`vegaRebalanceInterval`vegaBand`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        `call;1.05;0n;`interval;1;0.05;`interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.deltaVegaHedge
  };
 
 .strategy.deltaVegaHedge.__validateConfig:{[stratCfg]
@@ -1640,8 +1608,7 @@
 .strategy.longVol.__rowEmitCols:`stepIndex`stepDate`spot`volatility`callPrice`putPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`premiumPaid`status`message;
 
 .strategy.longVol.defaultConfig:{[]
-    `forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        0.30;0.02;`interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.longVol
  };
 
 .strategy.longVol.__validateConfig:{[stratCfg]
@@ -1793,8 +1760,7 @@
 .strategy.collarTailHedge.__rowEmitCols:`stepIndex`stepDate`spot`mode`underlyingValue`putValue`callValue`positionValue`netDelta`txnCost`positionPnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`putUnits`status`message;
 
 .strategy.collarTailHedge.defaultConfig:{[]
-    `mode`putStrikePct`callStrikePct`premiumBudgetPct`txnCostRate`financingRate`stepYears!(
-        `collar;0.05;0.05;0.005;0f;0f;1f%252f)
+    .cfg.strategy.collarTailHedge
  };
 
 .strategy.collarTailHedge.__validateConfig:{[stratCfg]
@@ -1922,8 +1888,7 @@
 .strategy.putRatioBackspread.__rowEmitCols:`stepIndex`stepDate`spot`shortStrike`longStrike`shortPutPrice`longPutPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`status`message;
 
 .strategy.putRatioBackspread.defaultConfig:{[]
-    `shortStrikePct`longStrikePct`ratioN`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        0f;0.05;2f;1b;`interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.putRatioBackspread
  };
 
 .strategy.putRatioBackspread.__validateConfig:{[stratCfg]
@@ -2057,8 +2022,7 @@
 .strategy.ironCondor.__rowEmitCols:`stepIndex`stepDate`spot`shortPutPrice`longPutPrice`shortCallPrice`longCallPrice`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`status`message;
 
 .strategy.ironCondor.defaultConfig:{[]
-    `shortPutPct`longPutPct`shortCallPct`longCallPct`hedgeDelta`entryVolThreshold`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        0.05;0.10;0.05;0.10;0b;0f;`interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.ironCondor
  };
 
 .strategy.ironCondor.__validateConfig:{[stratCfg]
@@ -2250,8 +2214,7 @@
 .strategy.barrierHedge.__rowEmitCols:`stepIndex`stepDate`spot`barrierLevel`distanceToBarrier`knockedOut`optionPrice`delta`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`status`message;
 
 .strategy.barrierHedge.defaultConfig:{[]
-    `rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.barrierHedge
  };
 
 .strategy.barrierHedge.__validateConfig:{[stratCfg]
@@ -2443,13 +2406,7 @@
 .strategy.jumpPremium.__rowEmitCols:`stepIndex`stepDate`spot`volatility`optionPrice`delta`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`thetaPnl`stepPnl`cumulativePnl`theoreticalGammaPnl`bsPrice0`jumpModelPrice0`jumpPremium`gateOpen`tradeSide`status`message;
 
 .strategy.jumpPremium.defaultConfig:{[]
-    `jumpModelName`jumpModelParams`thresholdType`premiumThreshold`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        `merton;
-        `volatility`jumpIntensity`jumpMean`jumpVolatility`riskFreeRate`dividendYield!(0.20;0.5;-0.05;0.20;0.02;0f);
-        `absolute;
-        0.5;
-        `auto;
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.jumpPremium
  };
 
 .strategy.jumpPremium.__validateConfig:{[stratCfg]
@@ -2690,11 +2647,7 @@
 .strategy.dispersion.__rowEmitCols:`stepIndex`stepDate`spot`indexStraddleValue`constituentStraddleSum`positionValue`netDelta`hedgeNotional`txnCost`positionPnl`hedgePnl`financingPnl`stepPnl`cumulativePnl`status`message;
 
 .strategy.dispersion.defaultConfig:{[]
-    `pathBundle`indexVol`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        ()!();
-        0.20;
-        `shortIndex;
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.dispersion
  };
 
 .strategy.dispersion.__validateConfig:{[stratCfg]
@@ -3070,13 +3023,7 @@
 .strategy.powerSpikeCapture.__rowEmitCols:`stepIndex`stepDate`spot`frontLevel`callOptionValue`delta`spikeFlag`positionValue`netDelta`hedgePosition`hedgeTrade`txnCost`positionPnl`hedgePnl`financingPnl`stepPnl`cumulativePnl`status`message;
 
 .strategy.powerSpikeCapture.defaultConfig:{[]
-    `curveBundle`callStrikePct`callExpiry`callVol`deviationThreshold`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        ()!();
-        0.05;
-        0.10;
-        0.40;
-        2f;
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.powerSpikeCapture
  };
 
 .strategy.powerSpikeCapture.__validateConfig:{[stratCfg]
@@ -3249,12 +3196,7 @@
 .strategy.commodityCalendar.__rowEmitCols:`stepIndex`stepDate`spot`nearFutures`farFutures`nearEntry`farEntry`positionValue`spreadValue`rollEvents`txnCost`positionPnl`rollPnl`financingPnl`stepPnl`cumulativePnl`status`message;
 
 .strategy.commodityCalendar.defaultConfig:{[]
-    `curveBundle`nearTenor`farTenor`rollTriggerTenor`txnCostRate`financingRate`stepYears!(
-        ()!();
-        0.10;
-        0.30;
-        0.05;
-        0f;0f;1f%252f)
+    .cfg.strategy.commodityCalendar
  };
 
 .strategy.commodityCalendar.__validateConfig:{[stratCfg]
@@ -3659,17 +3601,7 @@
 / correlated curve bundle). Delta-hedged in power and gas futures.
 
 .strategy.sparkSpread.defaultConfig:{[]
-    `curveBundle`leg1Name`leg2Name`heatRate`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        ()!();
-        `power;`gas;
-        8f;
-        0f;
-        `call;
-        0.45;0.35;0.4;
-        0.25;
-        1b;
-        0.01;
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.sparkSpread
  };
 
 .strategy.sparkSpread.__normSpec:{[stratCfg]
@@ -3699,17 +3631,7 @@
 / (from the correlated curve bundle). Delta-hedged in product and crude futures.
 
 .strategy.crackSpread.defaultConfig:{[]
-    `curveBundle`leg1Name`leg2Name`crackRatio`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
-        ()!();
-        `product;`crude;
-        1f;
-        0f;
-        `call;
-        0.35;0.30;0.6;
-        0.25;
-        1b;
-        0.01;
-        `interval;1;0.05;0f;0f;1f%252f)
+    .cfg.strategy.crackSpread
  };
 
 .strategy.crackSpread.__normSpec:{[stratCfg]

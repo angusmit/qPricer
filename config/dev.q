@@ -15,3 +15,7 @@
 
 / Example of repointing a data path for a local workspace layout.
 .cfg.paths[`outputDir]:"output/dev";
+
+/ Example strategy-knob override: widen the gamma-scalp delta band so local dev
+/ runs rebalance less often. Only takes effect under QPRICER_ENV=dev.
+.cfg.strategy.gammaScalp[`deltaBand]:0.10;

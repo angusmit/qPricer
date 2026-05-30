@@ -33,20 +33,7 @@
 / ============================================================================
 
 .strategy.path.__commodityDefaultSigCfg:{[]
-    `rollDaysBeforeExpiry`trainFraction`trainEndDate`momentumLookback`txnCostRate`targetVol`riskFreeRate`storageCostRate`annualizationDays`kalmanEstCfg`carryMargin`productTag`deseasonalize!(
-        5;
-        0.6;
-        0Nd;
-        20;
-        0.0005;
-        0.15;
-        0.02;
-        0.01;
-        252f;
-        `gridSteps`refineRounds`nSweeps!(7;3;3);
-        0.0;
-        `CRUDE;
-        0b)
+    .cfg.strategy.commoditySignals
  };
 
 / Per-date contractYM!price dictionary for fast held-contract lookups.
@@ -310,8 +297,7 @@
 / A1. convenienceYieldCarry - long backwardation, flat/short contango
 / ============================================================================
 .strategy.convenienceYieldCarry.defaultConfig:{[]
-    `signalSource`carryMargin`riskFreeRate`allowShort`txnCostRate`annualizationDays`notional!(
-        `convenienceYield;0.0;0.02;1b;0.0005;252f;1f)
+    .cfg.strategy.convenienceYieldCarry
  };
 
 .strategy.convenienceYieldCarry.__rawTarget:{[signalVal;stratCfg]
@@ -344,7 +330,7 @@
 / A2. chiReversion - mean-revert the Kalman short-term factor (z = chi/stationaryStd)
 / ============================================================================
 .strategy.chiReversion.defaultConfig:{[]
-    `entryZ`exitZ`txnCostRate`annualizationDays`notional!(1.0;0.3;0.0005;252f;1f)
+    .cfg.strategy.chiReversion
  };
 
 / Hysteresis: enter long when z below -entryZ, short above entryZ, exit inside
@@ -422,7 +408,7 @@
 / B1. timeSeriesMomentum - the commodity trend premium (sign of trailing return)
 / ============================================================================
 .strategy.timeSeriesMomentum.defaultConfig:{[]
-    `momentumMargin`txnCostRate`annualizationDays`notional!(0f;0.0005;252f;1f)
+    .cfg.strategy.timeSeriesMomentum
  };
 .strategy.timeSeriesMomentum.__rawTarget:{[mom;stratCfg]
     m:stratCfg`momentumMargin; $[mom>m;1f;mom<neg m;-1f;0f]
@@ -447,7 +433,7 @@
 / trend-following (slow timescale), config-weighted. (Uses a thresholded rather
 / than hysteretic chi signal so the combined target is stateless.)
 .strategy.twoTimescale.defaultConfig:{[]
-    `revertWeight`trendWeight`entryZ`txnCostRate`annualizationDays`notional!(0.5;0.5;1.0;0.0005;252f;1f)
+    .cfg.strategy.twoTimescale
  };
 .strategy.twoTimescale.__rawTarget:{[chiZ;xiMom;stratCfg]
     entryZ:stratCfg`entryZ;
@@ -475,8 +461,7 @@
 / near / short-far calendar spread (trade the precomputed nearFarSpreadReturn);
 / flat otherwise. The spread is spot-neutral, so it isolates the carry.
 .strategy.storageCashCarry.defaultConfig:{[]
-    `storageCostRate`carryMargin`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
-        0.01;0.0f;0.0005;252f;1f;`nearFarSpreadReturn;`volTargetScaleNearFar)
+    .cfg.strategy.storageCashCarry
  };
 .strategy.storageCashCarry.__rawTarget:{[curveCarry;stratCfg]
     contango:neg curveCarry;
@@ -499,8 +484,7 @@
 / B5. carryMomentumCombo - the documented backbone (carry + momentum, weighted)
 / ============================================================================
 .strategy.carryMomentumCombo.defaultConfig:{[]
-    `carryWeight`momentumWeight`riskFreeRate`carryMargin`momentumMargin`txnCostRate`annualizationDays`notional!(
-        0.5;0.5;0.02;0.0f;0.0f;0.0005;252f;1f)
+    .cfg.strategy.carryMomentumCombo
  };
 .strategy.carryMomentumCombo.__rawTarget:{[cy;mom;stratCfg]
     rate:stratCfg`riskFreeRate; cm:stratCfg`carryMargin; mm:stratCfg`momentumMargin;
@@ -527,8 +511,7 @@
 / rvSpreadReturn (cheap-leg return minus rich-leg return), level-neutral.
 / ============================================================================
 .strategy.curveRelativeValue.defaultConfig:{[]
-    `minGap`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
-        0.0f;0.0005;252f;1f;`rvSpreadReturn;`volTargetScaleRV)
+    .cfg.strategy.curveRelativeValue
  };
 .strategy.curveRelativeValue.__rawTarget:{[gap;stratCfg] $[gap>stratCfg`minGap;1f;0f]};
 .strategy.curveRelativeValue.init:{[trade;firstStep;model;fdmConfig;stratCfg]

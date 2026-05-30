@@ -43,7 +43,7 @@ The loader (`core/init.q`, evolving from today's `lib/init.q`) loads layers bott
 
 ## 2. Configuration — no hardcoding
 
-**Status: in progress (step 2 done; backtest layer deferred to step 2b).** A `.cfg` namespace is populated at startup by `core/cfg.q`: load `config/base.q`, then `config/{env}.q` to override, where the environment is selected by the `QPRICER_ENV` variable (`dev` / `test` / `prod`). Unset `QPRICER_ENV` loads base only — the byte-identical default. As of v0.57 the core (fdm/iv/mc), calibration (curve/Kalman) and analytics (model-report thresholds) defaults plus `.cfg.paths` are externalized; the `backtest/` per-strategy configs remain (step 2b).
+**Status: DONE (v0.57 + v0.58).** A `.cfg` namespace is populated at startup by `core/cfg.q`: load `config/base.q`, then `config/{env}.q` to override, where the environment is selected by the `QPRICER_ENV` variable (`dev` / `test` / `prod`). Unset `QPRICER_ENV` loads base only — the byte-identical default. All tunable library defaults are externalized: core (`.cfg.fdm`/`.cfg.iv`/`.cfg.mc`), calibration (`.cfg.calib.*`), analytics (`.cfg.analytics.*`), paths (`.cfg.paths`), and every backtest strategy + signal config (`.cfg.strategy.*`, v0.58). `models/`/`signals/` needed no sweep (caller-supplied params).
 
 Format, by data kind (this is the best-practice split):
 
@@ -125,7 +125,7 @@ Generalize the existing `.strategy.register` pattern across the system: `.model.
 The ~360-test green suite is what makes a large refactor safe. Each step keeps every test green and byte-identical; do not big-bang.
 
 1. **Layer the folders.** Move files into the layer tree; fix load paths; restructure the loader. Pure move — **no behavior change**. Lowest risk; do first.
-2. **Config layer.** Add `.cfg`; replace hardcoded constants module by module. *(v0.57: done for core/calibration/analytics + paths; backtest per-strategy configs deferred to step 2b.)*
+2. **Config layer.** Add `.cfg`; replace hardcoded constants module by module. *(DONE — v0.57: core/calibration/analytics + paths; v0.58: all backtest strategy + signal configs.)*
 3. **HDB.** Stand up the partitioned database + an ingestion script; repoint queries to the HDB; keep CSV ingestion as the source.
 4. **Execution layer.** Build `execution/`; route the backtest through it instead of the flat cost rate.
 5. **Portfolio optimizer.** Add `portfolio/` (allocation across strategies).

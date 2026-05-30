@@ -69,3 +69,90 @@
     "data/barchart/GAS";
     "data/barchart/aapl/options_history";
     "output");
+
+/ --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
+/ Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
+/ key order are verbatim from the prior function literals (1f%252f kept as the
+/ exact expression; longs like rebalanceInterval=1 stay long; 0n / 0Nd / ()!()
+/ preserved), so behaviour is byte-identical.
+
+.cfg.strategy.gammaScalp:`optionSide`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`useModelDelta!(
+    `long;`interval;1;0.05;0f;0f;1f%252f;1b);
+
+.cfg.strategy.shortVariance:`forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    0.20;0.02;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.calendarRoll:`spreadType`optionType`frontTenorYears`backTenorYears`rollThresholdYears`rollBackLeg`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    `longCalendar;`call;0.05;0.20;0.005;1b;1b;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.riskReversal:`riskReversalDirection`wingOffsetPct`skewSlope`fairSkew`skewMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`hedgeDelta!(
+    `auto;0.05;-0.5;-0.2;0.05;`interval;1;0.05;0f;0f;1f%252f;1b);
+
+.cfg.strategy.modelDisagreement:`modelAVolBump`modelBVolBump`disagreementThreshold`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears`hedgeDelta!(
+    0f;0.05;0.30;`auto;`interval;1;0.05;0f;0f;1f%252f;1b);
+
+.cfg.strategy.deltaVegaHedge:`hedgeOptionType`hedgeStrikeRatio`hedgeOptionExpiryYears`vegaRebalanceMode`vegaRebalanceInterval`vegaBand`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    `call;1.05;0n;`interval;1;0.05;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.longVol:`forecastVol`entryMargin`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    0.30;0.02;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.collarTailHedge:`mode`putStrikePct`callStrikePct`premiumBudgetPct`txnCostRate`financingRate`stepYears!(
+    `collar;0.05;0.05;0.005;0f;0f;1f%252f);
+
+.cfg.strategy.putRatioBackspread:`shortStrikePct`longStrikePct`ratioN`hedgeDelta`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    0f;0.05;2f;1b;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.ironCondor:`shortPutPct`longPutPct`shortCallPct`longCallPct`hedgeDelta`entryVolThreshold`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    0.05;0.10;0.05;0.10;0b;0f;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.barrierHedge:`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    `interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.jumpPremium:`jumpModelName`jumpModelParams`thresholdType`premiumThreshold`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    `merton;
+    `volatility`jumpIntensity`jumpMean`jumpVolatility`riskFreeRate`dividendYield!(0.20;0.5;-0.05;0.20;0.02;0f);
+    `absolute;0.5;`auto;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.dispersion:`pathBundle`indexVol`direction`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    ()!();0.20;`shortIndex;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.powerSpikeCapture:`curveBundle`callStrikePct`callExpiry`callVol`deviationThreshold`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    ()!();0.05;0.10;0.40;2f;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.commodityCalendar:`curveBundle`nearTenor`farTenor`rollTriggerTenor`txnCostRate`financingRate`stepYears!(
+    ()!();0.10;0.30;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.sparkSpread:`curveBundle`leg1Name`leg2Name`heatRate`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    ()!();`power;`gas;8f;0f;`call;0.45;0.35;0.4;0.25;1b;0.01;`interval;1;0.05;0f;0f;1f%252f);
+
+.cfg.strategy.crackSpread:`curveBundle`leg1Name`leg2Name`crackRatio`strike`optType`vol1`vol2`correlation`expiry`hedgeEnabled`bumpSize`rebalanceMode`rebalanceInterval`deltaBand`txnCostRate`financingRate`stepYears!(
+    ()!();`product;`crude;1f;0f;`call;0.35;0.30;0.6;0.25;1b;0.01;`interval;1;0.05;0f;0f;1f%252f);
+
+/ --- backtest layer: commodity strategy default configs (backtest/commodityStrategies.q) ---
+
+.cfg.strategy.convenienceYieldCarry:`signalSource`carryMargin`riskFreeRate`allowShort`txnCostRate`annualizationDays`notional!(
+    `convenienceYield;0.0;0.02;1b;0.0005;252f;1f);
+
+.cfg.strategy.chiReversion:`entryZ`exitZ`txnCostRate`annualizationDays`notional!(
+    1.0;0.3;0.0005;252f;1f);
+
+.cfg.strategy.timeSeriesMomentum:`momentumMargin`txnCostRate`annualizationDays`notional!(
+    0f;0.0005;252f;1f);
+
+.cfg.strategy.twoTimescale:`revertWeight`trendWeight`entryZ`txnCostRate`annualizationDays`notional!(
+    0.5;0.5;1.0;0.0005;252f;1f);
+
+.cfg.strategy.storageCashCarry:`storageCostRate`carryMargin`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
+    0.01;0.0f;0.0005;252f;1f;`nearFarSpreadReturn;`volTargetScaleNearFar);
+
+.cfg.strategy.carryMomentumCombo:`carryWeight`momentumWeight`riskFreeRate`carryMargin`momentumMargin`txnCostRate`annualizationDays`notional!(
+    0.5;0.5;0.02;0.0f;0.0f;0.0005;252f;1f);
+
+.cfg.strategy.curveRelativeValue:`minGap`txnCostRate`annualizationDays`notional`returnColumn`volScaleColumn!(
+    0.0f;0.0005;252f;1f;`rvSpreadReturn;`volTargetScaleRV);
+
+/ --- backtest layer: commodity signal-path config (backtest/commodityStrategies.q) ---
+/ .strategy.path.__commodityDefaultSigCfg returns this dict.
+.cfg.strategy.commoditySignals:`rollDaysBeforeExpiry`trainFraction`trainEndDate`momentumLookback`txnCostRate`targetVol`riskFreeRate`storageCostRate`annualizationDays`kalmanEstCfg`carryMargin`productTag`deseasonalize!(
+    5;0.6;0Nd;20;0.0005;0.15;0.02;0.01;252f;`gridSteps`refineRounds`nSweeps!(7;3;3);0.0;`CRUDE;0b);
