@@ -71,6 +71,17 @@
     "output";
     "data/hdb");
 
+/ --- execution layer: daily fill-and-cost simulation (execution/execution.q) ---
+/ Realism is OFF by default so the wired backtest is byte-identical to the legacy
+/ flat-cost path: proportional cost only (at the strategy's own txnCostRate, which
+/ .exec.__resolve injects over proportionalRate), zero slippage, zero fixed cost,
+/ no participation cap (0n -> full fill). slippageBps / fixedPerTrade /
+/ participationCap / impactCoef / volScaledSlippage are the opt-in realism levers.
+/ Types matter for byte-identity: proportionalRate/slippageBps/impactCoef/
+/ fixedPerTrade/participationCap are floats, volScaledSlippage a bool, costMode a sym.
+.cfg.exec:`costMode`proportionalRate`slippageBps`impactCoef`volScaledSlippage`fixedPerTrade`participationCap!(
+    `proportional;0.0005;0f;0f;0b;0f;0n);
+
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
 / key order are verbatim from the prior function literals (1f%252f kept as the

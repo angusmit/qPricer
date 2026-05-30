@@ -323,6 +323,11 @@
     "tests/commodity/test_modelreport_limit_history_dashboard.q";
     "tests/commodity/test_modelreport_limit_history_wrapper.q");
 
+.test.executionFiles:(
+    "tests/execution/test_exec_fill.q";
+    "tests/execution/test_exec_commodity_bt_legacy.q";
+    "tests/execution/test_exec_realism.q");
+
 .test.strategyFiles:(
     "tests/strategy/test_strategy_registry.q";
     "tests/strategy/test_strategy_path_synthetic.q";
@@ -430,6 +435,7 @@
     (`risk;       .test.riskFiles);
     (`realdata;   .test.realdataFiles);
     (`commodity;  .test.commodityFiles);
+    (`execution;  .test.executionFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

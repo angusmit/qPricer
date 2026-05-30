@@ -74,7 +74,9 @@ Lives in `data/`. Today curves are built from real futures (`.parser.*`) and mod
 
 ## 5. Execution simulation — the research centerpiece
 
-`execution/` is the new layer that turns *signal returns* into *tradeable PnL*. It is the realistic upgrade of today's flat cost rate, and it is generic — one execution layer serves every strategy.
+**Status: commodity wired (v0.60); equity deferred to step 4b.** `execution/execution.q` (`.exec.*`) is a generic daily fill-and-cost layer: `.exec.fill[order;ctx;cfg]` (pure) returns filled quantity (full unless a participation cap binds), an adverse fill price, and cost components (proportional = the legacy `rate*|filled|`; slippage = `|filled|*refPrice*bps/1e4`; optional fixed + size/ADV impact). The default config (`.cfg.exec`) is frictionless and reproduces the legacy flat-cost path byte-identically; realism is opt-in via a per-run `exec` sub-config. The commodity backtest (`.strategy.commodityBT.core*`) routes through it and reports GROSS vs NET Sharpe; the equity engine adopts it later (step 4b). Matched to daily settle data — a fill-and-cost model, not a tick/LOB simulator.
+
+`execution/` is the layer that turns *signal returns* into *tradeable PnL*. It is the realistic upgrade of today's flat cost rate, and it is generic — one execution layer serves every strategy.
 
 1. **Order generation** — target positions -> orders (deltas to trade), respecting lot sizes and position limits.
 2. **Fill model** — execution price = reference +/- slippage, where slippage scales with order size relative to liquidity (volume / ADV), spread, and a market-impact coefficient. Configurable fill convention (next-bar open, VWAP, close +/- half-spread).
@@ -127,7 +129,7 @@ The ~360-test green suite is what makes a large refactor safe. Each step keeps e
 1. **Layer the folders.** Move files into the layer tree; fix load paths; restructure the loader. Pure move — **no behavior change**. Lowest risk; do first.
 2. **Config layer.** Add `.cfg`; replace hardcoded constants module by module. *(DONE — v0.57: core/calibration/analytics + paths; v0.58: all backtest strategy + signal configs.)*
 3. **HDB.** Stand up the database + an ingestion script; repoint queries to the HDB; keep CSV ingestion as the source. *(DONE — v0.59: splayed (not partitioned) HDB, `.data.hdb.*` + `scripts/ingest_hdb.q`, examples repointed, ~4.8× faster data-load, byte-identical.)*
-4. **Execution layer.** Build `execution/`; route the backtest through it instead of the flat cost rate.
+4. **Execution layer.** Build `execution/`; route the backtest through it instead of the flat cost rate. *(v0.60: commodity backtest wired through `.exec.fill` (frictionless default = byte-identical), gross-vs-net reporting; equity engine deferred to step 4b.)*
 5. **Portfolio optimizer.** Add `portfolio/` (allocation across strategies).
 6. **IPC services** *(optional, last)* — gateway + HDB service + workers, only if always-on / multi-core scale is actually needed.
 7. **CI + scheduled pipeline.**

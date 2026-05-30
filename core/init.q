@@ -92,9 +92,11 @@
 \l data/parser.q
 \l data/hdb.q
 \l data/backtest.q
+/ Execution (daily fill-and-cost simulation; used by the commodity backtest)
+\l execution/execution.q
 / Backtest (strategy engine + strategies)
 \l backtest/strategy.q
 \l backtest/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.59";
+.qfdm.version:"0.60";

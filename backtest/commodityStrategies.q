@@ -219,51 +219,68 @@
 / cost, and realises P&L to cash. PV=cash so deltaPV==stepPnl. Strategies differ
 / only in the raw-target rule; the accounting is shared and identical.
 
-.strategy.commodityBT.__rowEmitCols:`stepIndex`stepDate`frontPrice`signal`rawTarget`position`frontReturn`positionPnl`turnoverCost`stepPnl`cumulativePnl`isTrain`status`message;
+.strategy.commodityBT.__rowEmitCols:`stepIndex`stepDate`frontPrice`signal`rawTarget`position`frontReturn`positionPnl`turnoverCost`stepPnl`cumulativePnl`isTrain`status`message`targetPosition`proportionalCost`slippageCost`fixedCost`filledTurnover`targetTurnover;
 
 / The traded return / vol-scale columns default to the front series; spread
 / strategies (B2/B4) override them via returnColumn / volScaleColumn in stratCfg.
 .strategy.commodityBT.__returnColumn:{[stratCfg] $[`returnColumn in key stratCfg; stratCfg`returnColumn; `frontReturn]};
 .strategy.commodityBT.__volScaleColumn:{[stratCfg] $[`volScaleColumn in key stratCfg; stratCfg`volScaleColumn; `volTargetScale]};
 
+/ Build the execution ctx for a step (8-param lambda cap -> bundle in a dict).
+.strategy.commodityBT.__execCtx:{[stepRow;prevPos]
+    `refPrice`barVolume`volatility`currentPos!(
+        stepRow`frontPrice;
+        $[`volume in key stepRow; stepRow`volume; 0n];
+        stepRow`volatility;
+        prevPos)
+ };
+
 .strategy.commodityBT.coreInit:{[trade;firstStep;stratCfg;rawTarget0;signalVal0]
     notional:trade`notional;
     scale:firstStep .strategy.commodityBT.__volScaleColumn stratCfg;
-    txnRate:stratCfg`txnCostRate;
     position0:rawTarget0*scale*notional;
-    entryCost:(abs position0)*txnRate;
+    execCfg:.exec.__resolve stratCfg;
+    fillRes:.exec.fill[position0;.strategy.commodityBT.__execCtx[firstStep;0f];execCfg];
+    filled0:fillRes`filledQty;
+    entryCost:fillRes`totalCost;
     stepPnl0:neg entryCost;
     rowEmit:.strategy.commodityBT.__rowEmitCols!(
-        firstStep`stepIndex;firstStep`stepDate;firstStep`frontPrice;signalVal0;rawTarget0;position0;
-        firstStep .strategy.commodityBT.__returnColumn stratCfg;0f;entryCost;stepPnl0;stepPnl0;firstStep`isTrain;`OK;"");
+        firstStep`stepIndex;firstStep`stepDate;firstStep`frontPrice;signalVal0;rawTarget0;filled0;
+        firstStep .strategy.commodityBT.__returnColumn stratCfg;0f;entryCost;stepPnl0;stepPnl0;firstStep`isTrain;`OK;"";
+        position0;fillRes`proportionalCost;fillRes`slippageCost;fillRes`fixedCost;abs filled0;abs position0);
     `cash`prevPosition`prevRawTarget`cumulativePnl`notional`rowEmit!(
-        neg entryCost;position0;rawTarget0;stepPnl0;notional;rowEmit)
+        neg entryCost;filled0;rawTarget0;stepPnl0;notional;rowEmit)
  };
 
 .strategy.commodityBT.coreStep:{[state;marketStep;stratCfg;rawTarget;signalVal]
     notional:state`notional;
     scale:marketStep .strategy.commodityBT.__volScaleColumn stratCfg;
-    txnRate:stratCfg`txnCostRate;
     prevPos:state`prevPosition;
     ret:marketStep .strategy.commodityBT.__returnColumn stratCfg;
     desired:rawTarget*scale*notional;
     positionPnl:prevPos*ret;
-    turnover:(abs desired-prevPos)*txnRate;
-    stepPnl:positionPnl-turnover;
+    order:desired-prevPos;
+    execCfg:.exec.__resolve stratCfg;
+    fillRes:.exec.fill[order;.strategy.commodityBT.__execCtx[marketStep;prevPos];execCfg];
+    filledQty:fillRes`filledQty;
+    newPos:prevPos+filledQty;
+    totalCost:fillRes`totalCost;
+    stepPnl:positionPnl-totalCost;
     newCash:(state`cash)+stepPnl;
     cumulativePnl:(state`cumulativePnl)+stepPnl;
     rowEmit:.strategy.commodityBT.__rowEmitCols!(
-        marketStep`stepIndex;marketStep`stepDate;marketStep`frontPrice;signalVal;rawTarget;desired;
-        ret;positionPnl;turnover;stepPnl;cumulativePnl;marketStep`isTrain;`OK;"");
-    @[state;`cash`prevPosition`prevRawTarget`cumulativePnl`rowEmit;:;(newCash;desired;rawTarget;cumulativePnl;rowEmit)]
+        marketStep`stepIndex;marketStep`stepDate;marketStep`frontPrice;signalVal;rawTarget;newPos;
+        ret;positionPnl;totalCost;stepPnl;cumulativePnl;marketStep`isTrain;`OK;"";
+        desired;fillRes`proportionalCost;fillRes`slippageCost;fillRes`fixedCost;abs filledQty;abs order);
+    @[state;`cash`prevPosition`prevRawTarget`cumulativePnl`rowEmit;:;(newCash;newPos;rawTarget;cumulativePnl;rowEmit)]
  };
 
 / Time-series performance summary (split into in-sample / out-of-sample by isTrain).
 .strategy.commodityBT.coreSummary:{[resultTable;stratCfg;strategyName]
     annDays:$[`annualizationDays in key stratCfg; stratCfg`annualizationDays; 252f];
     notional:$[`notional in key stratCfg; stratCfg`notional; 1f];
-    base:`strategyName`steps`totalPnl`testPnl`testAnnualReturn`testAnnualVol`testSharpe`testMaxDrawdown`testHitRate`trainSharpe`turnoverCostTotal`status`errorMessage!(
-        strategyName;0;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty");
+    base:`strategyName`steps`totalPnl`testPnl`testAnnualReturn`testAnnualVol`testSharpe`grossSharpe`testMaxDrawdown`testHitRate`trainSharpe`turnoverCostTotal`proportionalCostTotal`slippageCostTotal`fixedCostTotal`filledTurnoverTotal`targetTurnoverTotal`fillRatio`status`errorMessage!(
+        strategyName;0;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;0Nf;`ERROR;"empty");
     if[(0=count resultTable)|not 98h=type resultTable; :base];
     okRows:resultTable where (resultTable`status)=`OK;
     if[0=count okRows; :@[base;`steps;:;count resultTable]];
@@ -272,9 +289,15 @@
     trainRows:okRows where okRows`isTrain;
     testPerf:perf testRows`stepPnl;
     trainPerf:perf trainRows`stepPnl;
-    `strategyName`steps`totalPnl`testPnl`testAnnualReturn`testAnnualVol`testSharpe`testMaxDrawdown`testHitRate`trainSharpe`turnoverCostTotal`status`errorMessage!(
+    / GROSS = before execution cost: stepPnl + the booked totalCost (turnoverCost).
+    grossPerf:perf (testRows`stepPnl)+testRows`turnoverCost;
+    filledTot:sum okRows`filledTurnover;
+    targetTot:sum okRows`targetTurnover;
+    `strategyName`steps`totalPnl`testPnl`testAnnualReturn`testAnnualVol`testSharpe`grossSharpe`testMaxDrawdown`testHitRate`trainSharpe`turnoverCostTotal`proportionalCostTotal`slippageCostTotal`fixedCostTotal`filledTurnoverTotal`targetTurnoverTotal`fillRatio`status`errorMessage!(
         strategyName;count okRows;sum okRows`stepPnl;testPerf`totalPnl;testPerf`annualReturn;testPerf`annualVol;
-        testPerf`sharpe;testPerf`maxDrawdown;testPerf`hitRate;trainPerf`sharpe;sum okRows`turnoverCost;`OK;"")
+        testPerf`sharpe;grossPerf`sharpe;testPerf`maxDrawdown;testPerf`hitRate;trainPerf`sharpe;sum okRows`turnoverCost;
+        sum okRows`proportionalCost;sum okRows`slippageCost;sum okRows`fixedCost;filledTot;targetTot;
+        $[targetTot>0f;filledTot%targetTot;1f];`OK;"")
  };
 
 / Time-series stats of a daily P&L vector (returns expressed per unit notional).
