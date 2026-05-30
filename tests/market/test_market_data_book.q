@@ -1,5 +1,5 @@
 / test_market_data_book.q - market data book creation and lookup
-\l lib/init.q
+\l core/init.q
 
 spotTable:([] underlying:`AAPL`MSFT`NVDA; spot:100 250 800f);
 volatilityTable:([] underlying:`AAPL`MSFT`NVDA; volatility:0.20 0.25 0.35);

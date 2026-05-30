@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build an mrjump-driven futures curve with chunky jumps; powerSpike should
 / open on a spike (jump observed) or large deviation.
 pathCfg:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(

@@ -1,5 +1,5 @@
 / test_american_call_dividend.q - American call with dividend >= European call
-\l lib/init.q
+\l core/init.q
 amTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`american;`call;100f;1f;1f);
 euTrade:@[amTrade;`exerciseStyle;:;`european];

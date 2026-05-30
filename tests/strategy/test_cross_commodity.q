@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Cross-commodity aggregation arithmetic vs an independent recompute on a hand
 / set of per-(commodity,split) numbers, and a stable descending rank.
 clDetail:([] strategyName:`a`a`b`b; splitId:0 1 0 1;

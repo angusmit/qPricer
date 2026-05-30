@@ -1,5 +1,5 @@
 / test_calibration_objective.q
-\l lib/init.q
+\l core/init.q
 
 .testutil.assertNear[.objective.squaredError[10f;9f];1f;0.001;"squaredError"];
 .testutil.assertNear[.objective.absoluteError[10f;9f];1f;0.001;"absoluteError"];

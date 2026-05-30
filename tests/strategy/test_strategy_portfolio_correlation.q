@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / strategyCorrelation: symmetric, unit diagonal, perfect self-correlation = 1.
 
 synthRows:();

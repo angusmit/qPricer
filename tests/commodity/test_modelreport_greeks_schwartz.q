@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksSchwartz produces FD sensitivities for the Schwartz one-factor model.
 / Check schema, positivity of basePrice and volatilityVega, and that the
 / structural sensitivities are finite (mean-reversion and longRunLogMean

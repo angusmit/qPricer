@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksMrJump produces FD sensitivities for the mean-reverting jump model
 / using common-random-numbers (same mcConfig randomSeed) across base/up/down.
 / With moderate paths the structural checks (finite, positive standardError,

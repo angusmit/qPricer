@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Gate logic: open when |disagreement| > threshold; closed otherwise. Direction = auto
 / follows sign; forced long/short overrides.
 

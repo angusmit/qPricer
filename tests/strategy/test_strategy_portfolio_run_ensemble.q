@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runEnsemble returns one summary row per (strategy, path).
 
 pathCfg:`spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

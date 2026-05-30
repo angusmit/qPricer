@@ -1,5 +1,5 @@
 / test_portfolio_pricing.q - portfolio batch pricing
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3 4;

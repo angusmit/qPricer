@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pathCfg:`names`weights`spot0`vols`correlationMatrix`steps`stepYears`riskFreeRate`dividendYields`seed!(
     `A`B`C;1f%3 3 3f;100 80 120f;0.20 0.30 0.25;
     (1 0.4 0.2f;0.4 1 0.3f;0.2 0.3 1f);

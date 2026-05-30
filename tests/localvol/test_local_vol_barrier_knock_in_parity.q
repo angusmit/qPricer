@@ -1,5 +1,5 @@
 / test_local_vol_barrier_knock_in_parity.q - KI + KO = vanilla under flat LV
-\l lib/init.q
+\l core/init.q
 lvFn:{[spotValue;timePoint] 0.2};
 lvMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;lvFn];
 lvModel:.model.createLocalVolatilityModel[];

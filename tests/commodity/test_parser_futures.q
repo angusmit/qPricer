@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Generalised futures parser: parses any product tag from the Day_<TAG>_YYYYMM00
 / filename, the tag-independent CSV path is shared with crude (byte-identical),
 / and the crude parser is unchanged for its own tag. Synthetic CSV text only.

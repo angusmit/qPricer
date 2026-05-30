@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / For an OU log-price with no jumps, transitionMomentsApprox should:
 /   (a) at large tau, return variance ~ sigma^2 / (2 * kappa) and mean ~ theta
 /   (b) at moderate tau, return variance = sigma^2 * (1 - exp(-2 kappa tau)) / (2 kappa)

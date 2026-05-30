@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / A seasonal curve shows winter > summer at the right tenors. With phaseYears=0
 / the peak is at integer-year delivery and the trough at the half-year. At step 0
 / the delivery time equals the tenor and (contango=0) the baseline is flat, so the

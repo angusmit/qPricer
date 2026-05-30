@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / fromSynthetic produces a GBM path with the standard schema. Determinism with a
 / fixed seed must hold; different seeds must yield different paths; invalid configs
 / must be rejected; empty paths must fail validation.

@@ -1,5 +1,5 @@
 / test_calibrated_model_pricing.q
-\l lib/init.q
+\l core/init.q
 
 / Calibrate BS vol surface
 spotTable:([] underlying:enlist `AAPL; spot:enlist 100f);

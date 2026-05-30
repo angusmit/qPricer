@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Walk-forward splitter: known-answer ranges (non-overlapping test windows, no
 / leak: trainEnd < testEnd) and INDEX-STABILITY (appending future data adds new
 / splits without changing existing ones - the cross-split causality guarantee).

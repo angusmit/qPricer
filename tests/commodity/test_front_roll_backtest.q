@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 
 / Synthetic WTI futures: 3 dates, 3 contracts per date
 futuresTable:();

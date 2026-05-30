@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 
 / Empty summary works
 emptySummary:.limitcheck.summary ();

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runPortfolioRisk runs runPositionRisk across positions and concatenates the
 / tagged tables. Row counts should scale with the number of positions and the
 / portfolioSummary should report OK / OK trade counts when all positions price.

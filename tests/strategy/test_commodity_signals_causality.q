@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Causality / no look-ahead: with a FIXED trainEndDate, every signal at the
 / original dates is UNCHANGED when future dates are appended (the Kalman params
 / come from the fixed train split, the filter is causal, and per-date / trailing

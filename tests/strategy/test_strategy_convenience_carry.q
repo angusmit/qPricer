@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / convenienceYieldCarry: known-answer position sign (long when convenience yield
 / exceeds the rate = backwardation; short when below = contango) + independent-
 / revaluation accounting (vectorised position*return P&L == engine stepPnl).

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / checkLimit returns dict with status OK / warning / breach / ERROR depending
 / on metric value vs warning/breach thresholds. Verify all five branches:
 / OK, warning, breach (with breachAmount), null metric (ERROR), invalid

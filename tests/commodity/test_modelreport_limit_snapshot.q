@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / limitSnapshot tags a limitTable with runId / runDate / portfolioName and
 / preserves row count. limitSummarySnapshot wraps a limitSummary dict into a
 / one-row table with the same metadata.

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / End-to-end walk-forward on a synthetic curve history: produces a per-strategy
 / aggregate distribution + per-split detail + split definitions, with correct
 / shapes. (Synthetic only - no real CSV.)

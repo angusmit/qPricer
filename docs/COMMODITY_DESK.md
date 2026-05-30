@@ -310,15 +310,15 @@ These read the real (gitignored) WTI CSVs and print the numbers quoted above:
 
 | script | prints |
 |---|---|
-| `examples/load_crude_curve.q` | the Jan-2020 forward curve + contango/backwardation read |
-| `examples/calibrate_crude_curve.q` | the two-factor fit, RMSE, and convenience-yield-vs-rate read |
-| `examples/convenience_yield_series.q` | the 2020-2021 cy series + regime-transition dates |
-| `examples/kalman_schwartz_smith.q` | the Kalman-MLE params (κ identified) + filtered χ/ξ factors |
-| `examples/commodity_strategy_backtest.q` | the single-split (train 2020 / test 2021) ranked OOS table + correlations |
+| `apps/examples/load_crude_curve.q` | the Jan-2020 forward curve + contango/backwardation read |
+| `apps/examples/calibrate_crude_curve.q` | the two-factor fit, RMSE, and convenience-yield-vs-rate read |
+| `apps/examples/convenience_yield_series.q` | the 2020-2021 cy series + regime-transition dates |
+| `apps/examples/kalman_schwartz_smith.q` | the Kalman-MLE params (κ identified) + filtered χ/ξ factors |
+| `apps/examples/commodity_strategy_backtest.q` | the single-split (train 2020 / test 2021) ranked OOS table + correlations |
 
 The walk-forward distribution in §8 comes from `.strategy.commodityBT.walkForward` over
-rolling splits (run inside the backtest harness; see `lib/commodityStrategies.q`). Run any
-example from the repo root, e.g. `q examples/kalman_schwartz_smith.q`. The synthetic
+rolling splits (run inside the backtest harness; see `backtest/commodityStrategies.q`). Run any
+example from the repo root, e.g. `q apps/examples/kalman_schwartz_smith.q`. The synthetic
 identifiability round-trip lives in `tests/commodity/test_kalman_schwartz_smith_roundtrip.q`.
 
 ---

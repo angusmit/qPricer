@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / disagreementAlerts builds a six-row table from already-computed disagreement
 / dicts. Feed it controlled synthetic dicts so the test does not depend on the
 / pricing models. Verify alert types, severity mapping, and the metric/threshold

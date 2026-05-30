@@ -1,5 +1,5 @@
 / test_american_call.q - American call basic pricing
-\l lib/init.q
+\l core/init.q
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`american;`call;100f;1f;1f);
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0.03;0.2);

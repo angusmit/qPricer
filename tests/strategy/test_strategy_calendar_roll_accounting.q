@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent-revaluation accounting test. Run calendarRoll via a scan that exposes
 / all per-step states. At each step compute portfolio value INDEPENDENTLY from
 / state components (cash + legMarkSum + hedgePosition*spot) and assert

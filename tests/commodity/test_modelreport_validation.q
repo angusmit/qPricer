@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / validateOptionSetup rejects malformed setups; per-model pricing wrappers
 / degrade to an ERROR row when their inputs are missing instead of crashing
 / the whole report; comparisonSummary aggregates only OK rows.

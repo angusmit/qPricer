@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Economic-sense check (the real correctness test, not just RMSE): a BACKWARDATED
 / curve must calibrate to a net convenience yield ABOVE the risk-free rate
 / (backwardation <=> convenience yield > carry). Curves are hand-built (monotone),

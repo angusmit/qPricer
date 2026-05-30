@@ -1,5 +1,5 @@
 / test_mc_confidence_intervals.q
-\l lib/init.q
+\l core/init.q
 bsCall:.validation.blackScholesClosedForm[`call;100f;100f;1f;0.05;0f;0.2];
 
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(25000;1;42;0b;0b;0.95);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / realCurveCalendarRoll drives the existing commodityCalendar over a real-shaped
 / curve history. Structural checks: the curve bundle is built correctly, the
 / driver runs, and the regime breakdown of rollPnl sums to the result total

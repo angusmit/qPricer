@@ -1,5 +1,5 @@
 / test_audit.q - audit record correctness
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3;

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / appendLimitHistory accumulates snapshot rows. Verify schema stability,
 / row growth, runId preservation, and that an empty seed history returns
 / the new snapshot unchanged.

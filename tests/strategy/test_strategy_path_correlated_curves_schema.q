@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Multi-commodity correlated curve adapter: two commodities (power, gas) with a
 / shared correlation, per-name contango, three tenors, 6 steps.
 pathCfg:`names`correlationMatrix`spot0s`drifts`vols`contangos`tenors`steps`stepYears`riskFreeRate`seed!(

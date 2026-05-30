@@ -4,7 +4,7 @@
 /   q tests/run_fast_tests.q                   - fast tier (deterministic, no MC), < ~2 min
 /   q tests/run_smoke_tests.q                  - very short core smoke tests, < 30 s
 /   q tests/run_group.q <group> -q             - single group, e.g. strategy, core, commodity
-\l lib/init.q
+\l core/init.q
 
 / --- Test suites by domain ---
 

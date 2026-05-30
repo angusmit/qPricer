@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pathCfg:`names`weights`spot0`vols`correlationMatrix`steps`stepYears`riskFreeRate`dividendYields`seed!(
     `A`B;0.5 0.5;100 80f;0.20 0.30;(1 0.4f;0.4 1f);6;1f%252f;0.02;0 0f;42);
 bundle1:.strategy.path.fromCorrelated pathCfg;

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / performanceByStrategy aggregates per-strategy mean/std/percentiles. Cross-check
 / against an independent recomputation on a synthetic ensembleSummary.
 

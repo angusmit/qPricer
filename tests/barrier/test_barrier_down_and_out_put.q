@@ -1,5 +1,5 @@
 / test_barrier_down_and_out_put.q - validate down-and-out put pricing
-\l lib/init.q
+\l core/init.q
 
 marketData:`underlying`spot`riskFreeRate`dividendYield`volatility!(
     `AAPL;100f;0.05;0f;0.2);

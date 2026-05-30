@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / worstOffenders returns the top-N positions per metric, sorted by absolute
 / metric value descending. Verify per-metric row count, ranking, and ordering.
 

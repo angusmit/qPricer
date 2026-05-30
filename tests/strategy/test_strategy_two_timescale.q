@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / B3 twoTimescale: known-answer (weighted thresholded chi-reversion + xi-momentum
 / trend) + independent-revaluation accounting.
 n:8; dates:2020.01.01+til n;

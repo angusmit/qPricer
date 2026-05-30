@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Empty trade table
 emptyResult:@[{.dailyrisk.runDailyRisk[x 0;x 1;x 2;x 3;x 4;x 5]};(();`a`b!(1;2);(::);(::);(::);()!());{`ERROR}];
 .testutil.assertTrue[emptyResult~`ERROR;"empty trades fails"];

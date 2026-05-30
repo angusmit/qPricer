@@ -1,5 +1,5 @@
 / test_barrier_down_and_out_call.q
-\l lib/init.q
+\l core/init.q
 barrierTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`barrierType`barrierLevel`rebate!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f;`downAndOut;70f;0f);
 vanillaTrade:@[barrierTrade;`barrierType;:;`none];

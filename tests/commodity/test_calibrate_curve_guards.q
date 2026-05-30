@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Validation guards: negative/zero price (out of lognormal domain), degenerate
 / inputs, and reserved modelTypes all raise controlled errors (no crash, no fit).
 calCfg:()!();

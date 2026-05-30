@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / priceDisagreement summarises priceAllModels into min/max/range/pct and
 / raises priceRangeAlert when either the absolute or relative range exceeds
 / its threshold. Verify range arithmetic plus a threshold-trigger case.

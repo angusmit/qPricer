@@ -1,5 +1,5 @@
 / test_surface_market_data_pricing.q - price using vol surface market data
-\l lib/init.q
+\l core/init.q
 
 / Build surface where ATM 1Y vol = 0.2
 spot:100f;

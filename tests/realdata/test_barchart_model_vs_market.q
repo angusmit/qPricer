@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build synthetic priced option table and replay for model comparison
 pricingConfig:`riskFreeRate`dividendYield`pricingModel!(0.05;0.005;`blackScholes);
 

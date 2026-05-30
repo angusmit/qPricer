@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent revaluation: PV computed from state components each step; deltaPV must
 / equal stepPnl from the result table within 1e-8. Catches cash-bookkeeping or
 / leg-mark update bugs that the flow-vs-flow assertion would miss.

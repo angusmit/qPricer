@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / A bad position (invalid optionType inside its optionSetup) must not crash
 / the portfolio. The good position should still produce all its rows; the bad
 / position should appear with positionStatus=`ERROR and an explanatory

@@ -1,5 +1,5 @@
 / test_batch.q - daily batch orchestration
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2;

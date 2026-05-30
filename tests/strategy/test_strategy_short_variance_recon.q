@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Reconciliation: for small spot moves and a fine FDM grid, the short-variance
 / gammaReconResidual = (totalPnl - txnCost - financing) - (gammaPnlTotal + thetaPnlTotal)
 / should be small relative to the entry premium. Same tolerance convention as the

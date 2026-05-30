@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / portfolioAlertSummary aggregates alertRows by alertType. Test both a
 / synthetic input that controls counts exactly and an empty-input edge case.
 

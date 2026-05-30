@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / curveAt controlled-error cases: asof before any contract is alive and asof
 / after all contracts have expired. Synthetic long table, no files.
 contractYM:202001 202002;

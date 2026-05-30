@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runPortfolioRiskWithLimits stitches runPortfolioDashboard with the limit
 / checker. Verify dictionary keys, expected limit names in limitTable, and
 / that limitSummary exposes overallStatus.

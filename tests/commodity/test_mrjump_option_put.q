@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / MC European put is positive. Put-call parity at the sample level holds exactly:
 /   C - P = exp(-rT) * (sampleMean(S_T) - K)
 / because both options price off the same MC sample (deterministic by seed).

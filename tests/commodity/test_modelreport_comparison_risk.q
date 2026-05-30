@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runComparisonRisk wraps runComparisonWithGreeks and modelDisagreementReport
 / into a single call. Verify the dictionary structure and that the alerts
 / table is populated with the expected alert types.

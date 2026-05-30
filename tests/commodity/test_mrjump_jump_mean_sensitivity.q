@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Positive jumpMean lifts the conditional mean of the terminal log price and
 / therefore the sample average final spot and a moderately OTM call price.
 / Compare jumpMean = 0 vs jumpMean = 0.10 with everything else fixed.

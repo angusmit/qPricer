@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Walk-forward aggregation arithmetic vs an independent recompute on a hand set
 / of per-split numbers (avg / dev skip nulls = strategies that never traded).
 detail:([] strategyName:`a`a`a`b`b`b;

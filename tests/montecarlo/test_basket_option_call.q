@@ -1,5 +1,5 @@
 / test_basket_option_call.q
-\l lib/init.q
+\l core/init.q
 
 spotTable:([] underlying:`AAPL`MSFT`NVDA; spot:100 250 800f);
 volTable:([] underlying:`AAPL`MSFT`NVDA; volatility:0.2 0.25 0.35);

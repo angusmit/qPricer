@@ -1,5 +1,5 @@
 / test_greeks_extended_products.q - Greeks for expanded product set
-\l lib/init.q
+\l core/init.q
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0.01;0.2);
 mdl:.model.createBlackScholesModel[];
 cfg:`method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(

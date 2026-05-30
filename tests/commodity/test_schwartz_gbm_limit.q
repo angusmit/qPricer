@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / As kappa -> 0 with longRunLogMean = log S0, Schwartz reduces to a lognormal
 / terminal price with mean log S0 and variance sigma^2 T. The European option
 / price then equals Black-76 on forward S0 * exp(sigma^2 T / 2) at the same vol.

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksSummary aggregates the merged greeks table into modelCount /
 / okModelCount / max-magnitude statistics, picking each model's primary
 / delta (forwardDelta for black76, logStateDelta for schwartz/mrjump,

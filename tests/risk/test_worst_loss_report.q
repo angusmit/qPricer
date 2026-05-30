@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 scenarioResult:();
 scenarioResult:scenarioResult,enlist `scenarioName`scenarioPnl!(`s1;-10f);
 scenarioResult:scenarioResult,enlist `scenarioName`scenarioPnl!(`s2;-5f);

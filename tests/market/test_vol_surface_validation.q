@@ -1,5 +1,5 @@
 / test_vol_surface_validation.q - surface validation edge cases
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     functionResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

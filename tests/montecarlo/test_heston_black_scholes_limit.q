@@ -1,5 +1,5 @@
 / test_heston_black_scholes_limit.q - volOfVol=0 should match BS
-\l lib/init.q
+\l core/init.q
 / BS limit: xi=0, v0=theta=0.04 => constant vol sigma=0.2
 bsLimitParams:`initialVariance`longRunVariance`meanReversion`volOfVol`correlation`riskFreeRate`dividendYield!(0.04;0.04;2.0;0.0;0.0;0.05;0.0);
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(1;`AAPL;`equityOption;`european;`call;100f;1f;1f);

@@ -1,5 +1,5 @@
 / test_barrier_up_and_out_call.q - validate up-and-out call pricing
-\l lib/init.q
+\l core/init.q
 
 marketData:`underlying`spot`riskFreeRate`dividendYield`volatility!(
     `AAPL;100f;0.05;0f;0.2);

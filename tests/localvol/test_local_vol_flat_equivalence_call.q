@@ -1,5 +1,5 @@
 / test_local_vol_flat_equivalence_call.q - flat local vol = flat BS for call
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);

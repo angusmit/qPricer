@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(5000;25;42;0b;0b;0.95);
 cfg:enlist[`mcConfig]!enlist mcConfig;
 

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / scenarioShift applies forward / spot / vol bumps to the model input dictionary
 / and reprices all models; scenarioPnL produces per-model PnL relative to base.
 / Verify that scenarioPnL = quantity * contractMultiplier * (scenarioPrice - basePrice)

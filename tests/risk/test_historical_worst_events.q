@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 spotTable:([] underlying:`AAPL`MSFT; spot:100 250f);
 volTable:([] underlying:`AAPL`MSFT; volatility:0.2 0.25);
 rateTable:([] expiry:enlist 1f; riskFreeRate:enlist 0.05);

@@ -1,5 +1,5 @@
 / test_input_validation.q - edge-case input validation tests
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

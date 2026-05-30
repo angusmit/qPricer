@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / crackSpread: long a refined-product-vs-crude crack-spread option (payoff
 / max(P_product - crackRatio*P_crude - K, 0)) on a correlated product/crude
 / curve bundle, delta-hedged in both futures. 1:1 crack here (crackRatio=1).

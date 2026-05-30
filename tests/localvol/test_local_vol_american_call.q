@@ -1,5 +1,5 @@
 / test_local_vol_american_call.q - local-vol American call >= local-vol European call
-\l lib/init.q
+\l core/init.q
 lvFn:{[spotValue;timePoint] 0.2};
 lvMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0.03;lvFn];
 lvModel:.model.createLocalVolatilityModel[];

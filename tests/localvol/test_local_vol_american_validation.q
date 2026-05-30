@@ -1,5 +1,5 @@
 / test_local_vol_american_validation.q
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

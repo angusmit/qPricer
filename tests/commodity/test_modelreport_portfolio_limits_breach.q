@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With tight breach thresholds, at least one limit should breach.
 / Verify overallStatus = breach, breachAmount = metric - breachThreshold,
 / and that limitBreachReport surfaces the breach rows.

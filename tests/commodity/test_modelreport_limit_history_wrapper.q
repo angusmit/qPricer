@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runPortfolioRiskWithLimitHistory wraps a single portfolio run, generates
 / snapshots, appends to existing histories, and rebuilds the dashboard. Verify
 / histories grow across two successive calls. Keep MC paths small for speed.

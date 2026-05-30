@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 shockTable:.histscen.syntheticShockTable[`AAPL`MSFT];
 .testutil.assertTrue[(count shockTable)>0;"synthetic table non-empty"];
 .histscen.validateHistoricalShockTable shockTable;

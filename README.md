@@ -80,34 +80,34 @@ Validation / Examples / Tests
 
 ## Folder Structure
 
+Layered layout (v0.56, see ARCHITECTURE.md §1 — dependencies flow downward only):
+
 ```
 q-fdm-option-pricer/
-├── lib/
-│   ├── init.q
-│   ├── utilities.q
-│   ├── config.q
-│   ├── product.q
-│   ├── market.q
-│   ├── model.q
-│   ├── grid.q
-│   ├── payoff.q
-│   ├── boundary.q
-│   ├── solver.q
-│   ├── engine.q
-│   ├── greeks.q
-│   ├── validation.q
-│   ├── risk.q
-│   ├── american.q
-│   └── portfolio.q
-├── examples/
-├── tests/
+├── core/          # math/RNG/stats/infra + the loader (core/init.q)
+├── config/        # (reserved)
+├── data/          # parser, futures-curve construction, real-data replay
+├── models/        # BS/FDM core + all pricers (product..engine..commodity)
+├── calibration/   # iv, surface, objective, calibrate-curve, Kalman MLE, model quality
+├── analytics/     # risk / VaR / scenarios / limits / portfolio / reporting / perf
+├── signals/       # seasonality
+├── execution/     # (reserved)
+├── backtest/      # strategy engine + commodity strategy suite + walk-forward
+├── portfolio/     # (reserved)
+├── services/      # (reserved)
+├── scripts/       # (reserved)
+├── apps/
+│   └── examples/  # standalone scenarios + demos
+├── tests/         # flat suite, loads core/init.q
 └── README.md
 ```
+
+Load everything with `\l core/init.q`.
 
 ## Quick Start
 
 ```q
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);
@@ -356,16 +356,16 @@ In a real desk system, market data, curves, vol surfaces, trade capture, risk ag
 cd q-fdm-option-pricer
 
 q tests/run_all_tests.q
-q examples/smoke_test_european_call.q
-q examples/calculate_greeks.q
-q examples/generate_scenario_report.q
-q examples/price_american_put.q
-q examples/analyze_american_put.q
-q examples/price_barrier_options.q
-q examples/compare_explicit_crank_nicolson.q
-q examples/price_local_volatility.q
-q examples/price_local_volatility_skew.q
-q examples/price_portfolio.q
+q apps/examples/smoke_test_european_call.q
+q apps/examples/calculate_greeks.q
+q apps/examples/generate_scenario_report.q
+q apps/examples/price_american_put.q
+q apps/examples/analyze_american_put.q
+q apps/examples/price_barrier_options.q
+q apps/examples/compare_explicit_crank_nicolson.q
+q apps/examples/price_local_volatility.q
+q apps/examples/price_local_volatility_skew.q
+q apps/examples/price_portfolio.q
 ```
 
 ## Version History

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pathCfg:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(
     0.05 0.1 0.25 0.5f;
     `mrjump;

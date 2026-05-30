@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / modelDisagreement structural test.
 
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

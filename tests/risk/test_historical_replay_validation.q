@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];
     if[testResult~`NO_ERROR; '"Expected error but got success: ",testName];

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Determinism + correlation structure of the multi-commodity curve adapter.
 baseCfg:`names`correlationMatrix`spot0s`drifts`vols`contangos`tenors`steps`stepYears`riskFreeRate`seed!(
     `crude`product;

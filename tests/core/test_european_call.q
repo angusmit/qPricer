@@ -4,7 +4,7 @@
 / Verifies that the FDM call price is within tolerance of BS closed form.
 / =============================================================================
 
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     100;`TEST;`equityOption;`european;`call;100f;1f;1f

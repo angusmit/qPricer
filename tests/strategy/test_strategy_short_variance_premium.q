@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Variance risk premium: when realized vol falls well below implied, short straddle
 / should profit (positive totalPnl). When realized vol exceeds implied, totalPnl
 / should fall. We synthesise two paths with the same implied vol but different

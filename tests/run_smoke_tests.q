@@ -1,5 +1,5 @@
 / run_smoke_tests.q - fast core checks
-\l lib/init.q
+\l core/init.q
 
 .test.files:(
     "tests/core/test_european_call.q";

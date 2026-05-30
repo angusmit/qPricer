@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / modelRanking returns one row per OK model, sorted by descending modelPrice,
 / with rank 1 .. N. Verify ordering and that the row count matches the number
 / of OK rows in the input price table.

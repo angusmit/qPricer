@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / jumpPremium with Merton (series price, fast) at entry, gate open since
 / a chunky jump intensity in the jumpModel will push its price away from BS.
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

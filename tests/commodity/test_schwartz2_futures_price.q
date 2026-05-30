@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-form futures price F(0,T) should match MC mean of exp(X+Y) within MC SE.
 
 params:`meanReversionSpeed`shortVolatility`longVolatility`longDrift`correlation!(1.5;0.35;0.15;0f;0.3);

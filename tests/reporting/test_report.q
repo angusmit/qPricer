@@ -1,5 +1,5 @@
 / test_report.q - desk reporting functions (v0.14)
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3;

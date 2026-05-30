@@ -1,5 +1,5 @@
 / test_local_vol_flat_equivalence_put.q - flat local vol = flat BS for put
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     2;`AAPL;`equityOption;`european;`put;100f;1f;1f);

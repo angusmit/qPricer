@@ -1,5 +1,5 @@
 / test_portfolio_multi_symbol_scenario_risk.q - multi-symbol scenario risk
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3;

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Jump-intensity monotonicity. Increasing lambda holding everything else fixed
 / must:
 /   (a) increase expectedJumpCount = lambda * T            (analytical, exact)

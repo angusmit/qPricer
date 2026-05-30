@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / hedgeDelta=0b: hedgePosition stays 0, hedgePnl stays 0, hedgeTrade stays 0.
 / __hedgeStep is bypassed but the portfolio-value attribution identity still holds.
 

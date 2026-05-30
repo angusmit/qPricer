@@ -1,5 +1,5 @@
 / test_timing.q - timing utilities
-\l lib/init.q
+\l core/init.q
 
 / 1. timeFunction with a simple function
 timedResult:.timing.timeFunction[{[argVal] argVal*argVal};enlist 5];

@@ -4,7 +4,7 @@
 / Verifies that C - P ≈ S*exp(-q*T) - K*exp(-r*T)
 / =============================================================================
 
-\l lib/init.q
+\l core/init.q
 
 callTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     102;`TEST;`equityOption;`european;`call;100f;1f;1f

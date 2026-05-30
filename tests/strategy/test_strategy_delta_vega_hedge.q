@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / deltaVegaHedge structural + neutrality test. After each rebalance, the residual
 / vega (bookVega + vegaHedgeUnits * hedgeOptionVega) should be at machine epsilon.
 

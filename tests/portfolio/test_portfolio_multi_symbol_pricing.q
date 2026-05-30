@@ -1,5 +1,5 @@
 / test_portfolio_multi_symbol_pricing.q - multi-symbol portfolio pricing
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3;

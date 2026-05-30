@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Parse delivery year/month from the Barchart CRUDE filename convention
 / Day_CRUDE_YYYYMM00.csv (trailing 00 is Barchart's day filler).
 ym:.parser.crude.contractMonthFromFilename "Day_CRUDE_20200100.csv";

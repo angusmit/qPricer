@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build PnL table with group column
 pnlTable:();
 pnlTable:pnlTable,enlist `scenarioName`bookName`pnl!(`s1;`equities;-5f);

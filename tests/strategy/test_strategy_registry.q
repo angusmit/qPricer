@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / The generic engine .strategy.run must dispatch through the registry without any
 / strategy-specific branching. Demonstrate by registering a trivial dummy strategy
 / and running it through the SAME driver that runs gammaScalp.

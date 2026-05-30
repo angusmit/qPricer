@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Curve shape sanity:
 /   (a) every futures price strictly positive,
 /   (b) bumping shortFactor0 lifts near tenors more than far tenors (decay exp(-kappa tau)),

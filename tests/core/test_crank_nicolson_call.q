@@ -1,5 +1,5 @@
 / test_crank_nicolson_call.q - validate CN call price vs Black-Scholes
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);

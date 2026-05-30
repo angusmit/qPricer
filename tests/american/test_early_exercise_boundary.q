@@ -1,5 +1,5 @@
 / test_early_exercise_boundary.q - validate early exercise boundary extraction (v0.14)
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`american;`put;100f;1f;1f);

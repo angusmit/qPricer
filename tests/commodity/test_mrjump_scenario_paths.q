@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / scenarioPaths applies bumps to params then resimulates. Verify:
 /   (a) jumpIntensityBump increases average jump count
 /   (b) jumpMeanBump (positive) lifts the average final price

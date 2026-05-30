@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Drive gammaScalp through the Barchart path adapter using a small synthetic
 / normalised table. Structural-only assertion (the time-to-expiry doesn't decay
 / across snapshots in v0.42; this is an integration test, not a realistic

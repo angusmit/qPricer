@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksSchwartz2 produces FD sensitivities for the Schwartz two-factor model.
 / Long-factor moves persist through expiry (random walk), short-factor moves
 / are mean-reverting, so longFactorSensitivity is expected to be larger in

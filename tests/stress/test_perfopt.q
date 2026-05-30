@@ -1,5 +1,5 @@
 / test_perfopt.q - performance optimisation correctness (v0.15)
-\l lib/init.q
+\l core/init.q
 
 bsModel:.model.createBlackScholesModel[];
 fdmConfig:`method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(

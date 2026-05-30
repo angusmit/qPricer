@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Scoring & ranking: the per-strategy time-series metrics match an INDEPENDENT
 / recomputation, the ranking is a stable descending sort by testSharpe, and the
 / correlation matrix is symmetric with a unit diagonal.

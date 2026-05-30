@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Use a long-enough path so the near tenor (0.05 years ~ 12.6 trading days) expires.
 pathCfg:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(
     0.05 0.10 0.25 0.50f;

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Black-76: F=75, K=75, T=0.25, vol=0.30, r=0.05
 callPx:.commodity.black76.price[`call;75f;75f;0.25;0.30;0.05];
 putPx:.commodity.black76.price[`put;75f;75f;0.25;0.30;0.05];

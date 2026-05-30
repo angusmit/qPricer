@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / validatePortfolioPositions accepts well-formed portfolios and rejects
 / positions that are missing required keys or that pass non-numeric quantity
 / / contractMultiplier.

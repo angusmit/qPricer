@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / fromBarchart maps an already-normalised in-memory Barchart contract series to the
 / standard path schema. No file IO; we synthesise a minimal normalised table.
 

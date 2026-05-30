@@ -1,5 +1,5 @@
 / test_barrier_validation.q - barrier validation (v0.14: all 8 barrier styles supported)
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

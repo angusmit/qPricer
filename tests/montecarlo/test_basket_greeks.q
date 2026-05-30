@@ -1,5 +1,5 @@
 / test_basket_greeks.q - basket Greeks via bump-and-reprice
-\l lib/init.q
+\l core/init.q
 
 spotTable:([] underlying:`AAPL`MSFT; spot:100 200f);
 volTable:([] underlying:`AAPL`MSFT; volatility:0.2 0.25);

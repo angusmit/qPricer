@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / The gamma/theta attribution identity holds only on steps where the position does not
 / mutate. Compute gammaReconResidual EXCLUDING roll steps; assert it is small relative
 / to the per-step option premium scale. The summary already computes residual over

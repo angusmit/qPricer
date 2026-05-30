@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Unit-test .strategy.__hedgeInit and .strategy.__hedgeStep on hand-computed inputs.
 / Also re-run a known gamma-scalp scenario to confirm the post-refactor outputs are
 / identical to the v0.42 reference numbers in the PASS line of

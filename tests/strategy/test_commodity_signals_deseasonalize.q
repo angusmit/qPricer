@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / commoditySignals with deseasonalize: model signals are computed on the
 / deseasonalized curve (the seasonal slope is removed), the tradeable front-
 / return series stays RAW, the WTI default path is unchanged, and the train-only

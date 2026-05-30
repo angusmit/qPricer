@@ -1,5 +1,5 @@
 / test_sabr_smile_generation.q
-\l lib/init.q
+\l core/init.q
 sabrParams:`alpha`beta`rho`nu!(0.2;0.5;-0.3;0.4);
 strikeList:80 90 100 110 120f;
 

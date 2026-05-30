@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / calendarRoll.init builds exactly two legs for a longCalendar: front (short, shorter
 / expiry) + back (long, longer expiry). For shortCalendar the sides are flipped.
 / The legs table follows the documented schema; both legs share the input strike and

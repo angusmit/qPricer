@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Analytic identity check: maxProfit/maxLoss/breakevens against independent
 / formula based on spread widths and netCredit.
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

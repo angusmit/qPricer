@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-form European call vs Monte Carlo.
 
 params:`meanReversionSpeed`longRunLogMean`volatility!(1.5;log 75f;0.30);

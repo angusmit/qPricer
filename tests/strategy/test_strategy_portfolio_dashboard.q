@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / dashboard composes performance + correlation + bookAggregate. bookAggregate is the
 / per-path SUM of per-strategy P&L (= total book P&L per path); mean/std across paths.
 

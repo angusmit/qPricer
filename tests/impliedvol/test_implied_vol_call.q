@@ -1,5 +1,5 @@
 / test_implied_vol_call.q - recover known call IV via bisection
-\l lib/init.q
+\l core/init.q
 
 trueVolatility:0.2;
 marketPrice:.validation.blackScholesClosedForm[`call;100f;100f;1f;0.05;0f;trueVolatility];

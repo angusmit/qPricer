@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / repeatedBreaches surfaces limits with breachCount >= minBreachCount.
 
 mkSnap:{[runId;runDate;gMetric]

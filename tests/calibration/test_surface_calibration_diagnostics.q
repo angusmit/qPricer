@@ -1,5 +1,5 @@
 / test_surface_calibration_diagnostics.q
-\l lib/init.q
+\l core/init.q
 
 spotTable:([] underlying:enlist `AAPL; spot:enlist 100f);
 volTable:([] underlying:enlist `AAPL; volatility:enlist 0.2);

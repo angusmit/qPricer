@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-form futures price F(0,T) should match Monte Carlo mean of exp(X_T).
 
 params:`meanReversionSpeed`longRunLogMean`volatility!(1.5;log 75f;0.30);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Seasonality monthly-factor FIT recovers an injected monthly pattern (known-
 / answer): build a multi-year series whose value is a known function of the
 / calendar month, fit, and assert the 12 recovered factors match. Independent of

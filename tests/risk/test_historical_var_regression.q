@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Deterministic sign convention regression test
 / Synthetic replay result with known PnLs
 syntheticReplay:();

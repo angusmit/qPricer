@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / At long T the sample variance of X_T should approach sigma^2/(2 kappa).
 
 params:`meanReversionSpeed`longRunLogMean`volatility!(1.5;log 75f;0.30);

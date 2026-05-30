@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 supported:.assetclass.supportedAssetClasses[];
 .testutil.assertTrue[`equity in supported;"has equity"];
 .testutil.assertTrue[`commodity in supported;"has commodity"];

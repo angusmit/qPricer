@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / chiReversion: known-answer hysteresis (enter long when z<-entryZ, short when
 / z>entryZ, exit inside exitZ, else hold) + independent-revaluation accounting.
 n:8;

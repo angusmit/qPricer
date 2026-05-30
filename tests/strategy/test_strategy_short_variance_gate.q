@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / shortVariance entry gate: open when IV > forecastVol + entryMargin, else FLAT.
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(

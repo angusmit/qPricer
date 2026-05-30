@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / .strategy.__portfolioValue is a pure helper: PV = cash + legMarkSum + hedgePosition*spot.
 / Strategy-agnostic, used as the independent-revaluation oracle in accounting tests.
 

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build check result with mixed severities
 checkResult:();
 checkResult:checkResult,enlist `limitId`scopeType`scopeValue`metricName`metricValue`limitValue`warningThreshold`hardThreshold`utilisation`severity`passed`status`errorMessage!(1;`portfolio;`ALL;`VaR95;500000f;1000000f;800000f;1000000f;0.5;`OK;1b;`OK;"");

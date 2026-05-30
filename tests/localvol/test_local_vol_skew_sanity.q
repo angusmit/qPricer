@@ -1,7 +1,7 @@
 / test_local_vol_skew_sanity.q - non-flat local vol changes prices sensibly
 / Uses a downside-only local volatility uplift: vol >= 0.2 everywhere,
 / with higher volatility below strike and flat volatility above strike.
-\l lib/init.q
+\l core/init.q
 
 callTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);

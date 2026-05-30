@@ -1,5 +1,5 @@
 / test_path_diagnostics.q
-\l lib/init.q
+\l core/init.q
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(1000;50;42;0b;0b;0.95);
 pathMatrix:.montecarlo.simulateGBMPaths[100f;0.05;0f;0.2;1f;mcConfig];
 

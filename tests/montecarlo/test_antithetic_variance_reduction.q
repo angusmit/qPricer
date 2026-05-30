@@ -1,5 +1,5 @@
 / test_antithetic_variance_reduction.q
-\l lib/init.q
+\l core/init.q
 bsCall:.validation.blackScholesClosedForm[`call;100f;100f;1f;0.05;0f;0.2];
 
 plainCfg:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(10000;1;42;0b;0b;0.95);

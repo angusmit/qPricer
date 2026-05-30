@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 batesParams:`initialVariance`longRunVariance`meanReversion`volOfVol`correlation`jumpIntensity`jumpMean`jumpVolatility`riskFreeRate`dividendYield!(0.04;0.04;2.0;0.3;-0.7;0.5;-0.1;0.3;0.05;0.0);
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(5000;50;42;0b;0b;0.95);
 pathResult:.bates.simulateBatesPaths[100f;batesParams;1f;mcConfig];

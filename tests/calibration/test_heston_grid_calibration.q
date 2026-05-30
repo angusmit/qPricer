@@ -1,5 +1,5 @@
 / test_heston_grid_calibration.q
-\l lib/init.q
+\l core/init.q
 
 / Synthetic BS prices
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);

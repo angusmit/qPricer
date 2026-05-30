@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / sparkSpread: long a power-vs-gas spark-spread option (payoff max(P - HR*G - K,0))
 / on a correlated power/gas curve bundle, delta-hedged in both futures.
 pathCfg:`names`correlationMatrix`spot0s`drifts`vols`contangos`tenors`steps`stepYears`riskFreeRate`seed!(

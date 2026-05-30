@@ -1,5 +1,5 @@
 / test_mc_diagnostics.q - MC diagnostics stress
-\l lib/init.q
+\l core/init.q
 bsCall:.validation.blackScholesClosedForm[`call;100f;100f;1f;0.05;0f;0.2];
 
 / European MC convergence

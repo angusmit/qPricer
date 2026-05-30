@@ -1,5 +1,5 @@
 / test_barrier_full_validation.q - extended barrier validation
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

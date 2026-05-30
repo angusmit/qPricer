@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / limitBreachReport excludes OK rows and sorts by severity (ERROR, breach,
 / warning) then by breachAmount descending. Verify ordering on a synthetic
 / limit table that mixes all four statuses, including a non-breach OK row

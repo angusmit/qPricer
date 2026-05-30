@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / The Kalman filter handles a varying observation set per date (missing tenors):
 / build a panel, drop some (date,tenor) cells, and assert the filter still runs,
 / produces a finite log-likelihood, and yields one filtered state per date.

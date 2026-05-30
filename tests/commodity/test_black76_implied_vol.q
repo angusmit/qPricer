@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Generate price with known vol, then recover it
 trueVol:0.30;
 modelPx:.commodity.black76.price[`call;75f;75f;0.25;trueVol;0.05];

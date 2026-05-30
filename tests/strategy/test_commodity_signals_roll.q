@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Roll-adjusted returns: hand 2-contract case. Front A rolls to B 5 days before
 / A's expiry; the return on the roll boundary must be B's OWN return (no level
 / jump from A to B). frontContractYM records the held sequence.

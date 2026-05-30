@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / portfolioDisagreementExposure aggregates per-position disagreement metrics
 / into gross/net/max measures. Verify counts and non-negativity of gross/max
 / metrics on a small portfolio.

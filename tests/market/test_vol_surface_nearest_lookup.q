@@ -1,5 +1,5 @@
 / test_vol_surface_nearest_lookup.q - nearest-neighbour surface lookup
-\l lib/init.q
+\l core/init.q
 
 volSurface:([]
     underlying:`AAPL`AAPL`AAPL`AAPL;

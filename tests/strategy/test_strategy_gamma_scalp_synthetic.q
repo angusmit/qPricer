@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Run delta-hedged gamma scalp on a synthetic path. Structural checks:
 / result is a finite-pnl table with one row per step, summary has the expected
 / totals, and for a long-gamma position in a moving market theoreticalGammaPnlTotal

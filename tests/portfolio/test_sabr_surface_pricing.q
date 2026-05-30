@@ -1,5 +1,5 @@
 / test_sabr_surface_pricing.q
-\l lib/init.q
+\l core/init.q
 
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);
 sabrCalib:`alpha`beta`rho`nu!(0.2;0.5;0.0;0.0001);

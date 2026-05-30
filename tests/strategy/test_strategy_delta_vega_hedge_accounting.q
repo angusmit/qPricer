@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent revaluation accounting test for deltaVegaHedge.
 
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pnlVec:-10 -5 -3 -1 0 1 2 3 5 8f;
 
 varRep:.var.varReport[pnlVec;0.9 0.95 0.99];

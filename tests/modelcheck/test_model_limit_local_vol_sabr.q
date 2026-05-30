@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 trade:.modelcheck.__defaultTrade[];
 mkt:.modelcheck.__defaultMarket[];
 

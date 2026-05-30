@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With tight warning thresholds but very loose breach thresholds, every metric
 / should report warning and none should breach. Verify overallStatus warning
 / and that breachAmount is 0 for warning rows.

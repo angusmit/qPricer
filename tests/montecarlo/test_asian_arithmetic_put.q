@@ -1,5 +1,5 @@
 / test_asian_arithmetic_put.q
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`averageType`averagingStyle`observationCount!(
     1;`AAPL;`asianOption;`european;`put;100f;1f;1f;`arithmetic;`discrete;50);

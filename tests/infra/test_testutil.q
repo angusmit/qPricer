@@ -1,5 +1,5 @@
 / test_testutil.q - test assertion helpers
-\l lib/init.q
+\l core/init.q
 
 / 1. assertTrue passes
 .testutil.assertTrue[1b;"true is true"];

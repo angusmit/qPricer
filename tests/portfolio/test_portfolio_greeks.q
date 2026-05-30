@@ -1,5 +1,5 @@
 / test_portfolio_greeks.q - portfolio Greeks (v0.14: all products get Greeks)
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2 3 4;

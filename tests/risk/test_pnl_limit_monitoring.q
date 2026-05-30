@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic worst-loss report
 pnlReport:();
 pnlReport:pnlReport,enlist `scenarioName`pnl`loss`rank`status`errorMessage!(`covidCrash;-800000f;800000f;1;`OK;"");

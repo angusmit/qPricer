@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / limitHistoryDashboard composes historySummary + breachTrend +
 / repeatedBreaches + latestSummary into a single dashboard dict.
 

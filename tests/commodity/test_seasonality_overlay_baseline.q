@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Seasonality is OPT-IN: when seasonCfg is absent the curve adapters must be
 / byte-identical to the pre-v0.51 baseline (no extra keys, frontPath untouched).
 base:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(

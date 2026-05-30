@@ -1,5 +1,5 @@
 / test_merton_jump_paths.q
-\l lib/init.q
+\l core/init.q
 mertonParams:`volatility`jumpIntensity`jumpMean`jumpVolatility`riskFreeRate`dividendYield!(0.2;0.5;-0.1;0.3;0.05;0.0);
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(5000;50;42;0b;0b;0.95);
 

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Part A: dates whose curve contains a non-positive price are SKIPPED (excludes
 / the April-2020 negative-settle window), the rest are fitted, and regimes are
 / classified correctly. No crash.

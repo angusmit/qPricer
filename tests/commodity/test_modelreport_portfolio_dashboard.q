@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / portfolioRiskDashboard composes portfolioSummary + alertSummary +
 / disagreementExposure + worstOffenders. runPortfolioDashboard is the
 / end-to-end wrapper that also runs the portfolio.

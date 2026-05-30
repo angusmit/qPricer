@@ -1,5 +1,5 @@
 / test_moment_matching.q
-\l lib/init.q
+\l core/init.q
 normalMatrix:.montecarlo.generateNormalPaths[5000;50;42];
 mmMatrix:.variance.applyMomentMatching normalMatrix;
 

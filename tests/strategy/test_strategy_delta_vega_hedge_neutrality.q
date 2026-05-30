@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Delta + vega neutrality assertion. After each rebalance, netDelta and residualVega
 / should both be near zero in absolute value.
 

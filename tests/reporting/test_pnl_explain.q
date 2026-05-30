@@ -1,5 +1,5 @@
 / test_pnl_explain.q - PnL explain via Taylor expansion
-\l lib/init.q
+\l core/init.q
 
 / European call and put - Greeks supported
 tradeTable:([]

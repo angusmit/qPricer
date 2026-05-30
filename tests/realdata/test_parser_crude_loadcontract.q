@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / loadContract on synthetic in-memory CSV text using the REAL header
 / (Time,Open,High,Low,Latest,Volume). No file dependency.
 csvText:"Time,Open,High,Low,Latest,Volume",

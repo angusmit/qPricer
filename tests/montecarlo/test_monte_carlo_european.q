@@ -1,5 +1,5 @@
 / test_monte_carlo_european.q - MC European vs Black-Scholes
-\l lib/init.q
+\l core/init.q
 
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(
     50000;1;42;0b;0b;0.95);

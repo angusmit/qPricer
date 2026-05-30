@@ -1,5 +1,5 @@
 / test_local_vol_validation.q - local vol scope and error handling (v0.14)
-\l lib/init.q
+\l core/init.q
 
 .test.expectError:{[testName;fn]
     testResult:@[{x[];`NO_ERROR};fn;{`ERROR}];

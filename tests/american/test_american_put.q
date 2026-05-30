@@ -4,7 +4,7 @@
 /   2. American put >= European put (early exercise premium >= 0)
 /   3. Early exercise premium is positive for ATM put with r > 0
 /   4. Deep ITM American put approaches intrinsic value
-\l lib/init.q
+\l core/init.q
 
 / --- Standard parameters ---
 europeanPutTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(

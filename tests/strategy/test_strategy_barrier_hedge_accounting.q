@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent revaluation across a path that includes a knock-out event.
 nSteps:5;
 spots:100 104 108 112 116f;

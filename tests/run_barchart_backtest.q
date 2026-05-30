@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 
 -1 "=============================================================================";
 -1 " qFDM v0.31 Barchart Historical Option Backtest";

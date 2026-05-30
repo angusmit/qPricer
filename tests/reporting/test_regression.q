@@ -1,5 +1,5 @@
 / test_regression.q - regression warnings
-\l lib/init.q
+\l core/init.q
 
 / Build two pricing runs with different prices
 currentPricing:([]

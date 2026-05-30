@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Schwartz validation rejects malformed inputs.
 
 badParams1:`meanReversionSpeed`longRunLogMean`volatility!(-1.5;log 75f;0.30);

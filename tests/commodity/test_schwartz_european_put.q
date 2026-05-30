@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-form European put vs Monte Carlo and put-call parity.
 
 params:`meanReversionSpeed`longRunLogMean`volatility!(1.5;log 75f;0.30);

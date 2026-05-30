@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build scenario result from synthetic data
 scenarioResult:();
 scenNames:`spotUp5`spotUp2`base`spotDn2`spotDn5`volUp`volDn`rateUp`rateDn;

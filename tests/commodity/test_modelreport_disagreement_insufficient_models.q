@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Status policy:
 /   zero OK rows                 -> `ERROR
 /   1 .. minimumOkModels-1 rows  -> `warning

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic Greek report with scope
 greekReport:();
 greekReport:greekReport,enlist `scopeType`scopeValue`DeltaCash`VegaCash!(`book;`EQD;-300000f;150000f);

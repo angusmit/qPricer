@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent-revaluation accounting check for crackSpread (PV = cash + optionMark).
 pathCfg:`names`correlationMatrix`spot0s`drifts`vols`contangos`tenors`steps`stepYears`riskFreeRate`seed!(
     `product`crude;

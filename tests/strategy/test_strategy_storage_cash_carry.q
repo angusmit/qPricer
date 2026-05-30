@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / B4 storageCashCarry: known-answer (long the near-far calendar spread only when
 / contango exceeds the storage cost) + accounting on the spread-return column.
 n:8; dates:2020.01.01+til n;

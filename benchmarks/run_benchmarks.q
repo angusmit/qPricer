@@ -1,5 +1,5 @@
 / run_benchmarks.q - benchmark runner (separate from unit tests)
-\l lib/init.q
+\l core/init.q
 
 -1 "=============================================================================";
 -1 " qFDM v",.qfdm.version," Benchmark Suite";

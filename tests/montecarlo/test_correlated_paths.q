@@ -1,5 +1,5 @@
 / test_correlated_paths.q - correlated normal generation and multi-asset GBM
-\l lib/init.q
+\l core/init.q
 
 corrMatrix:(1 0.5 0.3;0.5 1 0.4;0.3 0.4 1f);
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / riskReversal structural test: builds 2 wings at +/- wingOffsetPct, per-strike skew
 / vol formula puts the lower vol on the call wing for a negative skew (longCallWing).
 

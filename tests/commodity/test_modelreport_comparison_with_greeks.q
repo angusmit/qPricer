@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runComparisonWithGreeks is the top-level convenience wrapper: it returns the
 / runComparison report (basePrices, priceDifferences, summary, scenarioPrices,
 / scenarioPnL) joined with greeksTable and greeksSummary. Verify the resulting

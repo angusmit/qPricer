@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-form European call (Black-76 on lognormal F, effective vol) vs Monte Carlo.
 
 params:`meanReversionSpeed`shortVolatility`longVolatility`longDrift`correlation!(1.5;0.35;0.15;0f;0.3);

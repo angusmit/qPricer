@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 qFDM is a kdb+/q pricing and risk framework. The equity FDM core (Black-Scholes, Crank-Nicolson, American, barriers, local vol) is the *technical validation case*; the long-term target is commodity (oil, power/electricity) and multi-asset options. Treat AAPL/equity tests as proof-of-correctness, not the end goal.
 
-Current version: see `.qfdm.version` set at the bottom of `lib/init.q` (today: 0.55).
+Current version: see `.qfdm.version` set at the bottom of `core/init.q` (today: 0.56).
 
 Test status: `q tests/run_all_tests.q` → **364 passed / 0 failed**.
+
+**Layer layout (v0.56, ARCHITECTURE.md §1).** The flat `lib/` is gone; code is organized into layers (dependencies flow downward only): `core/` (math/RNG/stats/infra + the loader `core/init.q`), `config/` (reserved), `data/` (parser, futures-curve construction, real-data replay), `models/` (BS/FDM core + all pricers + pricing domain), `calibration/` (iv, surface, objective, calibrate-curve, Kalman MLE, model quality), `analytics/` (risk/VaR/scenarios/limits/portfolio/reporting/perf), `signals/` (seasonality), `execution/`+`portfolio/`+`services/`+`scripts/` (reserved), `backtest/` (strategy engine + commodity suite + walk-forward), `apps/` (examples + demos), `tests/` (flat, mirrors later). Each dir has a `README.md`. Load with `\l core/init.q`; run the suite with `q tests/run_all_tests.q`. v0.56 was a **pure structural move** — file locations + load paths only, zero behavior change.
 
 ### Test runners (v0.48)
 - `q tests/run_all_tests.q` — full suite + timing report (slowest-20, per-group subtotals).
@@ -41,6 +43,8 @@ v0.44 adds a calendar-roll strategy (`.strategy.calendarRoll`) on the generic en
 v0.45 completes the strategy suite (`.strategy.riskReversal`, `.strategy.modelDisagreement`, `.strategy.deltaVegaHedge`) and adds a common-random-number multi-path ensemble portfolio runner with a strategy-native performance + correlation dashboard. Added `.strategy.__portfolioValue` helper (PV = cash + legMarkSum + hedgePosition*spot). Three new strategies self-register via the registry. New `.strategy.path.ensemble` for common random numbers across strategies. `.strategy.portfolio.runEnsemble`, `.performanceByStrategy` (mean/std/percentiles/winRate/sharpeLike), `.strategyCorrelation` (N×N matrix), `.dashboard`. Each strategy's accounting test uses `__portfolioValue` to compute deltaPV from state components independently and asserts equality to `stepPnl` from the result table (independent revaluation, not a tautology — max residuals ≤ 2e-14 across the three new strategies and the rewritten calendar test). Existing gamma scalp, short variance, calendar roll outputs unchanged. No pricing-formula changes.
 
 v0.46 (Part A) adds three more equity-variant strategies on the generic engine: `.strategy.longVol` (mirror of shortVariance — buy ATM straddle when forecastVol > implied vol + entry margin), `.strategy.collarTailHedge` (collar mode: long underlying + long OTM put + short OTM call; tailHedge mode: long OTM puts sized to a premium-budget percent of notional, held outright with no external delta hedge), and `.strategy.putRatioBackspread` (short 1 near-ATM put + long ratioN OTM puts at a lower strike, optional delta hedge). All three self-register, reuse `.strategy.__hedgeStep` for the hedge leg where applicable, and ship accounting tests that compute deltaPV independently via `.strategy.__portfolioValue` and assert equality to result-table stepPnl within 1e-8 (max residuals ≤ 7e-15 across the three new strategies). Existing 9 strategies + ensemble dashboard byte-identical. Parts B–E (defined-risk + barrier; jump premium; correlated multi-asset dispersion; commodity futures-curve adapter + powerSpike + commodityCalendar) intentionally deferred to keep the milestone delivery whole rather than half-done. No pricing-formula changes; no engine/driver/registry/shared-helper changes.
+
+v0.56 (architecture migration step 1, ARCHITECTURE.md §9) layers the repository: the flat `lib/` is split into the layer tree (`core` / `config` / `data` / `models` / `calibration` / `analytics` / `signals` / `execution` / `backtest` / `portfolio` / `services` / `apps` / `scripts`), each with a `README.md`; the loader becomes `core/init.q`; `examples/` and the commodity demo move to `apps/`; all `\l lib/init.q` load paths become `\l core/init.q`. This is a PURE STRUCTURAL MOVE — file locations + load paths only, no logic edits and no renamed functions/namespaces. The loader preserves the exact proven load ORDER (only the paths changed), so the full suite stays 364/0 and byte-identical: canonical numbers unchanged (gamma_scalp `totalPnl=0.6521844`, short_variance `premium=11.97994`, all Kalman/calibration/strategy numbers), and the crude example still gives 63.27 -> 57.68. `.parser.crude.*` / every namespace is unchanged. Reserved layers (config/execution/portfolio/services/scripts) are empty skeletons for later migration steps (config, HDB, execution sim, portfolio optimizer, CI/pipeline). One mixed file (`commodityStrategies.q`, signal + backtest halves) was left whole in `backtest/`; its signal half splits to `signals/` in a later step.
 
 v0.55 (cross-commodity robustness) validates the strategy suite on a SECOND commodity. `.strategy.path.commoditySignals` gains a `deseasonalize` flag (default off -> WTI byte-identical) and `productTag`: for gas, monthly seasonal factors are fit TRAIN-ONLY (causal) and divided out of the SIGNAL curve before extracting carry/Kalman/curve-residual signals, while the tradeable front-return series stays raw. `.strategy.commodityBT.crossCommodity[detailByCommodity]` aggregates walk-forward OOS across (commodity x split) into mean Sharpe + dispersion + fraction-of-cells-positive, ranked. The honest cross-commodity verdict (CL all 1866 dates + deseasonalized NG, 10 rolling 252/63 splits, 20 cells each): `timeSeriesMomentum` is the robust performer (mean +0.74, positive in 75% of cells); `twoTimescale` - the v0.54 WTI-2020/2021 standout (+1.77) - COLLAPSES on the full window (-0.05 cross-commodity), exposing it as period-specific; and deseasonalization flips the gas-carry verdict (raw OOS Sharpe ~-0.02 -> deseasonalized +0.18/+0.80). docs/COMMODITY_DESK.md gains the cross-commodity subsection with the plainly-stated caveat (two commodities, ~2018-2026 dominated by 2020, wide error bars). 3 synthetic tests (deseasonalize round-trip + flattening, signal deseasonalization causality + WTI-unchanged, cross-commodity aggregation arithmetic + stable rank). WTI signal output byte-identical; no reused-module signature/output change; no real CSV committed.
 
@@ -75,20 +79,20 @@ q tests/run_commodity_demo.q    / commodity stack demo (futures curve, Black-76,
 q tests/run_barchart_backtest.q / Barchart historical option replay
 q tests/run_daily_pricing.q     / daily risk orchestration
 q tests/run_stress_test.q       / stress harness
-q examples/<file>.q             / standalone scenarios (smoke_test_*, calculate_greeks, price_portfolio, ...)
+q apps/examples/<file>.q        / standalone scenarios (smoke_test_*, calculate_greeks, price_portfolio, ...)
 ```
 
 ### Running a single test
 
-Tests are standalone scripts — each one starts with `\l lib/init.q` and can be run directly:
+Tests are standalone scripts — each one starts with `\l core/init.q` and can be run directly:
 
 ```
 q tests/core/test_european_call.q
 ```
 
-Inside the bulk runners (`run_all_tests.q`, `run_smoke_tests.q`, `run_benchmarks.q`) the harness reads each test file, **strips `\l ...` lines**, and `value`s the remaining source under a single already-loaded `lib/init.q`. Consequences when writing a new test:
+Inside the bulk runners (`run_all_tests.q`, `run_smoke_tests.q`, `run_benchmarks.q`) the harness reads each test file, **strips `\l ...` lines**, and `value`s the remaining source under a single already-loaded `core/init.q`. Consequences when writing a new test:
 
-- Top-level `\l lib/init.q` at the start of a test file is **stripped** by the runner — only direct `q <file>` invocations actually load init from inside the test.
+- Top-level `\l core/init.q` at the start of a test file is **stripped** by the runner — only direct `q <file>` invocations actually load init from inside the test.
 - Anything other than `\l ...` runs in the runner's global scope; assume the lib is already loaded.
 - A test passes if `value`ing the source does not throw; signal failure with `'"reason"`. There's no assertion framework — tests print PASS/FAIL and `'"..."` on failure.
 - To add a new test to the suite, append the path to the relevant `.test.<group>Files` list in `tests/run_all_tests.q`.
@@ -97,7 +101,7 @@ Inside the bulk runners (`run_all_tests.q`, `run_smoke_tests.q`, `run_benchmarks
 
 ### Loading pipeline
 
-`lib/init.q` loads every module in dependency order and sets `.qfdm.loaded:1b` and `.qfdm.version`. When adding a new module, register it in `lib/init.q` — there is no auto-discovery.
+`core/init.q` loads every module in layer dependency order and sets `.qfdm.loaded:1b` and `.qfdm.version`. When adding a new module, register it in `core/init.q` — there is no auto-discovery.
 
 ### Pricing pipeline (equity FDM)
 
@@ -133,7 +137,7 @@ The library has grown well past the README's stated scope. Additional surfaces:
 
 ### Asset class routing
 
-`lib/assetclass.q` is the central registry mapping product type → asset class (`equity`, `commodity`, `electricity`, `rates`, `fx`) and model → model family. When adding a new product or model, update `.assetclass.__productMap` / `.assetclass.__modelMap` so routing stays correct.
+`models/assetclass.q` is the central registry mapping product type → asset class (`equity`, `commodity`, `electricity`, `rates`, `fx`) and model → model family. When adding a new product or model, update `.assetclass.__productMap` / `.assetclass.__modelMap` so routing stays correct.
 
 ## Conventions (enforced — `.claude/skills/q-pricing/SKILL.md` is the source of truth)
 

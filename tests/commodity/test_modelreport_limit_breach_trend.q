@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / limitBreachTrend compares latest metric vs average of prior lookback runs
 / per limit. Verify worsening / improving / flat detection plus the
 / insufficient-history warning and the invalid-lookback error.

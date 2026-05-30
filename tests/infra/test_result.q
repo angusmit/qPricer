@@ -1,5 +1,5 @@
 / test_result.q - standardised result utilities
-\l lib/init.q
+\l core/init.q
 
 / 1. okRow
 okDict:.result.okRow[`tradeId`unitPrice!(1;10.5)];

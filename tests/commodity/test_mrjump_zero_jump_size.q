@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With jumpMean = 0 and jumpVolatility = 0, jumps have no price effect even at
 / positive jumpIntensity. Paths must equal the jumpIntensity = 0 case exactly,
 / because the diffusion RNG stream is unchanged by the jump consumption.

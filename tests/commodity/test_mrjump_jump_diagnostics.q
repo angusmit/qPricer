@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / jumpDiagnostics produces sensible jump statistics:
 /   averageJumpCount ~ lambda * T
 /   jumpPathFraction ~ 1 - exp(-lambda * T)

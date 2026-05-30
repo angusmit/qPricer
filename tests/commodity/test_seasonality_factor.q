@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Seasonality factor known-answers. Smooth cosine cycle: factor = amplitude *
 / cos(2*pi*(timeYears - phaseYears)). At phase 0 the peak is at integer years.
 cfg:`amplitude`phaseYears!(0.1;0f);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / priceAllModels produces one row per registered commodity model.
 / All four prices are positive, all status flags OK, and the schema is fixed.
 

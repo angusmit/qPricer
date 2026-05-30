@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Monte Carlo spread option vs Kirk closed form. Two correlated lognormal
 / forwards, terminal payoff max(F1_T-F2_T-K,0). F1=75,F2=70,K=3,T=0.25,
 / v1=0.30,v2=0.25,rho=0.8,r=0.05.

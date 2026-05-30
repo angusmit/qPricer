@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With longVolatility = 0 and longDrift = 0, the two-factor model reduces to a
 / Schwartz one-factor model in log space if initial factors are mapped:
 /     shortFactor0 = log(S0) - theta

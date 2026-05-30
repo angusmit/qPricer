@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / riskReversal entry gate: deviation = skewSlope - fairSkew. Open when |deviation| > margin.
 
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

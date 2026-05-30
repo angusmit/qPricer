@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / path.ensemble produces deterministic numPaths paths via baseSeed+i seeds; two calls
 / with same baseSeed must produce identical paths element-by-element.
 

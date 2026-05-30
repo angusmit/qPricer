@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / comparisonSummary returns modelCount / okModelCount / min / max / average /
 / price range plus status. Sanity-check ordering and counts under the standard
 / four-model setup (all-OK case).

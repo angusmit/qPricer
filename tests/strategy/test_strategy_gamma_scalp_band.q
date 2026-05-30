@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Band-mode rebalancing rebalances less often than interval-mode on the same path,
 / and with a positive transaction-cost rate that translates into lower txnCostTotal.
 

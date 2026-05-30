@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / B2 curveRelativeValue: known-answer (long the cheap-minus-rich convergence
 / spread when the residual gap exceeds minGap) + accounting on the rv-spread
 / return column. Also verifies the rvSpreadReturn precompute on a small curve.

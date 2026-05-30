@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Part A: a synthetic curveHistory built from a KNOWN time-varying convenience
 / yield (varying X0 across dates at fixed kappa/vols drives the front slope).
 / Assert the recovered cy series tracks the known cy computed INDEPENDENTLY from

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pnlVec:-10 -5 0 2 4 6f;
 
 varVal:.var.valueAtRisk[pnlVec;0.95];

@@ -1,5 +1,5 @@
 / test_local_vol_american_flat_equivalence_put.q
-\l lib/init.q
+\l core/init.q
 lvFn:{[spotValue;timePoint] 0.2};
 lvMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;lvFn];
 flatMkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);

@@ -1,7 +1,7 @@
 / run_stress_test.q - full stress test and performance diagnostics
 / Usage: q run_stress_test.q
 
-\l lib/init.q
+\l core/init.q
 
 -1 "=============================================================================";
 -1 " qFDM v",.qfdm.version," Stress Test";

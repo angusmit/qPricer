@@ -1,5 +1,5 @@
 / test_config.q - default configs and merge
-\l lib/init.q
+\l core/init.q
 
 / 1. Default pricing config has required fields
 defaultCfg:.config.defaultPricingConfig[];

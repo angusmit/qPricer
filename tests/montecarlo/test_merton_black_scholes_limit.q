@@ -1,5 +1,5 @@
 / test_merton_black_scholes_limit.q - lambda=0 should match BS
-\l lib/init.q
+\l core/init.q
 bsLimitParams:`volatility`jumpIntensity`jumpMean`jumpVolatility`riskFreeRate`dividendYield!(0.2;0.0;0.0;0.0;0.05;0.0);
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(1;`AAPL;`equityOption;`european;`call;100f;1f;1f);
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);

@@ -1,5 +1,5 @@
 / test_vol_surface_lookup.q - build surface and test nearest-neighbour lookup
-\l lib/init.q
+\l core/init.q
 
 / Build chain with varying vols
 spot:100f;

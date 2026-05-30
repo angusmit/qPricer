@@ -1,5 +1,5 @@
 / test_crank_nicolson_vs_explicit.q - compare CN and explicit methods
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     1;`AAPL;`equityOption;`european;`call;100f;1f;1f);

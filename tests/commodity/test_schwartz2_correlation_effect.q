@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Correlation increases log-price variance via the cross-covariance term, hence
 / increases European option price (vega positive). Sweep rho and verify strict
 / ordering. Also verify validateParams rejects rho at or outside +/-1.

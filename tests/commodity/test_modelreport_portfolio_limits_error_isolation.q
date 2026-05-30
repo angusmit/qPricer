@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / A portfolio with one bad position still produces a limit table. With tight
 / errorTradeCount thresholds the failed position should drive the
 / errorTradeCount limit to warning or breach without crashing.

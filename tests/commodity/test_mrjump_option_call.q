@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / MC European call price is positive and has a meaningful confidence interval.
 / Higher jumpIntensity with positive jumpMean should lift the call price (positive
 / contribution to terminal price expectation via the jump compensator-free drift).

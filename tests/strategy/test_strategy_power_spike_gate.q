@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Closed-gate scenario: simple curve with NO jumps and small drift -> no spike fires.
 closedCfg:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(
     0.05 0.10 0.25f;`simple;

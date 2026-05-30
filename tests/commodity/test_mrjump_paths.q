@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / simulatePaths returns dict with the right shape and positive prices.
 
 params:`meanReversionSpeed`longRunLogMean`volatility`jumpIntensity`jumpMean`jumpVolatility!(2f;log 75f;0.30;1f;0f;0.25);

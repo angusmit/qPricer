@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 
 / Build synthetic normalised optionTable (3 dates, 2 contracts)
 optionTable:();

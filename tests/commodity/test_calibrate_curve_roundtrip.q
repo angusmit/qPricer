@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic round-trip: generate a curve from KNOWN schwartz2 params via the
 / model's OWN futures function, then calibrate and assert the FREE params are
 / recovered and fitRmse ~ 0. The two sides are independent (model-generated

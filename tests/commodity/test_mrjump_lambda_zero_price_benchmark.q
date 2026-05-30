@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With jumpIntensity = jumpMean = jumpVolatility = 0 the mrjump simulator
 / degenerates to the Schwartz one-factor OU log-price model, for which a
 / closed-form European option price exists. Verify both MC call and MC put

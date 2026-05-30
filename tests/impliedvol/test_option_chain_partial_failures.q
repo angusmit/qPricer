@@ -1,5 +1,5 @@
 / test_option_chain_partial_failures.q - bad rows do not crash the chain
-\l lib/init.q
+\l core/init.q
 
 validCallPrice:.validation.blackScholesClosedForm[`call;100f;100f;1f;0.05;0f;0.2];
 validPutPrice:.validation.blackScholesClosedForm[`put;100f;100f;1f;0.05;0f;0.2];

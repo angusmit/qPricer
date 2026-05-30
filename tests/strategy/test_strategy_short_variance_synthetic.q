@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / shortVariance gate open: structural checks and short-gamma sign assertions.
 
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(

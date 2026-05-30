@@ -1,5 +1,5 @@
 / test_stress.q - synthetic data generation and stress tests (v0.14)
-\l lib/init.q
+\l core/init.q
 
 bsModel:.model.createBlackScholesModel[];
 fdmConfig:`method`numberOfSpotSteps`numberOfTimeSteps`minimumSpot`maximumSpot`interpolationMethod`returnFullGrid`stabilityCheck!(

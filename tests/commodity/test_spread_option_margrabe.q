@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Margrabe exchange option: payoff max(F1-F2,0) for call. F1=75, F2=70, T=0.25,
 / v1=0.30, v2=0.25, rho=0.8, r=0.05. No strike key (exchange strike is zero).
 margrabeParams:`fwd1`fwd2`expiry`vol1`vol2`correlation`riskFreeRate!(75f;70f;0.25;0.30;0.25;0.8;0.05);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksDisagreement summarises greeksAllModels into primary-sensitivity range,
 / volatility-vega range, and jump-intensity sensitivity for mrjump. Each metric
 / has a configurable threshold; alerts must be boolean.

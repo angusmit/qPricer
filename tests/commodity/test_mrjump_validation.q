@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / mrjump validation rejects malformed inputs.
 
 goodParams:`meanReversionSpeed`longRunLogMean`volatility`jumpIntensity`jumpMean`jumpVolatility!(2f;log 75f;0.30;1f;0f;0.25);

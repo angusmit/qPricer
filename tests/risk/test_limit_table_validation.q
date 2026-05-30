@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Valid table
 validTable:();
 validTable:validTable,enlist `limitId`scopeType`scopeValue`metricName`limitValue`warningPct`hardLimitPct`direction`enabled!(1;`portfolio;`ALL;`VaR95;1000000f;0.8;1.0;`lessThan;1b);

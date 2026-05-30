@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / B5 carryMomentumCombo: known-answer (weighted carry + momentum signals) +
 / independent-revaluation accounting.
 n:8; dates:2020.01.01+til n;

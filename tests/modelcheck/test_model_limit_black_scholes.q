@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 trade:.modelcheck.__defaultTrade[];
 mkt:.modelcheck.__defaultMarket[];
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(10000;50;42;0b;0b;0.95);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic reports
 varReport:();
 varReport:varReport,enlist `confidenceLevel`valueAtRisk`expectedShortfall`tailCount`observationCount`status`errorMessage!(0.95;400000f;500000f;5;100;`OK;"");

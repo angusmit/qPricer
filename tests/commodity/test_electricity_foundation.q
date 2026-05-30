@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic hub prices
 hubTable:();
 hIdx:0;

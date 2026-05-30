@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With loose thresholds, every limit reports OK and overallStatus = OK.
 / Use a real two-position portfolio and override thresholds to be larger than
 / any plausible value.

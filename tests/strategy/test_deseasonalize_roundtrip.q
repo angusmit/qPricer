@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Deseasonalization round-trip + known-answer: dividing each contract's price by
 / exp(monthFactor[deliveryMonth]) then multiplying back recovers the original
 / (round-trip), and a purely-seasonal curve deseasonalizes to flat (the seasonal

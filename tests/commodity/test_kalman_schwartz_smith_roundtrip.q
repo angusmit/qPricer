@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / HEADLINE identifiability test: simulate the Schwartz-Smith model with KNOWN
 / params (a specific kappa AND vols), generate a multi-date / multi-tenor futures
 / panel, run the Kalman MLE, and assert the recovered kappa AND volatilities are

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 tenors:0.1 0.25 0.5 1f;
 nSteps:5;
 pathCfg:`tenors`evolutionModel`evolutionParams`steps`stepYears`seed!(

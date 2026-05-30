@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / priceDifferences reports per-model differenceToBaseline / pctDifferenceToBaseline
 / / differenceToAverage against a chosen baseline model. The baseline row itself
 / must have a zero difference and a zero percentage difference.

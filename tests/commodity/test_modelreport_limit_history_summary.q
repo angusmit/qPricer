@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / limitHistorySummary aggregates per-limitName statistics across runs.
 / Build a three-run history where one limit transitions OK -> warning ->
 / breach and the other stays OK. Verify counts, rates, latestStatus, and

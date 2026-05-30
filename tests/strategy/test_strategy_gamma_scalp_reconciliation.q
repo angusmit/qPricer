@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Cross-check the strategy P&L against the gamma+theta attribution identity. For small
 / spot moves and a fine FDM grid, gammaReconResidual = (totalPnl - txnCostTotal -
 / financingTotal) - (theoreticalGammaPnlTotal + thetaPnlTotal) should be small

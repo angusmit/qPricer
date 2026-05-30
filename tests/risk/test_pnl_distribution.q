@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic scenario result: 2 trades x 3 scenarios
 scenarioResult:();
 scenarioResult:scenarioResult,enlist `scenarioName`scenarioPnl!(`spotUp;5f);

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Futures curve shape: (a) curve is positive everywhere; (b) when x0 < theta the
 / curve is monotonically increasing in T; (c) long-T asymptote is exp(theta + sigma^2/(4 kappa)).
 

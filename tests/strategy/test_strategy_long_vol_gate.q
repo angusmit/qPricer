@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 pathTbl:.strategy.path.fromSynthetic `spot0`drift`volatility`steps`stepYears`riskFreeRate`dividendYield`seed!(
     100f;0f;0.30;5;1f%252f;0.02;0f;42);
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(

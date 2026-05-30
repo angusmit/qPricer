@@ -1,5 +1,5 @@
 / test_monte_carlo_paths.q - GBM path simulation
-\l lib/init.q
+\l core/init.q
 
 mcConfig:`pathCount`timeStepCount`randomSeed`antithetic`momentMatching`confidenceLevel!(
     1000;50;42;0b;0b;0.95);

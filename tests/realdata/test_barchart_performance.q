@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Build simple dailyPnl table
 dailyPnlTable:();
 dailyPnlTable:dailyPnlTable,enlist `snapshotDate`dailyMarketPnl`cumulativeMarketPnl`tradeCount`okRows`errorRows`status`errorMessage!(2024.01.03;500f;500f;4;4;0;`OK;"");

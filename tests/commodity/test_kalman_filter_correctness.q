@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Kalman filter correctness on a trivial KNOWN linear-Gaussian state space (a
 / scalar local level: alpha_t = alpha_{t-1} + eta, y_t = alpha_t + eps). The
 / generic .commodity.kalman.filterBundles must match an INDEPENDENT hand-coded

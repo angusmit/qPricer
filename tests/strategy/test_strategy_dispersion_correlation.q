@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Self-correlation identity check: with all weights equal and a known correlation
 / matrix, the implied avg correlation backed out from the indexVol formula should
 / recover the input average pairwise correlation when indexVol is computed from

@@ -1,5 +1,5 @@
 / test_portfolio_lookback_products.q
-\l lib/init.q
+\l core/init.q
 
 / Test lookback via direct pricing (portfolio routing needs flat market data)
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);

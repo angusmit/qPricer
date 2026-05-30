@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Construct an explicit path that ramps spot above the up-and-out barrier
 / to guarantee a knock event mid-run.
 nSteps:5;

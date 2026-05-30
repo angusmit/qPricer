@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksBlack76 produces FD delta and vega per unit-of-bump. Compare against
 / closed-form Greeks from .commodity.black76.greeks: closed-form vega is per
 / 1% vol move (divided by 100), so multiplying it by 100 recovers the

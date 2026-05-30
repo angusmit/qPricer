@@ -5,7 +5,7 @@
 / Uses a coarse and fine grid; fine grid error should be smaller.
 / =============================================================================
 
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional!(
     104;`TEST;`equityOption;`european;`call;100f;1f;1f

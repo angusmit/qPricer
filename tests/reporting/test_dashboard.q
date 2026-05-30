@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic inputs
 pricingResult:();
 pricingResult:pricingResult,enlist `tradeId`underlying`optionType`unitPrice`notionalPrice`method`modelName`status!(1;`AAPL;`call;10.5;1050000f;`crankNicolson;`blackScholes;`OK);

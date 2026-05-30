@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / A path long enough to expire the front leg at least once triggers totalRolls >= 1,
 / activeLegCount returns to 2 after a roll (rollBackLeg=1b keeps constant maturity, but
 / here we test the typical case where front expires while back is still alive), and the

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / runPositionRisk runs runComparisonRisk for one position and tags the
 / resulting tables with tradeId/commodity. Verify the returned dict shape and
 / that every tagged row carries the expected tradeId.

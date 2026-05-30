@@ -1,5 +1,5 @@
 / test_option_chain_implied_vols.q - implied vols for an option chain
-\l lib/init.q
+\l core/init.q
 
 trueVol:0.2;
 spot:100f;

@@ -1,5 +1,5 @@
 / test_local_vol_barrier_down_and_out_put.q
-\l lib/init.q
+\l core/init.q
 lvFn:{[spotValue;timePoint] 0.2+(0f|0.001*(100f-spotValue))};
 lvMkt:.market.createLocalVolatilityMarketData[`AAPL;100f;0.05;0f;lvFn];
 lvModel:.model.createLocalVolatilityModel[];

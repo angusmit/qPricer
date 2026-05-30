@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Independent-revaluation accounting check for sparkSpread. Reconstruct the
 / portfolio value PV = cash + optionMark (futures hedges carry zero mark; their
 / P&L is realized to cash) from state components and assert deltaPV == stepPnl.

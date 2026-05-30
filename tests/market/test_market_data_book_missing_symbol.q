@@ -1,5 +1,5 @@
 / test_market_data_book_missing_symbol.q - missing symbol produces error rows
-\l lib/init.q
+\l core/init.q
 
 tradeTable:([]
     tradeId:1 2;

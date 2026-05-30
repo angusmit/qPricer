@@ -1,5 +1,5 @@
 / test_scenario_extended_products.q - scenario risk for expanded product set
-\l lib/init.q
+\l core/init.q
 tradeTable:([]
     tradeId:1 2 3 4;
     underlying:`AAPL`AAPL`AAPL`AAPL;

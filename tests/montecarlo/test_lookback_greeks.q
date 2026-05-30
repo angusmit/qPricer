@@ -1,5 +1,5 @@
 / test_lookback_greeks.q
-\l lib/init.q
+\l core/init.q
 
 trade:`tradeId`underlying`productType`exerciseStyle`optionType`lookbackStyle`strike`expiry`notional`observationCount!(
     1;`AAPL;`lookbackOption;`european;`call;`fixed;100f;1f;1f;50);

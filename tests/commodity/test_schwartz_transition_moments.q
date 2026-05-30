@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Verify simulated mean and variance of X_tau match exact OU formulas.
 
 params:`meanReversionSpeed`longRunLogMean`volatility!(1.5;log 75f;0.30);

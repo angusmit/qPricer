@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / greeksAllModels combines per-model greeks tables via union join, producing
 / a single table whose column set is the union of all model-specific schemas.
 / Cells for non-applicable sensitivities are null (e.g. black76 has no

@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / scenarioDisagreement summarises the scenarioPnL table from scenarioShift and
 / raises scenarioPnlAlert when the PnL range across models exceeds threshold.
 

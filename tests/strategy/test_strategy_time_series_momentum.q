@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / B1 timeSeriesMomentum: known-answer (position = sign of trailing momentum) +
 / independent-revaluation accounting (vectorised position*return == engine stepPnl).
 n:8; dates:2020.01.01+til n;

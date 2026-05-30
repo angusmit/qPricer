@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / curveAt on a synthetic long table (3 contracts, differing expiries). Built
 / column-wise in q; no CSV files. asof = 2020.01.06, all three alive.
 asofDate:2020.01.06;

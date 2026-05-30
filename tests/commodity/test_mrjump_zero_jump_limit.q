@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / With jumpIntensity = 0, mrjump reduces to schwartz one-factor:
 /   (a) MC path matrix matches schwartz simulatePaths element-wise (same seed and antithetic),
 /   (b) MC call price matches schwartz closed-form within 4 SE.

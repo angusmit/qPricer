@@ -1,5 +1,5 @@
 / test_barrier_down_and_in_put.q
-\l lib/init.q
+\l core/init.q
 knockInTrade:`tradeId`underlying`productType`exerciseStyle`optionType`strike`expiry`notional`barrierType`barrierLevel`rebate!(
     1;`AAPL;`equityOption;`european;`put;100f;1f;1f;`downAndIn;70f;0f);
 mkt:`underlying`spot`riskFreeRate`dividendYield`volatility!(`AAPL;100f;0.05;0f;0.2);

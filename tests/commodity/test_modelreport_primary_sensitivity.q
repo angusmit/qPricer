@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / primarySensitivity maps each model row in greeksAllModels to its
 / per-model primary sensitivity:
 /   black76   -> forwardDelta

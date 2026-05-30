@@ -1,4 +1,4 @@
-\l lib/init.q
+\l core/init.q
 / Synthetic option row for BS pricing test
 / AAPL call: S=185, K=165, tau=45/365, vol=0.2755, r=0.05, q=0.005
 pricingConfig:`riskFreeRate`dividendYield`pricingModel!(0.05;0.005;`blackScholes);
