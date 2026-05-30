@@ -375,7 +375,7 @@ When a strategy's position evolves mid-path (legs created/retired), keep the leg
 
 **18. `ss` is a q built-in (string-search); pick non-shadowing loop locals**
 
-`ss` triggers a load-time `'ss` error when used as a local variable inside a `while` body. Same for other two-letter builtins (`ll`, `ml`, `mm`, etc.). For loop counters and strategy specs prefer descriptive names: `stratIdx`, `pathIdx`, `stratSpec`, `pathBundle`. SKILL note #7 covers the rule; this is a concrete trap caught while writing the ensemble runner.
+`ss` triggers a load-time `'ss` error when used as a local variable inside a `while` body. Same for other two-letter builtins (`ll`, `ml`, `mm`, **`sv`**, `vs`, etc.). For loop counters and strategy specs prefer descriptive names: `stratIdx`, `pathIdx`, `stratSpec`, `pathBundle`. SKILL note #7 covers the rule; this is a concrete trap caught while writing the ensemble runner. **`sv` specifically** (scalar-from-vector / join) bit a v0.52 test lambda whose params were `[d;x0;tenors;kappa;y0;sv;lv;cv]` — calling it raised `'nyi` (q resolved `sv` to the builtin). Capital-letter variants (`sV`, `lV`) are safe since names are case-sensitive; prefer descriptive `shortVolP`/`longVolP` regardless.
 
 **19. Initialise a "list of dicts" with `enlist d`, not `d`**
 

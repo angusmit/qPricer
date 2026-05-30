@@ -149,3 +149,75 @@
     `calibratedParams`fitRmse`perTenorError`fittedCurve`iterations`modelType`riskFreeRate`impliedFrontSlope`netConvenienceYield`status!(
         calibratedParams;fitRmse;perTenorError;fittedCurve;searchResult`iterations;modelType;riskFreeRate;impliedFrontSlope;netConvenienceYield;`OK)
  };
+
+/ ----------------------------------------------------------------------------
+/ CONVENIENCE-YIELD TIME SERIES (v0.52, Part A)
+/ ----------------------------------------------------------------------------
+/ Calibrate the curve per as-of date across a .parser.crude.curveHistory panel
+/ to produce a convenience-yield time series. kappa is FIXED at calCfg.kappa: a
+/ single curve snapshot does not identify the mean-reversion speed (freeing it
+/ per date injects noise), so we hold it constant and free only the log-linear
+/ params (X0, Y0, muY) -- exactly the v0.51 fit with a degenerate kappa range
+/ (meanReversionSpeedRange=(kappa;kappa)), reusing .commodity.calibrateCurve
+/ unchanged. Identifying kappa from the curve DYNAMICS is Part B's job (Kalman
+/ MLE); the example feeds that kappa back here for a cleaner series.
+/ Dates whose curve contains any non-positive price are SKIPPED (this excludes
+/ the April-2020 WTI negative-settle window automatically); per-date fit errors
+/ (e.g. fewer than 3 contracts) are isolated and also recorded as skipped.
+/ Returns a dict: series (time-series table), skipped (date list), transitions
+/ (regime-flip table backwardation<->contango).
+
+.commodity.curveCal.defaultSeriesCfg:{[]
+    `kappa`shortVolatility`longVolatility`correlation`riskFreeRate!(1.0;0.30;0.15;0.30;0.02)
+ };
+
+.commodity.curveCal.__seriesEmpty:{[]
+    ([] asofDate:`date$(); frontPrice:`float$(); netConvenienceYield:`float$(); slope:`float$();
+        regime:`symbol$(); fitRmse:`float$(); X0:`float$(); Y0:`float$(); muY:`float$(); status:`symbol$())
+ };
+
+/ Fit one date's curve; returns a status-tagged dict (OK row or skipped marker).
+/ Param is asofVal (NOT asofDate) to avoid colliding with the qSQL column name.
+.commodity.curveCal.__fitOneDate:{[asofVal;curveHistory;perDateCfg;rateVal]
+    sub:`tenor xasc select tenor,price from curveHistory where asofDate=asofVal;
+    prices:sub`price;
+    if[any prices<=0f; :`status`asofDate!(`skipped;asofVal)];
+    res:@[.commodity.calibrateCurve[sub;`schwartz2;];perDateCfg;{[e] `status`errorMessage!(`ERROR;e)}];
+    if[`ERROR~res`status; :`status`asofDate!(`skipped;asofVal)];
+    cp:res`calibratedParams;
+    cyVal:res`netConvenienceYield;
+    `status`asofDate`frontPrice`netConvenienceYield`slope`regime`fitRmse`X0`Y0`muY!(
+        `OK;asofVal;first prices;cyVal;res`impliedFrontSlope;
+        $[cyVal>rateVal;`backwardation;`contango];res`fitRmse;cp`shortFactor0;cp`longFactor0;cp`longDrift)
+ };
+
+.commodity.curveCal.convenienceYieldSeries:{[curveHistory;calCfg]
+    if[not 98h=type curveHistory; '"convenienceYieldSeries: curveHistory must be a table"];
+    if[not all `asofDate`tenor`price in cols curveHistory; '"convenienceYieldSeries: needs asofDate, tenor, price columns"];
+    if[0=count curveHistory; '"convenienceYieldSeries: empty curveHistory"];
+    cfg:.commodity.curveCal.defaultSeriesCfg[];
+    if[count calCfg; cfg:cfg,calCfg];
+    kappaFixed:cfg`kappa;
+    rateVal:cfg`riskFreeRate;
+    / Per-date calCfg: fix kappa via a degenerate search range, single evaluation.
+    perDateCfg:(`shortVolatility`longVolatility`correlation`riskFreeRate#cfg),
+        `meanReversionSpeedRange`gridSteps`refineRounds!((kappaFixed;kappaFixed);1;1);
+    dates:asc distinct curveHistory`asofDate;
+    results:.commodity.curveCal.__fitOneDate[;curveHistory;perDateCfg;rateVal] each dates;
+    statuses:results[;`status];
+    okResults:results where `OK=statuses;
+    skippedDates:results[;`asofDate] where `skipped=statuses;
+    seriesCols:`asofDate`frontPrice`netConvenienceYield`slope`regime`fitRmse`X0`Y0`muY`status;
+    seriesTable:$[count okResults;
+        flip seriesCols!{[colName;rowDicts] rowDicts[;colName]}[;okResults] each seriesCols;
+        .commodity.curveCal.__seriesEmpty[]];
+    seriesTable:`asofDate xasc seriesTable;
+    / Regime transitions: dates where the regime flips vs the previous date.
+    transitions:([] asofDate:`date$(); fromRegime:`symbol$(); toRegime:`symbol$());
+    if[1<count seriesTable;
+        regimes:seriesTable`regime;
+        dts:seriesTable`asofDate;
+        flipIdx:(where regimes<>prev regimes) except 0;
+        transitions:([] asofDate:dts flipIdx; fromRegime:regimes flipIdx-1; toRegime:regimes flipIdx)];
+    `series`skipped`transitions!(seriesTable;skippedDates;transitions)
+ };

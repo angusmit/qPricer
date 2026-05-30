@@ -57,6 +57,7 @@
 \l lib/electricity.q
 \l lib/commodityBacktest.q
 \l lib/calibrateCurve.q
+\l lib/kalmanSchwartzSmith.q
 / Dashboard and orchestration
 \l lib/dashboard.q
 \l lib/dailyrisk.q
@@ -81,4 +82,4 @@
 \l lib/strategy.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.51";
+.qfdm.version:"0.52";
