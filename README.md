@@ -1,41 +1,40 @@
 # qFDM
 
-A kdb+/q finite-difference pricing and risk framework for equity options.
-
-kdb+/q finite-difference pricing and risk framework for equity options, including explicit FDM, Crank-Nicolson, Greeks, scenario risk, American puts, barriers, local volatility and portfolio analytics.
+A kdb+/q pricing, calibration, risk, and backtest framework. The equity finite-difference core (Black-Scholes, Crank-Nicolson, American, barriers, local vol, Greeks) is the correctness-validation case; the long-term target is commodity (oil, power/electricity) and multi-asset options, with a batch research-and-simulation flow: ingest → store → price/calibrate → signal → backtest (with simulated execution) → PnL/Sharpe.
 
 > **Commodity narrative:** the equity FDM is the correctness-validation case; the project's target is commodity. See **[docs/COMMODITY_DESK.md](docs/COMMODITY_DESK.md)** for the end-to-end story (WTI curve → two-factor calibration → Kalman state-space estimation → the 2020-2021 convenience-yield regimes) told with real numbers.
 
-## Why This Project Exists
+## Architecture
 
-qFDM is a kdb+/q pricing and risk analytics framework for equity options. It implements finite-difference pricing under Black-Scholes, American early exercise, simple knock-out barriers, Crank-Nicolson for European vanilla options, local volatility experiments, Greeks, scenario risk, and portfolio-level batch analytics.
+The repository is one monorepo organized into layers (dependencies flow downward only); see **[ARCHITECTURE.md](ARCHITECTURE.md)** and the per-layer `README.md`:
 
-The goal is to demonstrate how numerical pricing, validation, and desk-style risk analytics can be structured in q as a modular library rather than a single pricing script.
+`core` (math/RNG/stats + loader + config loader) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `apps` (examples + demos). Reserved: `portfolio`, `services`, `scripts` (partial). Load everything with `\l core/init.q`.
 
 ## Feature Summary
 
 | Area | Supported |
 |------|-----------|
-| Products | European call/put, American put, up-and-out call, down-and-out put |
-| Methods | Explicit FDM, Crank-Nicolson for European vanilla |
-| Models | Black-Scholes, local volatility for European vanilla explicit FDM |
-| Risk | Delta, Gamma, Theta, Vega, Rho, scenario risk |
-| Portfolio | Batch pricing, portfolio Greeks, portfolio scenario risk |
-| Validation | Black-Scholes closed form, put-call parity, grid convergence, Greek validation |
-| Tests | 24 passing tests |
+| Equity products | European call/put, American put, up-and-out call, down-and-out put |
+| FDM methods | Explicit FDM, Crank-Nicolson (European vanilla), local volatility (European vanilla, explicit) |
+| Models | Black-Scholes, local vol, Heston, SABR, Merton, Bates; commodity: Black-76, Schwartz one/two-factor, mean-reverting-jump, Kirk/Margrabe spreads, electricity |
+| Monte Carlo | Asian, basket, lookback, variance, correlated/dispersion, jump diffusion |
+| Calibration | Implied vol, vol surface, two-factor Schwartz curve fit, Schwartz-Smith Kalman-filter MLE |
+| Risk | Greeks, scenario risk, VaR/ES, historical replay, model-risk limits, portfolio analytics |
+| Data | Barchart CSV parser, date-built splayed kdb+ HDB (`.data.hdb`) |
+| Backtest | Generic strategy engine + registry, equity + commodity strategy suites, walk-forward, cross-commodity robustness |
+| Execution | Daily fill-and-cost simulation (slippage, participation cap, cost attribution), gross-vs-net Sharpe |
+| Config | `.cfg` layer (`config/base.q` + `QPRICER_ENV` overrides) |
+| Tests | 368 passing tests (`q tests/run_all_tests.q`) |
 
 ### Not Yet Supported
 
-- Dupire calibration
-- Real implied volatility surface ingestion
-- Stochastic volatility
-- Jump diffusion
+- Dupire local-vol calibration
 - XVA
-- Multi-asset products
-- Portfolio-level multi-symbol market data
-- HDB persistence
-- IPC/server deployment
-- Production trading controls
+- Equity strategy engine wired to the execution layer (migration step 4b)
+- Portfolio optimizer / allocation (step 5)
+- IPC services: gateway / HDB service / worker pool (optional, step 6)
+- CI + scheduled pipeline (step 7)
+- Production trading controls / live trading (out of scope by design — batch research system)
 
 ## Architecture Overview
 
@@ -80,24 +79,25 @@ Validation / Examples / Tests
 
 ## Folder Structure
 
-Layered layout (v0.56, see ARCHITECTURE.md §1 — dependencies flow downward only):
+Layered layout (see ARCHITECTURE.md §1 — dependencies flow downward only):
 
 ```
 q-fdm-option-pricer/
-├── core/          # math/RNG/stats/infra + the loader (core/init.q)
-├── config/        # (reserved)
-├── data/          # parser, futures-curve construction, real-data replay
-├── models/        # BS/FDM core + all pricers (product..engine..commodity)
+├── core/          # math/RNG/stats/infra + the loader (core/init.q) + config loader (cfg.q)
+├── config/        # .cfg value files (base.q + optional {env}.q overrides)
+├── data/          # parser (Barchart CSV) + splayed HDB (.data.hdb) + replay
+├── models/        # BS/FDM core + all pricers (product..engine..commodity..exotics)
 ├── calibration/   # iv, surface, objective, calibrate-curve, Kalman MLE, model quality
 ├── analytics/     # risk / VaR / scenarios / limits / portfolio / reporting / perf
 ├── signals/       # seasonality
-├── execution/     # (reserved)
+├── execution/     # daily fill-and-cost simulation (.exec) — commodity BT wired
 ├── backtest/      # strategy engine + commodity strategy suite + walk-forward
-├── portfolio/     # (reserved)
-├── services/      # (reserved)
-├── scripts/       # (reserved)
+├── portfolio/     # (reserved — allocation/optimizer, step 5)
+├── services/      # (reserved — optional IPC gateway/HDB/workers, step 6)
+├── scripts/       # ingest_hdb.q (+ CI/pipeline reserved, step 7)
 ├── apps/
-│   └── examples/  # standalone scenarios + demos
+│   ├── examples/  # standalone scenarios + demos
+│   └── run_commodity_demo.q
 ├── tests/         # flat suite, loads core/init.q
 └── README.md
 ```

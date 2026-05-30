@@ -1,5 +1,6 @@
-# execution/ — Execution-simulation layer (ARCHITECTURE.md §5)
+# execution/ — Execution-simulation layer (ARCHITECTURE.md §1, §5)
 
+## Purpose
 Turns a strategy's target position change (an order) into a simulated fill and explicit cost components, so a backtest can book realized (net-of-execution) PnL and report GROSS vs NET performance. A daily fill-and-cost model matched to daily-settle data — not a tick / limit-order-book simulator.
 
 ## Modules
