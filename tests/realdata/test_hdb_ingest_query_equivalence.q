@@ -10,12 +10,11 @@
 / place; leaving the mapped `futures` / `sym` globals is safe (no other test
 / references a bare `futures` global, and `sym` is only ever a local elsewhere).
 
-mkdirRobust:{[d] $[.z.o like "w*"; @[system;"mkdir \"",(ssr[d;"/";"\\"]),"\"";{[e]}]; @[system;"mkdir -p \"",d,"\"";{[e]}]];};
 hdr:"Time,Open,High,Low,Latest,Volume";
 mkcsv:{[dts;settles] hdr,"\n","\n" sv {[d;s] (string d),"T06:00:00+0000,",(string s),",",(string s),",",(string s),",",(string s),",1000"}'[dts;settles]};
 
 base:"scratch/hdb_eqv"; csvDir:base,"/csv"; hdbDir:base,"/hdb";
-mkdirRobust csvDir;
+/ No mkdir: the 0: writes below create csvDir, and .Q.en/set create hdbDir.
 
 dShort:2019.12.30 2019.12.31 2020.01.02 2020.01.03;
 dLong:2019.12.30 2019.12.31 2020.01.02 2020.01.03 2020.01.06;

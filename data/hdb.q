@@ -36,28 +36,18 @@
     hdbPath
  };
 
-/ Create the HDB directory (so the sym file / splay can be written). Branches on
-/ the OS: Windows mkdir auto-creates intermediates; POSIX uses mkdir -p. Running
-/ `mkdir -p` on Windows cmd would create a stray directory literally named `-p`
-/ (cmd treats -p as a path, not a flag), so we never call it there.
-.data.hdb.__mkdir:{[hdbPath]
-    $[.z.o like "w*";
-        @[system;"mkdir \"",(ssr[hdbPath;"/";"\\"]),"\"";{[e]}];
-        @[system;"mkdir -p \"",hdbPath,"\"";{[e]}]];
-    hdbPath
- };
-
 / Build the SPLAYED, UNPARTITIONED HDB at hdbPath from CSVs under csvDir for each
 / commodity tag in `commodities`. REUSES .parser.futures.loadAll verbatim (so
 / expiry = MAX date / firstDate = MIN date are derived exactly as the parser
 / does), tags each long table with its commodity, sorts by commodity (then
 / contractYM, date) and applies the p# attribute on commodity, enumerates sym
 / columns via .Q.en against hdbPath/sym, and writes the column files to a single
-/ hdbPath/futures/ splay with `set`. Idempotent (the target is wiped first).
+/ hdbPath/futures/ splay with `set`. Idempotent (the target is wiped first). No
+/ mkdir is needed - .Q.en creates hdbPath + writes hdbPath/sym, and `set` creates
+/ hdbPath/futures/; q creates intermediate directories on write.
 .data.hdb.ingest:{[csvDir;commodities;hdbPath]
     commodities:(),commodities;
     .data.hdb.__clean hdbPath;
-    .data.hdb.__mkdir hdbPath;
     hp:hsym `$hdbPath;
     longs:raze {[csvDir;tag]
         lt:.parser.futures.loadAll[csvDir;tag];
