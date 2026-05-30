@@ -83,4 +83,4 @@
 \l lib/commodityStrategies.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.54";
+.qfdm.version:"0.55";

@@ -33,7 +33,7 @@
 / ============================================================================
 
 .strategy.path.__commodityDefaultSigCfg:{[]
-    `rollDaysBeforeExpiry`trainFraction`trainEndDate`momentumLookback`txnCostRate`targetVol`riskFreeRate`storageCostRate`annualizationDays`kalmanEstCfg`carryMargin!(
+    `rollDaysBeforeExpiry`trainFraction`trainEndDate`momentumLookback`txnCostRate`targetVol`riskFreeRate`storageCostRate`annualizationDays`kalmanEstCfg`carryMargin`productTag`deseasonalize!(
         5;
         0.6;
         0Nd;
@@ -44,7 +44,9 @@
         0.01;
         252f;
         `gridSteps`refineRounds`nSweeps!(7;3;3);
-        0.0)
+        0.0;
+        `CRUDE;
+        0b)
  };
 
 / Per-date contractYM!price dictionary for fast held-contract lookups.
@@ -66,6 +68,26 @@
     first (`tenor xasc laterContracts)`contractYM
  };
 
+/ ---- gas deseasonalization (v0.55) -------------------------------------------
+/ Seasonal products (NG) carry a deterministic delivery-month premium that makes
+/ the raw curve slope/carry mostly mechanical. We FIT 12 monthly log-premium
+/ factors on the TRAIN window only (causal), then divide each contract's price by
+/ exp(factor[deliveryMonth]) before extracting the MODEL signals (curve carry,
+/ convenience yield, Kalman chi/xi). The tradeable front-return series stays RAW.
+/ deseasonalize defaults off (crude) so WTI signal output is byte-identical.
+.strategy.path.__monthIdxFromYM:{[contractYM] (contractYM mod 100)-1};
+
+.strategy.path.__fitSeasonalTrain:{[curveHist;trainEndDate]
+    trainRows:select from curveHist where asofDate<=trainEndDate, price>0f;
+    trainRows:update demeaned:(log price)-avg log price by asofDate from trainRows;
+    fracs:(`float$.strategy.path.__monthIdxFromYM trainRows`contractYM)%12f;
+    0f^.commodity.seasonality.fitMonthlyFactors[fracs;trainRows`demeaned]
+ };
+
+.strategy.path.__deseasonalizeCurve:{[curveHist;monthFactors]
+    update price:price%exp monthFactors .strategy.path.__monthIdxFromYM contractYM from curveHist
+ };
+
 .strategy.path.commoditySignals:{[curveHistory;sigCfg]
     if[not 98h=type curveHistory; '"commoditySignals: curveHistory must be a table"];
     if[not all `asofDate`tenor`price`contractYM`expiry in cols curveHistory;
@@ -83,6 +105,14 @@
     / Per-date tenor-sorted contract tables.
     perDateList:{[ch;d] `tenor xasc select contractYM,price,tenor,expiry from ch where asofDate=d}[curveHist;] each dates;
     priceMap:dates!.strategy.path.__priceMapForDate[curveHist;] each dates;
+    / Deseasonalised SIGNAL curve (train-only seasonal fit); the RAW curve still
+    / drives the tradeable front returns. deseasonalize off -> signal == raw curve.
+    deseasonalize:cfg`deseasonalize;
+    monthFactors:$[deseasonalize; .strategy.path.__fitSeasonalTrain[curveHist;trainEndDate]; 12#0f];
+    signalCurveHist:$[deseasonalize; .strategy.path.__deseasonalizeCurve[curveHist;monthFactors]; curveHist];
+    signalPerDateList:$[deseasonalize;
+        {[ch;d] `tenor xasc select contractYM,price,tenor,expiry from ch where asofDate=d}[signalCurveHist;] each dates;
+        perDateList];
     / --- roll-adjusted front returns (causal walk, runs once) ---
     front0:first (perDateList 0)`contractYM;
     heldTail:.strategy.path.__rollNext[perDateList;dates;cfg`rollDaysBeforeExpiry;;]\[front0;til nDates-1];
@@ -94,15 +124,16 @@
         hr:select from perDateList[t] where contractYM=heldSeq t;
         $[0=count hr;0Ni;(first hr`expiry)-dates t]}[perDateList;dates;heldSeq;] each til nDates;
     / --- model-free curve carry: annualised near-vs-deferred backwardation ---
-    curveSlopeCarry:{[perDateList;t]
-        pd:perDateList t;
+    / (computed on the SIGNAL curve - deseasonalised for gas, raw for crude).
+    curveSlopeCarry:{[signalPerDateList;t]
+        pd:signalPerDateList t;
         if[2>count pd;:0n];
         nearP:pd[`price]0; farP:pd[`price]1; nearTau:pd[`tenor]0; farTau:pd[`tenor]1;
-        ((log nearP)-log farP)%farTau-nearTau}[perDateList;] each til nDates;
+        ((log nearP)-log farP)%farTau-nearTau}[signalPerDateList;] each til nDates;
     / --- momentum: trailing-N mean daily return (causal) ---
     momentum:(cfg`momentumLookback) mavg 0f^frontReturn;
     / --- Kalman: estimate on TRAIN, filter forward on FULL panel (causal) ---
-    panel:.commodity.kalman.panelFromCurveHistory curveHist;
+    panel:.commodity.kalman.panelFromCurveHistory signalCurveHist;
     trainPanel:select from panel where obsDate<=trainEndDate;
     kalEst:.commodity.kalman.estimate[trainPanel;cfg`kalmanEstCfg];
     kalParams:kalEst`estimatedParams;
@@ -117,7 +148,7 @@
     / --- convenience yield per date (single-curve fit, uses estimated kappa) ---
     cyCalCfg:`kappa`shortVolatility`longVolatility`correlation`riskFreeRate!(
         kappaEst;sigChiEst;kalParams`sigXi;kalParams`correlation;cfg`riskFreeRate);
-    cyOut:.commodity.curveCal.convenienceYieldSeries[curveHist;cyCalCfg];
+    cyOut:.commodity.curveCal.convenienceYieldSeries[signalCurveHist;cyCalCfg];
     cySeries:cyOut`series;
     cyByDate:(cySeries`asofDate)!cySeries`netConvenienceYield;
     convenienceYield:cyByDate[dates];
@@ -149,7 +180,7 @@
         err:(res`perTenorError)`error;
         contracts:sub`contractYM;
         `longYM`shortYM`gap!(contracts err?max err;contracts err?min err;(max err)-min err)
-        }[curveHist;rvCalCfg;];
+        }[signalCurveHist;rvCalCfg;];
     rvList:rvIdent each dates;
     rvLongSeq:rvList[;`longYM]; rvShortSeq:rvList[;`shortYM];
     rvSignal:0f^rvList[;`gap];
@@ -189,8 +220,8 @@
         nDates#volTargetScale;
         nDates#volTargetScaleNearFar;
         nDates#volTargetScaleRV);
-    `path`kalmanParams`trainEndDate`nTrain`nTest`volTargetScale`volTargetScaleNearFar`volTargetScaleRV`stationaryStd`heldContracts!(
-        pathTbl;kalParams;trainEndDate;sum isTrain;sum not isTrain;volTargetScale;volTargetScaleNearFar;volTargetScaleRV;stationaryStd;distinct heldSeq)
+    `path`kalmanParams`trainEndDate`nTrain`nTest`volTargetScale`volTargetScaleNearFar`volTargetScaleRV`stationaryStd`heldContracts`productTag`deseasonalize`monthFactors!(
+        pathTbl;kalParams;trainEndDate;sum isTrain;sum not isTrain;volTargetScale;volTargetScaleNearFar;volTargetScaleRV;stationaryStd;distinct heldSeq;cfg`productTag;deseasonalize;monthFactors)
  };
 
 / ============================================================================
@@ -613,4 +644,28 @@
     splitDates:([] splitId:til count splits;
         trainStart:dates splits[;`trainStartIdx]; trainEnd:dates splits[;`trainEndIdx]; testEnd:dates splits[;`testEndIdx]);
     `aggregate`detail`splits!(.strategy.commodityBT.__aggregateSplits detail;detail;splitDates)
+ };
+
+/ ============================================================================
+/ Part C (v0.55). Cross-commodity robustness: aggregate walk-forward OOS across
+/ BOTH commodities and all splits into one robustness score per strategy.
+/ ----------------------------------------------------------------------------
+/ The verdict is which strategies are robustly positive across commodities AND
+/ windows (a real claim to edge) vs commodity/period-specific (noise). Ranked by
+/ mean OOS Sharpe across all (commodity x split) cells; fractionPositive is the
+/ share of cells with positive Sharpe.
+/ ============================================================================
+.strategy.commodityBT.crossCommodity:{[detailByCommodity]
+    if[0=count detailByCommodity; '"crossCommodity: empty detailByCommodity"];
+    commodities:key detailByCommodity;
+    tagged:raze {[d;c] update commodity:c from d}'[value detailByCommodity;commodities];
+    agg:0!select
+        nCells:count i,
+        nTraded:sum not null testSharpe,
+        meanSharpe:avg testSharpe,
+        sharpeStd:dev testSharpe,
+        fractionPositive:(sum testSharpe>0f)%count i,
+        meanAnnReturn:avg testAnnualReturn
+        by strategyName from tagged;
+    `meanSharpe xdesc agg
  };

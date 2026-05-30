@@ -404,7 +404,10 @@
     "tests/strategy/test_strategy_curve_relative_value.q";
     "tests/strategy/test_walk_forward_splits.q";
     "tests/strategy/test_walk_forward_aggregate.q";
-    "tests/strategy/test_walk_forward_run.q");
+    "tests/strategy/test_walk_forward_run.q";
+    "tests/strategy/test_deseasonalize_roundtrip.q";
+    "tests/strategy/test_commodity_signals_deseasonalize.q";
+    "tests/strategy/test_cross_commodity.q");
 
 / --- Combine all suites ---
 

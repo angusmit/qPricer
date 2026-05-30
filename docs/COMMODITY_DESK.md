@@ -247,6 +247,46 @@ contribution is the *discipline* — causal signals, out-of-sample walk-forward,
 common vol target, costs, and an accounting identity checked by independent
 revaluation — not a claim of a money-making strategy.
 
+### Cross-commodity robustness (CL + NG)
+
+One commodity over one window is still anecdote. Extending the WTI walk-forward
+to **all 1,866 liquid dates (2018-12 → 2026-05, 10 rolling 252/63 splits)** and
+adding **Henry Hub gas** — with its signals **deseasonalized** (monthly factors
+fit train-only, then divided out before extracting carry/Kalman signals; the
+tradeable returns stay raw) — gives **20 (commodity × split) cells** per strategy:
+
+| strategy | mean OOS Sharpe | dispersion | fraction of cells positive |
+|---|---|---|---|
+| **timeSeriesMomentum** | **+0.74** | 1.13 | **0.75** |
+| carryMomentumCombo | +0.66 | 1.39 | 0.70 |
+| chiReversion | +0.51 | 2.25 | 0.60 |
+| convenienceYieldCarry | +0.41 | 1.67 | 0.50 |
+| twoTimescale | −0.05 | 2.14 | 0.60 |
+| curveRelativeValue | −0.31 | 2.00 | 0.50 |
+| storageCashCarry | −0.78 | 2.11 | 0.30 |
+
+**What survived, and what didn't:**
+- **`twoTimescale` did NOT survive.** It was the §8 walk-forward standout on the
+  2020-2021 WTI window (mean +1.77, 4/5) — but over the full 2018-2026 WTI history
+  it is **negative** (mean −0.15) and cross-commodity it is **−0.05**. Its v0.54
+  "edge" was the COVID-recovery window, not a repeatable signal. Extending the
+  window is what exposed it.
+- **`timeSeriesMomentum` is the robust performer**: positive mean across both
+  commodities and **positive in 75% of cells** — consistent with the documented
+  commodity trend premium, the one signal that holds up across commodity *and*
+  window. `carryMomentumCombo` (carry + momentum) is the runner-up (0.70 positive).
+- **Deseasonalization changed the gas-carry verdict.** Raw NG carry just trades
+  the mechanical winter/summer calendar — its out-of-sample Sharpe on a mid-history
+  split is **−0.02** (no edge). Deseasonalized (removing the fitted monthly premium
+  first), the same signal is **+0.18** on that split and **+0.80** mean across the
+  NG walk-forward: only after deseasonalizing does gas carry mean anything.
+
+**Caveat, stated plainly.** This is still **two commodities over ~2018-2026**, a
+window dominated by one extraordinary regime (2020). Dispersions of 1-2 Sharpe
+units mean even the "robust" momentum result has wide error bars. True multi-regime
+robustness needs pre-2020 history (and more commodities); the honest conclusion is
+*momentum is the least fragile of these signals here*, not that it is a proven edge.
+
 ## 9. Engineering rigor
 
 A few properties make the numbers above trustworthy rather than merely present:
@@ -258,7 +298,7 @@ A few properties make the numbers above trustworthy rather than merely present:
 - **Byte-identical guarantees.** Every milestone preserves prior behavior exactly: opt-in
   features (e.g. seasonality) leave the existing adapters byte-for-byte unchanged, and the
   canonical reference tests keep their reference numbers.
-- **361 tests, all green**, run in ~6-7 min — kept under a 10-minute ceiling by deliberate
+- **364 tests, all green**, run in ~6-7 min — kept under a 10-minute ceiling by deliberate
   test-suite-performance work (per-test timing, tiered runners, and grid/path tuning that
   preserves the machine-epsilon identities).
 - **Honest validation.** Where a method has a limitation (single-curve κ under-identification),
