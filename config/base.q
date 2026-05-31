@@ -158,6 +158,12 @@
 / Do NOT tune k or the lookback to pass the gates - that is exactly where factor PCA overfits.
 .cfg.factor:`k`tol`maxIter`nMaturities`minLoadingStability`residualMaturity!(3;1e-10;1000;5;0.9;2);
 
+/ --- state layer: as-of market-state universe/liquidity filters (state/state.q), R9 ---
+/ expiryStrictlyAfter: a contract is tradable as-of asOf iff its expiry is strictly after asOf
+/ (1b) or on/after (0b). minVolume: a declared liquidity-filter slot (0 = no filter; the curve
+/ engine R10 + roll R11 will use it). The as-of accessor itself takes only date<=asOf rows.
+.cfg.state:`expiryStrictlyAfter`minVolume!(1b;0f);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
@@ -219,6 +225,14 @@
     `structural;
     "stable-factor-structure regimes; breaks down when the curve dislocates (storage saturation / supply shock)";
     `covid2020;`rv_factor_crude;"qFDM quant research";2026.05.31);
+/ Research OS R9: the as-of accessor + Market State (a data-access capability, edge `na).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_marketState;`state;`marketState;`v1;
+    "Point-in-time Market State for (asOf, commodity): the single as-of door to history + the state object";
+    "the HDB expiry field is correct; futures' simple date<=asOf path (no revisable data); the accessor is the only door (existing direct readers not yet rebased)";
+    `na;
+    "any (a point-in-time data accessor, regime-agnostic)";
+    `na;`;"qFDM evidence layer";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and

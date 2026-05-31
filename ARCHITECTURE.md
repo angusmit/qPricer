@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.73 &nbsp;|&nbsp; **Tests:** 399 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.74 &nbsp;|&nbsp; **Tests:** 401 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -13,8 +13,9 @@ live trading system. Data arrives from Barchart as historical CSVs; there is no 
 tickerplant, or low-latency path. End-to-end flow:
 
 ```
-ingest -> store -> price / calibrate -> (NEW) recognise regime -> signal
-       -> backtest (simulated execution) -> (NEW) gate -> PnL / Sharpe / verdict
+ingest -> store -> price / calibrate -> recognise regime -> signal
+       -> (NEW) build as-of market state -> replay backtest (simulated execution)
+       -> (NEW) evidence audit -> gate -> PnL / Sharpe / verdict
 ```
 
 Live trading, if ever added, attaches at the data layer and does not change the layers above. The
@@ -25,7 +26,12 @@ regime/state machinery below therefore runs **retrospectively over history** for
 
 * **Part I — The compute engine.** The foundation. *Built* (migration steps 1–5 complete; 6–7 deferred).
 * **Part II — The Research Operating System.** The next frontier. *The new design + its roadmap.* This is
-  where "how to find real edge and not overfit" is turned into structure.
+  where "how to find real edge and not overfit" is turned into structure. The **judge** (governance,
+  gates, deflated Sharpe, sealed holdout, model cards, bounded agents) is **built (R1–R8)**. The
+  **evidence layer** it judges — point-in-time market state, a real curve engine, an event-driven replay
+  engine, roll discipline, execution realism, an evidence audit, seasonality and carry, PnL explain — is
+  the **next frontier (R9–R16, planned)**, because *a rigorous judge is only as honest as the evidence it
+  is handed* (§11.8).
 
 ---
 ---
@@ -48,35 +54,42 @@ without colliding, with the test suite as the merge gate.
 | `core/` | math, linear algebra, stats, RNG, the loader (`core/init.q`), the config loader (`core/cfg.q`), the registry spine (`core/registry.q`, `.registry`/`.contracts`), logging, IPC helpers | built |
 | `config/` | `.cfg` value files (`base.q` + optional `{env}.q` overrides) | built |
 | `data/` | Barchart parser (standalone) + the splayed HDB (`.data.hdb.*`) | built |
+| `state/` | **(NEW — Part II)** the as-of accessor (the single door to history) + the Market State object (`.state.*`) — point-in-time discipline made enforceable | **built (v0.74, R9)** |
+| `curve/` | **(NEW — Part II)** the curve engine (`.curve.*`) — clean per-date curve, spreads, roll yield, slope/curvature, contango/backwardation, curve shocks; immutable daily snapshots | **planned (R10)** |
+| `roll/` | **(NEW — Part II)** config-driven roll rules (`.roll.*`) — active-contract mapping + roll events; trade actual contracts | **planned (R11)** |
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
-| `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf | built |
-| `signals/` | seasonality (alpha-signal library) | built |
-| `execution/` | daily fill / slippage / cost simulation (`.exec`) | built |
-| `backtest/` | strategy engine + commodity suite + walk-forward | built |
+| `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf; **(NEW)** bucketed-curve PnL explain (`.risk.attribution`) | built; attribution **planned (R15)** |
+| `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` + `carry/` **planned (R14)** |
+| `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** extended for replay realism (participation cap vs as-of volume, roll-window penalty) | built; extension **planned (R12)** |
+| `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** alongside research mode, emitting an auditable run record | built; replay mode **planned (R12)** |
+| `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it | **planned (R13)** |
 | `portfolio/` | cross-strategy allocator (`.alloc`) | built |
 | `services/` | optional IPC gateway / HDB service / workers | **reserved (deferred)** |
 | `scripts/` | `ingest_hdb.q` (+ reserved CI/pipeline) | partial |
 | `apps/` | examples + demos | built |
-| `regime/` | **(NEW — Part II)** market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
-| `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
-| `factor/` | **(NEW — Part II)** curve factor decomposition (`.factor`) — PCA level/slope/curvature; the first capability on the spine | **built (v0.73, R8)** |
-| `templates/` | **(NEW — Part II)** problem templates (`.template`) — directional (faithful) + relativeValue + factorRelativeValue | **built (v0.70 R6 / v0.73 R8)** |
-| `cards/` | **(NEW — Part II)** model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
-| `workflow/` | **(NEW — Part II)** the bounded research loop (`.workflow`) — composes gov/cards/template/regime; escalates to the human | **built (v0.72, R7)** |
-| `agents/` | **(NEW — Part II)** six bounded research-agent role prompts + `ORCHESTRATION.md` (docs; not loaded) | **built (v0.72, R7)** |
+| `regime/` | market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
+| `factor/` | curve factor decomposition (`.factor`) — PCA level/slope/curvature; the first capability on the spine | **built (v0.73, R8)** |
+| `templates/` | problem templates (`.template`) — directional (faithful) + relativeValue + factorRelativeValue | **built (v0.70 R6 / v0.73 R8)** |
+| `gov/` | hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
+| `cards/` | model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
+| `workflow/` | the bounded research loop (`.workflow`) — composes gov/cards/template/regime; escalates to the human | **built (v0.72, R7)** |
+| `agents/` | bounded research-agent role prompts + `ORCHESTRATION.md` (docs; not loaded) | **built (v0.72, R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
 
 The loader (`core/init.q`) loads layers bottom-up in a **fixed, explicit order — there is no
 auto-discovery.** When you add a module you must register it in `core/init.q`. It sets `.qfdm.loaded:1b`
-and `.qfdm.version`.
+and `.qfdm.version`. The new evidence-layer modules load in dependency order: `state/` and `curve/` and
+`roll/` low (above `data/`, below the consumers); `evidence/` high (above `backtest/`, below `gov/`).
 
 ## 2. Configuration — `.cfg`, no hardcoding — **DONE (v0.57–58)**
 
 `.cfg` is populated at startup by `core/cfg.q`: load `config/base.q` (every value = the prior hardcoded
 literal, types/key-order preserved), then if `QPRICER_ENV` is set, `config/{env}.q` to override a subset.
 Unset `QPRICER_ENV` loads base only — the byte-identical default. Domains: `.cfg.fdm`, `.cfg.iv`,
-`.cfg.mc`, `.cfg.calib.*`, `.cfg.analytics.*`, `.cfg.paths`, `.cfg.strategy.*` (every per-strategy config).
+`.cfg.mc`, `.cfg.calib.*`, `.cfg.analytics.*`, `.cfg.paths`, `.cfg.strategy.*`, plus the new evidence-layer
+domains `.cfg.rolls` (per-commodity roll rules, R11), `.cfg.costs` (per-commodity execution realism, R12),
+and `.cfg.state` (universe/liquidity filters, R9).
 
 Best-practice split by data kind: **numeric/system parameters → q dictionaries in a `.q` file**
 (native, typed, computable); **tabular reference data** (calendars, specs, holiday tables) → CSV or HDB
@@ -89,14 +102,20 @@ keyed tables; **JSON** only at language boundaries (sharing with Python).
   enumerated via `.Q.en`; written with `set`. Revisit date-partitioning only if the data reaches many
   millions of rows.
 * Table `futures` (commodity, contractYM, expiry, firstDate, date, OHLC, settle, volume). Tables
-  `curves` / `calibrations` / `backtestRuns` remain **future work** (the `regimes` table in §11.1 and the
-  `trials` ledger in §11.4 are the first new ones).
+  `curves` / `calibrations` / `backtestRuns` remain **future work** (the `regimes` table in §11.1, the
+  `trials` ledger in §11.4, and the new `curveSnapshots` / `rollEvents` / `replayRuns` tables in §11.8 are
+  the new ones).
 * Ingestion (`scripts/ingest_hdb.q` → `.data.hdb.ingest`) **reuses `.parser.futures.loadAll` verbatim**,
   so the store is byte-identical to the parser by construction. Query layer: `.data.hdb.curveAt` /
   `curveHistory` / `dates`. `.data.hdb.open` uses `get` (not `\l`) so it does not change the process
   working directory. Measured ~4.8× faster data-load than CSV parse.
 * The HDB dir (`.cfg.paths.hdb`, default `data/hdb`) is **gitignored**, like the CSVs. CSVs are an
   *ingestion source*, not the store.
+* **Point-in-time readiness (R9).** The `futures` settle/volume are already point-in-time by `date` (a
+  settle on date D was known at end of D), so the as-of accessor over futures needs only a `date<=asOf`
+  filter. Revisable data (fundamentals/inventory) would carry `validDate`/`asof`/`source`/`revision`
+  columns and take the latest revision `validDate<=asOf` — the accessor is designed revision-aware so it
+  is ready, but those columns are not fabricated for data we do not have.
 
 ## 4. Execution simulation — `.exec` — **DONE (v0.60–63)**
 
@@ -108,7 +127,10 @@ financing → Sharpe/Sortino/maxDD/hit-rate/turnover/**cost-adjusted Sharpe**). 
 routes through `.exec.fill`; **frictionless default is byte-identical**, `deltaPV == stepPnl` preserved.
 The shared chokepoints `.strategy.__hedgeStep`/`__hedgeInit` (underlying) and `.strategy.__legCost`
 (option legs, premium-scaled slippage) mean wiring once covers every hedged strategy. *The gap between
-gross and net-of-cost Sharpe is where most apparent edges die; this layer measures it honestly.*
+gross and net-of-cost Sharpe is where most apparent edges die; this layer measures it honestly.* **R12
+extends** `.exec` for replay realism: participation cap against the *as-of* daily volume, and an extra
+roll-window liquidity penalty when the roll map (R11) flags a roll — additive, frictionless default still
+byte-identical.
 
 ## 5. Portfolio optimizer — `.alloc` — **DONE (v0.62)**
 
@@ -150,20 +172,23 @@ These are the standing milestone conventions (source of truth: `CLAUDE.md` + `.c
   Quick checks foreground; only the full suite + the cross-commodity example may be backgrounded —
   capture to `scratch/` and WAIT (never start the next command while one runs). No orphan q
   (`Get-Process q`). No `rm`/`rmdir`/cleanup (deny-listed). No `mkdir` (kdb+ creates dirs on write).
-* **Testing workflow.** During dev run only the affected group (`q tests/run_group.q <group> -q </dev/null`);
-  run the full suite (`q tests/run_all_tests.q </dev/null`, ~7–15 min) only as the pre-commit gate.
-  Append new test paths to the right `.test.<group>Files` list in `tests/run_all_tests.q`. The runner
-  strips top-level `\l core/init.q` lines and `value`s the rest under one already-loaded init; a test
-  fails by `'"reason"`.
+* **Testing workflow.** During dev run only the affected group via the read-only `test-runner` subagent
+  (`q tests/run_group.q <group> -q </dev/null`); run the **full suite from the MAIN THREAD** as the
+  pre-commit gate (`q tests/run_all_tests.q </dev/null`, ~7–15 min, backgrounded to `scratch/`, WAIT) — a
+  subagent's backgrounded job dies on turn-end. Append new test paths to the right `.test.<group>Files`
+  list in `tests/run_all_tests.q`. The runner strips top-level `\l core/init.q` lines and `value`s the
+  rest under one already-loaded init; a test fails by `'"reason"`. Set docs to the REAL resulting count;
+  do not anchor on a target.
 * **No auto-discovery.** Register every new module in `core/init.q` in dependency order.
 * **q source cautions (silent failures).** No bare `/` separator lines (grep `^\s*/\s*$` before the first
   run); write `exp neg 1f` not `exp -1f`; typed numeric vectors take one trailing suffix (`0.25 0.5 1 2 5f`);
-  never shadow built-ins (`value`/`count`/`select`/`type`/`string`, two-letter builtins `ss`/`sv`/`vs`,
-  `csv` is a constant); inner lambdas can't see outer locals; use `floor` for nearest-rank percentile
-  indices (`` `long$3.8 `` rounds half-up). Namespaces explicit/descriptive; private helpers `.__`;
-  camelCase; inputs dicts, outputs dicts/tables; per-trade isolation in batch code.
+  never shadow built-ins (`value`/`count`/`select`/`type`/`string`, two-letter builtins `ss`/`sv`/`vs`/`aj`,
+  the keyword **`asof`** — name the as-of parameter `asOf`, not `asof`; `csv` is a constant); inner
+  lambdas can't see outer locals; use `floor` for nearest-rank percentile indices (`` `long$3.8 `` rounds
+  half-up). Namespaces explicit/descriptive; private helpers `.__`; camelCase; inputs dicts, outputs
+  dicts/tables; per-trade isolation in batch code.
 * **Git / docs.** Never stage/commit without explicit approval; every milestone bumps `.qfdm.version` (in
-  `core/init.q`), updates `CHANGELOG.md`, and refreshes **every affected README** (touched layers + root).
+  `core/init.q`), updates `CHANGELOG.md`, and refreshes **every affected README + this document + CLAUDE.md**.
 
 ---
 ---
@@ -173,7 +198,8 @@ These are the standing milestone conventions (source of truth: `CLAUDE.md` + `.c
 The engine prices, calibrates, backtests, and costs. The Research OS is the layer that decides **whether
 an apparent edge is real**, and the structure that lets the whole thing grow to cover the entire
 commodities market without rework. This is where the hard questions — *how do quants find edge, and not
-just guess or overfit?* — become architecture.
+just guess or overfit?* — become architecture. The **judge** half is built (§9–§13, R1–R8); the
+**evidence layer** it judges is the next frontier (§11.8, R9–R16).
 
 ## 9. The integration principle: one frozen spine, unbounded plug-ins
 
@@ -188,7 +214,7 @@ point — the spine is small and frozen; the plug-ins are infinite.
    +----------+------------------------------------------+
    |          GENERIC SPINE  (never changes)             |
    |   fixed research pipeline  (state->regime->model    |
-   |     ->backtest->gate->verdict)                      |
+   |     ->replay->evidence audit->gate->verdict)        |
    |   governance gates  +  trials ledger                |
    |   regime-tagged HDB (three zones, sealed holdout)   |
    +-----------------------+-----------------------------+
@@ -198,7 +224,7 @@ point — the spine is small and frozen; the plug-ins are infinite.
    +-----------------------+-----------------------------+
    |   PLUG-INS  (grow freely — three kinds)             |
    |   1) capability:  pricer / calibrator / signal /    |
-   |        fill model / control solver / ML model       |
+   |        fill model / curve engine / factor / ML      |
    |   2) problem template: directional / relative-value |
    |        / vol / optimal-execution / deep-hedging /    |
    |        factor-decomposition (PCA)                   |
@@ -210,10 +236,10 @@ point — the spine is small and frozen; the plug-ins are infinite.
 **Nothing you ever add falls outside the three plug-in kinds.** A *capability* implements a component
 contract and self-registers (generalising the existing `.strategy.register`). A *problem template* is a
 research **shape** that composes capabilities and declares its own inputs/outputs/validation/gates. A
-*knowledge* plug-in is data/docs that grow the system's understanding with no code surgery. When you add
-deep hedging next year you add a plug-in; you do not reach into the spine. That is what "scalable and
-generic across the whole commodities market" means mechanically — and the discipline (§10) is generic too:
-every problem template, however exotic the maths, rides the same gates and the same ledger.
+*knowledge* plug-in is data/docs that grow the system's understanding with no code surgery. The
+evidence-layer work (R9–R16) adds capabilities (the curve engine, roll, the replay mode, the evidence
+audit) and templates (the first real strategy) — it grows the spine's plug-ins; it does **not** reorganise
+the spine. That is what "scalable and generic across the whole commodities market" means mechanically.
 
 ## 10. How to get edge, not overfit (the discipline the spine enforces)
 
@@ -227,282 +253,332 @@ every problem template, however exotic the maths, rides the same gates and the s
    it's arbitraged; capacity-limited.
 3. **Informational / processing edge** — you forecast or compute better/faster. Rare; erodes.
 
-**The habit: for every apparent edge, name which of the three it is. If you can't, it's noise.**
+**The habit: for every apparent edge, name which of the three it is. If you can't, it's noise.** PnL
+explain (§11.8, R15) turns this from prose into a quantitative attribution — the curve/carry/basis/vol
+decomposition is the numerical answer to "which of the three."
 
 **The anti-overfitting chain (sacred — built into the spine so every plug-in inherits it):**
 
 ```
 hypothesis-first (tiny search space)
   -> pre-register the thesis + claimed edge source  (before touching data)
+  -> build an as-of market state                    (NEW R9 — point-in-time, single door)
+  -> replay through actual contracts/rolls/fills     (NEW R12 — realistic evidence)
+  -> EVIDENCE AUDIT, fail-safe                        (NEW R13 — no look-ahead, PnL ties; bites)
   -> log EVERY trial automatically                  (the honest N)
   -> deflated Sharpe / multiple-testing correction  (the bar rises with N)
   -> walk-forward + parameter PLATEAU (not peak)     (graceful degradation = real)
   -> regime-conditional evaluation                   (worked everywhere, or one lucky regime?)
-  -> "what's priced in" check                        (edge lives only in the residual)
+  -> "what's priced in" check                        (edge lives only in the residual; deferred)
   -> sealed holdout, ONE look                        (final, recorded, immutable)
 ```
 
-Two structural commitments make this honest rather than aspirational. **The ledger logs every run, not
-just the survivors** — the count is the denominator the deflated Sharpe needs; without it you compute your
-statistics against the one backtest you remember. **The holdout is sealed** — if an agent or an optimiser
-can query it, it will eventually overfit to it, so the separation is technical, not polite.
+Three structural commitments make this honest rather than aspirational. **The ledger logs every run, not
+just the survivors** — the count is the denominator the deflated Sharpe needs. **The holdout is sealed** —
+if an agent or an optimiser can query it, it will eventually overfit to it, so the separation is technical,
+not polite. And **the evidence is audited before the judge sees it** (R13) — a deflated Sharpe on
+look-ahead-contaminated PnL is theater on a fabrication; the audit refuses to pass a contaminated run to
+the gates at all. *A rigorous judge is only as honest as the evidence it is handed.*
 
-**Agents are bounded** (§11.7): researcher + validator + skeptic + logger, **never an autonomous trader**.
-They propose evidence; the gates evaluate; **you** hold the go/no-go. And capital is staged: paper →
-small → scaled. The realistic edge envelope for this batch platform is **regime-conditional risk-premium
-harvesting and structural / relative-value strategies, validated to institutional standards** — not fast
-mispricing or live now-casting (that needs live data + positioning, which the scope deliberately omits).
+**Agents are bounded** (§11.7): researcher + validator + skeptic + logger + curator + lead, plus (as the
+evidence layer grows) a **Data** agent and a **Backtest-QA** agent — **never an autonomous trader**. They
+propose evidence and reason about what the deterministic gates cannot encode; the gates evaluate; **you**
+hold the go/no-go. Capital is staged: paper → small → scaled. The realistic edge envelope for this batch
+platform is **regime-conditional risk-premium harvesting and structural / relative-value strategies,
+validated to institutional standards** — not fast mispricing or live now-casting.
 
-## 11. The Research OS layers (the new components)
+## 11. The Research OS layers (the components)
 
-### 11.1 Regime-tagged data — the seam (build first, R1)
+### 11.1 Regime-tagged data — the seam (built, R1)
 
-The single technical move that unifies the engine and the Research OS: add a **regime fingerprint** for
-every (commodity, date) derived from the existing HDB `futures` data — curve state (backwardation /
-contango + slope percentile), realized-vol state, liquidity state, roll proximity, seasonal phase. Once
-history is labelled, the backtest can report **by regime** (the difference between "0.8 Sharpe" and
-"+1.4 in backwardation, negative in deep contango, worst drawdown in crisis vol" — the second is the
-tradeable truth), and the analogue engine can find historical neighbours by distance in label space.
+A **regime fingerprint** for every (commodity, date) derived from the existing HDB `futures` data — curve
+state (backwardation / contango + slope percentile), realized-vol state, liquidity state, roll proximity,
+seasonal phase. Once history is labelled, the backtest reports **by regime** ("0.8 Sharpe" vs "+1.4 in
+backwardation, negative in deep contango, worst drawdown in crisis vol" — the second is the tradeable
+truth), and the analogue engine finds historical neighbours by distance in label space.
 
-### 11.2 Market State Engine — measurement, not prophecy
+### 11.2 Market State Engine — measurement, not prophecy (built, R1)
 
 `.regime.*` is strictly **deterministic measurement**. It computes the state vector; it does **not**
-predict or opine. ("Curve is in the 92nd percentile of backwardation, realized vol is high, volume thin."
-Never "oil will rise.") Interpretation lives in the agent layer where it gets challenged. Keeping the
-engine cold and reproducible is the guardrail against the agent failure mode of telling a clean story.
+predict. Interpretation lives in the agent layer where it gets challenged. *(Note: the regime layer's curve
+derivation is generalised by the new curve engine in §11.8/R10 — the regime fingerprint becomes a consumer
+of the curve engine rather than a parallel re-derivation, so the two never disagree.)*
 
-### 11.3 Regime / Analogue Library + risk memory — explicit, versioned artifacts
+### 11.3 Regime / Analogue Library + risk memory (built, R4)
 
-**Status: DONE (v0.67, R4).** `regime/analogue.q` (`.regime.analogue.*` / `.regime.library.*`): the splayed
-`regimeEpisodes` table (named crude episodes with a COMPUTED dominant fingerprint from the `regimes` table)
-+ `docs/REGIME_LIBRARY.md` (the curated drivers + written risk memory), and the analogue engine
-(`.regime.analogue.distance` weighted-Euclidean+categorical-penalty / `.nearest` / `.forDate`). Honest data
-scope: matching runs ONLY on in-HDB windows (crude ≈ 2018.12→2026) with real fingerprints; out-of-data
-lessons (2008, 2014-16) are narrative-only in `REGIME_LIBRARY.md`. `regime/` stays LOW (no gov/backtest
-import; gov may consult the analogue downward). Built by `scripts/build_regime_library.q`; demo
-`apps/examples/regime_analogue_today.q`. (The drift monitor in §11.4 remains future work.)
+`regime/analogue.q` (`.regime.analogue.*` / `.regime.library.*`): the splayed `regimeEpisodes` table
+(named crude episodes with a COMPUTED dominant fingerprint from the `regimes` table) + `docs/REGIME_LIBRARY.md`
+(curated drivers + written risk memory), and the analogue engine (`.regime.analogue.distance`
+weighted-Euclidean+categorical-penalty / `.nearest` / `.forDate`). Honest data scope: matching runs ONLY
+on in-HDB windows with real fingerprints; out-of-data lessons (2008, 2014-16) are narrative-only. `regime/`
+stays LOW. The analogue query answers the only two questions that matter: *this time is similar to what, and
+different because what.*
 
-A curated, versioned corpus of labelled historical regimes (crude 2008 / 2014–16 / 2020 negative-WTI /
-2022 energy shock; gas winter spikes / shoulder-season collapse / the March-April "widow-maker"; power
-heatwave spikes / negative prices). Each entry carries date range, curve/vol/liquidity state, drivers,
-and — non-negotiably — its **known strategy failure modes** (this is *risk memory*; it must be written
-down, not recalled). The analogue query: given a current/hypothetical state, return the nearest historical
-regimes and what happened after — so you can answer the only two questions that matter, *this time is
-similar to what, and different because what.*
+### 11.4 Governance — registry + trials ledger + gate cascade (built, R3 + R3b)
 
-### 11.4 Governance — registry + trials ledger + gate cascade + drift monitor
+`gov/gov.q` (`.gov.*`): the `hypotheses` registry; the append-only `trials` ledger (the honest N); the
+deflated-Sharpe core (PSR/DSR, Bailey & López de Prado; `.gov.phiInv` Acklam, `Phi` reuses
+`.validation.__normalCdf`); the ordered **gate cascade** thesis → cost → deflated-Sharpe → walk-forward →
+**sealed holdout**; the non-optional `.gov.run` logging wrapper + the `.gov.runFull` orchestrator (the
+backtest engine is never edited). R3b added the three data zones (`.gov.zone.*`, gates 0-3 see
+train+validate only), the one-shot holdout gate (`.gov.holdoutGate` / `.gov.holdout.read` — one look per
+hypothesis, recorded immutably), and fail-safe verdicts (a `tradeable` boolean; a gate failure is never
+tradeable). Deferred: the "priced-in" gate (needs surface/positioning data the HDB lacks), the drift
+monitor.
 
-**Status: DONE (v0.65 R3 + v0.66 R3b).** `gov/gov.q` (`.gov.*`) ships the registry, the append-only trials
-ledger, the deflated-Sharpe core, and the FULL fail-safe gate cascade thesis → cost → deflated-Sharpe →
-walk-forward → **sealed holdout** (R3b), with the non-optional `.gov.run` logging wrapper + the complete
-`.gov.runFull` orchestrator (the backtest engine is never edited). R3b added the three data zones
-(`.gov.zone.*`, gates 0-3 see train+validate only), the one-shot holdout gate (`.gov.holdoutGate` — one
-look per hypothesis, ever, recorded immutably), and fail-safe verdicts (a `tradeable` boolean; a gate
-failure is never tradeable). Deferred: the "priced-in" gate (needs surface/positioning data the HDB lacks),
-and the drift monitor. The bullets below are the full target design; the *italic deferred* notes mark what
-is not yet built.
+**Connective wiring (v0.71, cycle-free).** (A) **carded gating** — `.cards.gatedRun` (in `cards/`, ABOVE
+gov) refuses to gate a capability whose card has no populated failure-mode field, then delegates to
+`.gov.runFull`; (B) the **regime risk-memory skeptic** — `.gov.run`/`.runFull` attach an informational
+`riskMemory` annotation read DOWNWARD from `regime/`, changing no pass/fail; (C) the **complete audit** —
+`.cards.audit[]` walks `.registry.kinds[]` dynamically. No edge points upward.
 
-**Connective wiring (v0.71, cycle-free).** Three additive wires now make the layers inform each other
-without breaking the one-directional rule: (A) **carded gating** — `.cards.gatedRun` (in `cards/`, ABOVE
-gov) refuses to gate a capability whose model card has no populated failure-mode field, then delegates to
-`.gov.runFull` (realising "Gate 0 requires a card" at the cards→gov boundary; gov is NOT modified — a
-literal in-gov Gate 0 would need splitting the card store into low DATA vs high LOGIC, *deferred*); (B) the
-**regime risk-memory skeptic** — `.gov.run`/`.gov.runFull` attach an informational `riskMemory` annotation
-read DOWNWARD from `regime/` (`.regime.analogue` + the R4 library), changing no gate pass/fail; (C) the
-**complete audit** — `.cards.audit[]` walks `.registry.kinds[]` dynamically so a new plug-in kind (the R6
-`template` kind, or any later one) can't be silently missed. No edge points upward; `gov/` still does not
-import `cards/`. Demo `apps/examples/carded_gated_research.q`.
+**Where R13 attaches.** The new **evidence audit** (§11.8) becomes a precondition the same way carded
+gating is: the workflow runs the replay (R12) → calls `.evidence.audit` on the run record → only on PASS
+delegates the PnL to `.gov.runFull`. On FAIL the run is rejected and the gates never run. `gov/` is not
+modified; the audit lives in its own `evidence/` layer (above `backtest/`, below `gov/`).
 
-* **Hypothesis registry** (`.gov` / HDB table `hypotheses`): every idea pre-registered with its economic
-  thesis, claimed edge source, instruments, and a-priori parameter ranges — *before* data.
-* **Trials ledger** (HDB table `trials`): the engine writes **every** backtest run automatically (the
-  honest N), tagging each with hypothesis id, full parameter vector (each knob marked *free*/P&L-optimised
-  vs *fixed*/externally-set), data zone + date range, code/version hash, timestamp, and the full metric
-  set — including failed and abandoned runs.
-* **Gate cascade** (the promotion funnel): thesis → cost (net-of-`.exec`) → deflated Sharpe (penalised by
-  the ledger's N) → walk-forward + stress (params/regimes/commodities) → priced-in → sealed holdout (one
-  look). Most candidates die at cost and deflation — that is the system working.
-* **Sealed holdout zone** *(DONE — v0.66, R3b)*: a data-segregation discipline over the HDB — train (open) /
-  validate (logged) / holdout (sealed, read only by the one-shot Gate 4, once per hypothesis, recorded immutably).
-* **Drift monitor** *(deferred)*: promoted strategies watched for edge decay; demoted when they fade.
+### 11.5 Model Cards (built, R5)
 
-### 11.5 Model Cards
+`cards/cards.q` (`.cards.*`): a structured card per capability synthesising the R2 contract + assumptions +
+the named edge source + regime applicability + the linked R4 risk memory + a VALIDATION STATUS **derived**
+from the gov ledger (never asserted; `tradeable` only if the sealed holdout passed). `.cards.audit[]` CAN
+FAIL (undocumented capabilities, missing sections, edgeless signal/strategy cards, orphan cards). A card
+with a blank "fails when…" field is a red flag that you have a curve-fit, not a thesis.
 
-Every model/signal/strategy carries a documented card: inputs, outputs, parameters, assumptions, and —
-declared *before* the backtest — the regimes where it should work and where it should fail. A card with a
-blank "fails when…" field is a red flag that you have a curve-fit, not a thesis.
+### 11.6 Problem-template abstraction — the genericity (built, R6 + R8)
 
-### 11.6 Problem-template abstraction — the genericity
+Different commodity edges live in different **problem shapes**; the template makes them all fit one spine.
+The `template` kind on `.registry.*` (contract = the uniform `pnl`/`validation`/`meta` output; conformance
+bites). Built: **directionalSignal** (faithful wrapper, per-day PnL byte-identical), **relativeValue**
+(crude calendar-spread mean-reversion with its own stationarity gate), **factorRelativeValue** (R8 — fade
+the curve's residual from its k-factor shape, with factor-stability + residual-stationarity gates). The
+shape vol / optimal-execution / deep-hedging will follow: a new capability + a new template, the same
+contracts, cards, gates, and bounded workflow.
 
-Different commodity edges live in different **problem shapes**, and the template is what makes them all fit
-one spine:
+### 11.7 Agent workforce — bounded (built, R7; two roles added with the evidence layer)
 
-```
-            Problem template (the contract)
-            inputs · method · outputs · gates
-                          |
-        +-----------+-----------+-------------------+
-        v           v           v                   v
-   Directional   Factors      Optimal           Deep hedging
-   signal->PnL   PCA->curve   execution         NN policy->hedge
-                 factors      control->schedule
-```
+Six bounded role prompt docs (`agents/{researcher,validator,skeptic,logger,curator,lead}.md` +
+`ORCHESTRATION.md`, not loaded) + the thin executable loop `workflow/workflow.q` (`.workflow.run`) that
+composes `.gov`/`.cards`/`.template`/`.regime` and returns a human-escalation packet. BOUNDED by
+construction: no path allocates / trades / marks tradeable without all gates; always defers to the human.
 
-A *signal* is "data → position/PnL". *Optimal execution* is "target + state → schedule" (a control
-problem, not a PnL backtest). *Deep hedging* is "book + cost model → hedging policy" (a learned policy).
-*PCA* is "curve → factors" (an analysis; its gate is factor stability + economic interpretability, not a
-Sharpe). All hang off one contract and therefore ride the same spine, gates, ledger, and agents. **Worked
-example — adding deep hedging:** write a template declaring inputs (option book, calibrated dynamics, cost
-model), method (train an NN hedging policy under frictions), outputs (hedge schedule + PnL distribution),
-gates (beats Black-Scholes delta-hedge net of cost? stable across vol regimes? survives holdout?). The NN
-is a *capability* plug-in (a Python sidecar) registering through the contract; the spine does not change.
+**Two roles added as the evidence layer grows** (still bounded, still file-producing, no engine change):
 
-### 11.7 Agent workforce — bounded, with Claude Code orchestration
+* **Data agent** — enforces as-of discipline. Audits that the single as-of accessor (§11.8/R9) is the only
+  door to history; flags any future-revision, future-volume roll, or settlement leakage. Output: a
+  data-quality report.
+* **Backtest-QA agent** — the judgment layer on top of the deterministic evidence audit (R13). The audit
+  bites on what can be written as a rule (no future date, PnL reconciles, roll respected); the agent
+  reasons about what cannot (is this roll rule economically sensible? is the universe filter introducing
+  survivorship?). Output: a backtest-QA report.
 
-**Status: DONE (v0.72, R7).** Shipped as six role prompt docs (`agents/*.md`) + `agents/ORCHESTRATION.md`
-(the loop + the hard invariants) + a single-process executable loop `workflow/workflow.q` (`.workflow.run`)
-that composes the built functions; the multi-agent orchestration is the named deferral. The roles below map
-to the shipped files: Rationale/Proposer → `researcher`, History/Regime + Model/card → `curator`,
-Validation → `validator`, Skeptic → `skeptic`, Ledger → `logger`, plus `lead` (the orchestrator / merge-gate
-enforcer / human-escalation).
+### 11.8 The evidence layer — making the backtest realistic (R9–R16, planned)
 
-Six bounded roles, mapped to the discipline: **Rationale/Proposer** (economic mechanism + edge source) →
-**History/Regime** (analogues + risk memory) → **Model** (pick template, fill the card) → **Validation**
-(controlled tests, regime-conditional, every run logged) → **Skeptic** (attacks throughout: look-ahead,
-crowding, post-hoc thesis, parameter fragility, single-regime concentration) → **Ledger** (records
-everything). Start as **prompt files** under `agents/` — you do not need an agent platform to begin.
-Scale later with Claude Code orchestration (worktrees / Agent Teams / Dynamic Workflows), using the
-existing test suite + the `test-runner` subagent as the merge gate, and `CONTRACTS.md` + `CLAUDE.md` +
-the q-pricing skill as the shared constitution. **Agents never trade autonomously** — they propose
-evidence; gates evaluate; you decide.
+**The thesis.** R1–R8 built a rigorous *judge*. A judge is only as honest as the evidence it is handed.
+This section is the *evidence-generator*: point-in-time market state, a real curve engine, an event-driven
+replay engine, roll discipline, execution realism, an evidence audit, seasonality and carry, and PnL
+explain. The two halves meet at the backtester — the gates evaluate a PnL series, and these components make
+that series correspond to something tradeable. Each is an additive plug-in on the existing spine, gated and
+carded; none reorganises the repo. The optimal-q *design* is sketched below; the literal q lands in the
+milestone prompts.
+
+**(a) Point-in-time / as-of discipline + the Market State object — `.state.*` (R9).** Make the as-of rule a
+*single chokepoint*, not a discipline scattered across callers. One accessor — `.state.asof[asOf;commodity]`
+(parameter `asOf`, never `asof`, the keyword) — is the **only** door to history: it wraps the existing
+`.data.hdb.*` query layer (unchanged), returns only rows with `date<=asOf` (and, for revisable series, the
+latest revision `validDate<=asOf` — designed-in, futures use the simple path), and logs a *provenance
+record* of what it returned. The **Market State** is a dictionary assembled lazily by the accessor: `date`/
+`asOf`, `commodity`, `curve` (the existing curve shape), calendar `spreads`, a `features` sub-dict
+(placeholder the curve engine + season/carry fill), the tradable `universe` (contracts not expired as-of),
+and refs to the cost model + roll calendar. Signals/templates consume the *state*, never raw prices — which
+kills a whole class of look-ahead and roll bugs at the type level. R9 introduces the door without rewiring
+the existing direct readers (additive, byte-identical); rebasing `regime/` and `backtest/` onto it is a
+later deferral.
+
+**(b) The curve engine — `.curve.*` (R10).** `build[asOf;commodity]` composes the accessor → liquidity
+filter → roll mapping → curve construction → spreads → derived features (roll yield, slope, curvature,
+contango/backwardation classification, the parallel/slope/butterfly shock operators), returning the curve
+component of the Market State. Snapshots are written to a splayed `curveSnapshots` table partitioned by
+date and **never rewritten** (a new revision is a new row). This generalises the regime layer's slope/
+percentile derivation so the two never disagree about the curve.
+
+**(c) Roll discipline — `.roll.*` (R11).** Roll rules live in `.cfg.rolls` (one entry per commodity:
+type/days/window/price-source — days-before-expiry / OI-switch / volume-switch / fixed-calendar /
+multi-day). `.roll.active[asOf;commodity]` maps to the active contract(s) **deterministically from as-of
+data only** and emits `rollEvents` rows when the active contract changes. The backtester trades the
+contract the roll map names; the continuous-adjusted series is a *derived view* for analytics only, never
+the thing traded — exactly the common commodity-backtest error this prevents.
+
+**(d) The event-driven replay engine + extended execution — `.backtest.replay.*`, `.exec.*` (R12).** The
+keystone. The loop is a deterministic **fold over the trading dates** — `(/)` accumulating a state record
+`(book; cash; pnl; log)` across dates, each step a pure function `step[state; asOf] -> state'` that calls
+the accessor, the signal/template, the (extended) execution model, and the PnL engine. Purity per step is
+what makes the run reproducible and auditable: the entire decision trail is the accumulated `log`, written
+as the `replayRuns` record (every data access via the accessor, every fill, every roll event, the position
+book, the per-step PnL components). Research mode reuses the *same* signal and cost functions vectorised
+over the panel, so a replay result can be diffed against the research result. Replay mode is the promotion
+gate (the external standard's "gate 8"). Execution extends `.exec` for participation-vs-as-of-volume and a
+roll-window penalty; frictionless default stays byte-identical.
+
+**(e) The evidence audit — `.evidence.*` (R13).** A deterministic function `.evidence.audit[replayRun]` →
+a pass/fail report, run by the workflow *between the replay and the gates* (a hard precondition, like
+carded gating: FAIL → reject, gates never run). It bites on: no datum used outside the accessor's as-of
+provenance (subsumes most look-ahead checks once R9 is the only door); no expired/out-of-universe contract
+traded; roll rule respected; costs applied; fills present; **position book ties to fills**; **PnL ties to
+positions and market moves**; risk report present; and a cross-check that the run's date range stayed
+inside train+validate (the holdout *seal* itself stays in governance, §11.4 — the audit verifies, it does
+not re-implement). The accessor *prevents* by construction; the audit *verifies* by reading provenance —
+a closed loop. The Backtest-QA agent (§11.7) reasons about what the rule-based audit cannot encode.
+
+**(f) Seasonality + carry — `.season.*`, `.carry.*` (R14).** Small capabilities reading the curve engine's
+output and returning features merged into the Market State's `features` dict. Seasonality: same-month and
+same-contract-month z-scores, seasonal factors, deseasonalised spread, seasonal curve slope (a same-month
+z-score is a group-by over historical same-calendar-month spreads from the accessor — better than a naive
+all-months z-score for commodities). Carry: implied carry `ln(F/S)/T`, implied convenience yield,
+cash-and-carry fair value, a carry signal (realised roll yield − estimated cost-of-carry), an
+inventory-tightness proxy. These are the features the first real strategy (R16) is built on, and they force
+every strategy to *attribute* its return to carry / inventory / normalisation / supply shock / seasonal
+demand. (Complements the existing `signals/` seasonality alpha-library.)
+
+**(g) PnL explain + bucketed curve risk — `.risk.attribution` (R15, extends `analytics/`).** Given a
+position book + the curve, return an attribution dict: PnL split into curve-level / slope / curvature /
+carry / residual via the curve-shock operators (b), and risk as bucketed deltas per tenor, plus
+calendar-spread / basis / roll-down exposures. This is the quantitative form of "name which of the three
+edges" (§10) — it feeds the model card's economic-rationale field with numbers, so "explain why this makes
+money" becomes an attribution, not prose.
+
+**(h) The first real research output — `factorRelativeValue`'s sibling, seasonally-adjusted calendar-spread
+mean-reversion (R16, a `template`).** Crude M1–M3 (or M2–M6) spread, faded against its *seasonally-adjusted*
+same-month z-score (R14), traded through actual contracts with roll discipline (R11), filled with realistic
+costs (R12), run through replay → evidence audit (R13) → the full gate cascade → the regime skeptic → the
+human. Edge: structural / risk-premium. It forces the whole evidence layer to be correct simultaneously,
+which is why the external standard recommends it as the first serious strategy and why it is the first time
+the foundation is exercised end-to-end on a plausible edge. *Do not tune the spread legs, the z-score
+window, or the thresholds to pass — that is where it would overfit, and the deflation/walk-forward/holdout
+cascade exists to punish it.*
 
 ## 12. The research workflow (the operational loop)
 
-**The idea lifecycle** (one hypothesis, birth to verdict):
+**The idea lifecycle** (one hypothesis, birth to verdict — now with the evidence layer):
 
 ```
 Trigger (human idea | regime flag | nightly schedule)
-  -> Frame the hypothesis      (Rationale agent: thesis + edge source; register)
-  -> Gather evidence           (Regime agent: analogues + risk memory)
-  -> Build and card it         (Model agent: pick template, fill model card)
-  -> Controlled validation     (Validation agent: walk-forward, regime, cost)   --> Ledger logs EVERY run
-  -> Gate cascade              (thesis->cost->deflation->priced-in->holdout)     <-- Skeptic attacks here
-  -> Verdict                   (reject | keep-as-research | regime-conditional | promote)
-  -> (loop back: drift / iterate)
+  -> Frame the hypothesis      (Rationale/researcher: thesis + edge source; register)
+  -> Card check                (carded? else reject — Gate 0 at the cards->gov boundary)
+  -> Gather evidence           (Regime/curator: analogues + risk memory)
+  -> Build as-of market state  (NEW R9 — Data agent: point-in-time, single door)
+  -> Replay through contracts  (NEW R12 — actual contracts/rolls/fills/costs/book)
+  -> EVIDENCE AUDIT            (NEW R13 — Backtest-QA + deterministic audit; FAIL -> reject)
+  -> Gate cascade              (thesis->cost->deflation->walk-forward->holdout)   <-- Skeptic attacks
+  -> Verdict                   (reject | research | regime-conditional | promote) --> Ledger logs EVERY run
+  -> Human go/no-go            (paper -> small -> scaled)
 ```
 
-The flow is one-directional and gated — an idea cannot skip from framed to promoted. The most common
-*useful* verdict is not a clean promote but "survives cost and walk-forward, only in high-backwardation →
-promote as a **regime-conditional** candidate." Promotion then stages paper → small → scaled.
+The flow is one-directional and gated — an idea cannot skip from framed to promoted, and it cannot reach
+the gates on contaminated evidence. The most common *useful* verdict is not a clean promote but "survives
+cost and walk-forward, only in high-backwardation → promote as a **regime-conditional** candidate." Nothing
+marks a strategy tradeable or allocates capital without the human.
 
-**The nightly pipeline** (the system running itself — same loop on a timer): ingest → rebuild the HDB
-**and recompute regime tags** → recalibrate → rerun the suite regime-conditionally → push the overnight
-exploration batch through the gate cascade → flag drift → regenerate the `COMMODITY_DESK` report. What
-greets you each morning is a **shortlist that already cleared the gates** plus a drift list — the only way
-one person scales to a whole market. (Deferred until §7's hardware/CI note is resolved; for now run by hand.)
+**The nightly pipeline** (the system running itself — same loop on a timer): ingest → rebuild the HDB +
+recompute regime tags + rebuild curve snapshots → recalibrate → rerun the suite regime-conditionally → push
+the overnight exploration batch through replay → evidence audit → the gate cascade → flag drift → regenerate
+the `COMMODITY_DESK` report. What greets you each morning is a **shortlist that already cleared the audit
+and the gates** plus a drift list. (Deferred until §7's hardware/CI note is resolved.)
 
 ## 13. Research OS migration roadmap (incremental, behind the suite, byte-identical)
 
 Same discipline as Part I: each step is additive, keeps the suite green and byte-identical, registers in
-`core/init.q`, updates the affected READMEs + `CHANGELOG.md` + this doc, and bumps `.qfdm.version`. **Build
-order is chosen for lowest risk and highest unblocking, not ambition.**
+`core/init.q`, updates the affected READMEs + `CHANGELOG.md` + this doc + `CLAUDE.md`, and bumps
+`.qfdm.version`. **Build order is chosen for lowest risk and highest unblocking, not ambition.**
 
-* **R1 — Regime layer (the seam). ← START HERE.** New `regime/` layer: Market State Engine v1 (§11.2) +
-  the `regimes` table (§11.1) + a regime-conditional performance breakdown that reuses
-  `.strategy.commodityBT.__perf`. Purely additive — the backtest engine is untouched (the breakdown is a
-  composition over daily PnL + labels), so the suite stays **373/0**, plus new synthetic tests (~375).
-  Unblocks R3, R4, R5.
-* **R2 — Contracts & registries. ✅ DONE (v0.68).** `core/registry.q`: a GENERIC registry (`.registry.*`)
-  + four per-kind registries each carrying a versioned CONTRACT — `.model.register` / `.signal.register` /
-  `.calibrator.register` / `.execution.fillModel.register` (+ `get`/`list`/`conforms`) — and a conformance
-  check that CAN FAIL (`.registry.conforms` / `.contracts.verify[]`: manifest-vs-contract, rejects a
-  deficient/type-mismatched/wrong-version plug-in). `core/registry_populate.q` registers the four existing
-  capabilities (handles to the unchanged `.engine.priceOption` / `.strategy.path.commoditySignals` /
-  `.commodity.calibrateCurve` / `.exec.fill`), all passing verify; strategies keep their own
-  `.strategy.register` (not rebased). `docs/CONTRACTS.md`; demo `apps/examples/registry_inventory.q`.
-  Formalises the spine's docking interface — metadata only, no compute change, byte-identical. BOUNDED:
-  the mechanism + contracts + registering what exists + a conformance test, NOT a call-site migration. The
-  foundation R5/R6/R7 plug into.
-* **R3 — Governance. ✅ DONE (v0.65).** `gov/gov.q` (`.gov.*`): the `hypotheses` registry + the
-  append-only `trials` ledger (the honest N), the **deflated-Sharpe** core (PSR/DSR, Bailey & López de
-  Prado; `.gov.phiInv` Acklam inverse-normal added, `Phi` reuses `.validation.__normalCdf`), and the
-  ordered **gate cascade** (thesis → cost → deflated Sharpe → walk-forward; stop-at-first-failure, +
-  post-hoc flag). The **non-optional** logging wrapper `.gov.run` logs a trial per regime bucket THEN
-  evaluates, so the backtest ENGINE is never touched (byte-identical). Reuses `.strategy.commodityBT.__splits`
-  (causal walk-forward, as `.alloc.compare` does) + `__perf`. Demo `apps/examples/gov_gate_momentum.q`
-  kills the tempting contango/flat momentum slices on cost + deflation + the post-hoc penalty.
-* **R3b — Sealed holdout + fail-safe verdicts. ✅ DONE (v0.66).** Completes the cascade: the three data
-  zones (`.gov.zone.*` — train/validate/holdout by `.cfg.gov.zones`; gates 0-3 see `trainValidate` only,
-  holdout is the most-recent slice), the ONE-SHOT holdout gate (`.gov.holdout.read` the sole reader;
-  `.gov.holdoutGate` records the look immutably — one look per hypothesis, ever; a second call returns the
-  recorded verdict), and `.gov.runFull` (restrict → gates 0-3 per bucket → holdout only if a bucket earns
-  it). Fail-safe verdict: a `tradeable` boolean (true IFF every gate passed); a gate FAILURE → `reject`/
-  `research`, NEVER tradeable — fixing the R3 hole where a deflation-failed slice wore `regimeConditional`.
-  Gov-side date slicing only; no engine/backtest/regime edits (byte-identical). **Deferred → later (not
-  built):** the **"what's PRICED IN" gate** (a faithful version needs options-surface / positioning data
-  the HDB does not have — deliberately not faked with a stub).
+**Built (R1–R8):**
+
+* **R1 — Regime layer. ✅ DONE (v0.64).** `regime/` Market State Engine v1 + the `regimes` table + a
+  regime-conditional performance breakdown; additive, the backtest engine untouched.
+* **R2 — Contracts & registries. ✅ DONE (v0.68).** `core/registry.q`: the generic `.registry.*` + four
+  per-kind versioned-contract registries + `.contracts.verify` (bites). Registers the four existing
+  capabilities as handles to unchanged functions. Metadata only, byte-identical.
+* **R3 — Governance. ✅ DONE (v0.65).** `gov/gov.q`: the `hypotheses` registry + the append-only `trials`
+  ledger + deflated Sharpe + the ordered gate cascade (thesis → cost → deflated Sharpe → walk-forward) via
+  the non-optional `.gov.run`. The backtest engine is never touched.
+* **R3b — Sealed holdout + fail-safe verdicts. ✅ DONE (v0.66).** Three data zones, the one-shot holdout
+  gate, `.gov.runFull`, and the `tradeable` boolean (a gate failure is never tradeable). The "priced-in"
+  gate is deferred (needs surface/positioning data the HDB lacks — not faked).
 * **R4 — Regime / Analogue Library + risk memory. ✅ DONE (v0.67).** `docs/REGIME_LIBRARY.md` + the
-  `regimeEpisodes` table (`regime/analogue.q`, `.regime.library.*`, dominant fingerprints computed from
-  `regimes`) + the analogue-query function (`.regime.analogue.distance`/`.nearest`/`.forDate` — state-space
-  distance, nearest-episode retrieval with risk memory). In-HDB windows only (no fabricated fingerprints);
-  `regime/` stays LOW (no gov/backtest import). Knowledge plug-ins. Demo `apps/examples/regime_analogue_today.q`.
-* **R5 — Model Cards. ✅ DONE (v0.69).** `cards/cards.q` (`.cards.*`) + `docs/MODEL_CARDS.md` + the
-  `modelCards` table (curated in `.cfg.cards`, built by `scripts/build_model_cards.q`): a structured card
-  per capability synthesising the R2 contract + assumptions + the named edge source + regime applicability +
-  the linked R4 risk memory + a VALIDATION STATUS **derived** from the gov ledger (`.cards.validationStatus`
-  recomputes the deflated Sharpe via `.gov.deflatedSharpe` + reads the holdout outcome; `ungated` when
-  nothing is logged, `tradeable` only if the sealed holdout passed — never asserted). `.cards.audit[]` CAN
-  FAIL: it flags undocumented registered capabilities, cards missing a required section, signal/strategy
-  cards with no named edge, and orphan cards. A HIGH layer (reads registries + gov + regime library;
-  imported by nothing below it); never opens the HDB at import. Demo `apps/examples/model_card_show.q`. The
-  knowledge plug-in that makes the system legible; the natural home Gate 0 / R6 / R7 read from. (A future
-  refinement could wire gov Gate 0 to require "has a card with a populated failure-mode field".)
-* **R6 — Problem-template abstraction. ✅ DONE (v0.70).** `templates/` (`.template.*`): the `template` kind
-  on `.registry.*` (contract = the uniform `pnl`validation`meta output; conformance bites), with
-  **directionalSignal** as a faithful wrapper (delegates to the unchanged signal+backtest path — per-day PnL
-  byte-identical, proven by `test_directional_template_faithful`) and **relativeValue** as a genuinely
-  different shape (a crude calendar-spread mean-reversion with its OWN spread-stationarity gate
-  `.template.rv.stationarity` that rejects a random-walk spread before the universal gates run; edge source
-  structural). `templates/` composes signals/backtest/execution, is independent of `gov/` (the demo wires
-  template output → `.gov.runFull`). Demo `apps/examples/relative_value_template.q`. The precondition for
-  vol/optimal-execution/deep-hedging templates (a named deferral — not built here) and the shape R7's agents
-  instantiate.
-* **R7 — Agent workforce. ✅ DONE (v0.72).** Six bounded role prompt docs (`agents/{researcher,validator,
-  skeptic,logger,curator,lead}.md` + `agents/ORCHESTRATION.md`, not loaded by init) + a thin executable loop
-  `workflow/workflow.q` (`.workflow.run`) that COMPOSES `.gov`/`.cards`/`.template`/`.regime` into the
-  single-process loop (researcher → curator → validator → skeptic → logger → lead) and returns a
-  human-escalation packet. BOUNDED by construction: no path allocates / trades / marks tradeable without all
-  gates passing; the packet always defers to the human (`apps/examples/research_loop.q`). The merge gate is
-  the full suite + `test-runner`. **Deferred:** the multi-agent orchestration (worktrees / Agent Teams /
-  Dynamic Workflows) parallelises this same loop behind the same merge gate. **R1–R7 complete.**
+  `regimeEpisodes` table + the analogue query. In-HDB windows only; `regime/` stays LOW.
+* **R5 — Model Cards. ✅ DONE (v0.69).** `cards/cards.q` + `docs/MODEL_CARDS.md` + the `modelCards` table;
+  validation status DERIVED from the gov ledger; `.cards.audit[]` bites.
+* **R6 — Problem-template abstraction. ✅ DONE (v0.70).** `templates/`: the `template` kind +
+  directionalSignal (faithful) + relativeValue (own stationarity gate).
+* **R7 — Agent workforce. ✅ DONE (v0.72).** Six bounded role docs + `workflow/workflow.q`; the
+  human-escalation packet; bounded by construction.
+* **R8 — Factor decomposition (PCA). ✅ DONE (v0.73).** The first shape ON the spine: `factor/factor.q`
+  (`.factor.*`, deterministic power-iteration PCA into level/slope/curvature + residuals, pinned sign
+  convention) + the `factorRelativeValue` template (own factor-stability + residual-stationarity gates),
+  carded + gated. Demo finds no tradeable edge honestly; k/lookback left untuned.
 
-* **R8 — Factor decomposition (PCA). ✅ DONE (v0.73).** The **FIRST research shape built ON the completed
-  spine** — not new infrastructure, but the realisation of the problem-template abstraction's "PCA /
-  stochastic control / deep hedging all plug in" promise, for the first one. A new analytical CAPABILITY
-  (`factor/factor.q`, `.factor.*`: PCA of the curve into level/slope/curvature + residuals by deterministic
-  power iteration + Hotelling deflation — q has no built-in eig — with a pinned init/tol + a front-positive
-  sign convention, so it is byte-identical and known-answer testable) plus a new problem TEMPLATE
-  (`factorRelativeValue`: fade the curve's cumulative residual from its k-factor shape, with its own
-  factor-stability + residual-stationarity gates), both plugged into the finished spine — registered via R2,
-  carded via R5 (with real failure modes), gated through R3/R3b, regime-aware via the R4 skeptic, run through
-  the R7 bounded workflow. Its own overfitting risk (the choice of k and the lookback) is exactly what the
-  deflation + walk-forward + holdout cascade exists to catch, so it doubles as a stress-test of the gates.
-  Demo `apps/examples/factor_relative_value.q`. The template the stochastic-control / deep-hedging work will
-  follow: a new capability + a new problem-template, the same contracts, cards, gates, and bounded workflow.
+**Planned (R9–R16) — the evidence layer (§11.8):**
 
-**Deferred (unchanged):** IPC services and cloud CI / scheduled pipeline — until production onboarding or
-adequate hardware (§6, §7).
+* **R9 — Point-in-time market state + as-of discipline. ✅ DONE (v0.74).** New `state/`: the single as-of
+  accessor `.state.asof` (the only door to history, wrapping the unchanged `.data.hdb.*` query layer with a
+  `date<=asOf` filter + provenance logging; revision-aware by design via `validDate`) and the Market State
+  object `.state.build` (a lazily-assembled dict: curve, spreads, features placeholder, as-of universe,
+  cost/roll refs). No-look-ahead invariants as enforceable synthetic checks (`.state.invariant.*`, which R13
+  reuses). Registered via R2 (`state` kind), carded via R5. Additive — does NOT rewire the existing direct
+  readers (byte-identical). Unblocks R10–R16; R9 + R13 close the loop (the door prevents look-ahead by
+  construction, the evidence audit proves it by reading the provenance). (Parameter `asOf`, never the keyword
+  `asof`.) Demo `apps/examples/market_state_asof.q`.
+* **R10 — Curve engine. ← NEXT.** New `curve/`: `.curve.build` (clean per-date curve, spreads, roll yield,
+  slope/curvature, contango/backwardation, curve shocks) + immutable `curveSnapshots`. Generalises the
+  regime layer's curve derivation. Carded, conformance-checked.
+* **R11 — Roll discipline.** New `roll/`: `.cfg.rolls` + `.roll.active` (as-of-only active-contract
+  mapping) + `rollEvents`. Trade actual contracts; the continuous series is a derived view only.
+* **R12 — Event-driven replay engine + extended execution.** The keystone. `backtest/` gains a replay mode
+  (a deterministic fold over dates emitting the auditable `replayRuns` record — book, fills, roll events,
+  per-step PnL); `.exec` extends for as-of participation + roll-window penalty. Replay is the promotion
+  gate. Frictionless default byte-identical.
+* **R13 — Evidence audit.** New `evidence/`: `.evidence.audit[replayRun]` — the deterministic pre-gate
+  (no look-ahead, no expired/out-of-universe trade, roll respected, costs applied, book ties to fills, PnL
+  ties to positions+moves, date-range containment cross-check). Wired as a hard precondition (FAIL →
+  reject, gates never run), exactly like carded gating; `gov/` not modified. The Backtest-QA agent reasons
+  about what the rule-based audit cannot encode.
+* **R14 — Seasonality + carry.** New `season/` + `carry/`: same-month z-scores + carry signal + implied
+  convenience yield, merged into the Market State features. The features R16 is built on.
+* **R15 — PnL explain + bucketed curve risk.** `analytics/` gains `.risk.attribution`: PnL split into
+  curve/slope/curvature/carry/residual + bucketed deltas per tenor. The quantitative "name which edge."
+* **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion.** A new
+  `template`, run replay → evidence audit → gate cascade → regime skeptic → human. The first end-to-end
+  exercise of the evidence layer on a plausible edge. Do NOT tune to pass.
+* **Then:** re-run the R8 `factorRelativeValue` on the realistic replay foundation — its first verdict that
+  is judged on audited evidence rather than vectorised PnL.
 
-**High-value first slice for the edge-and-honesty goal: R1 + R3** (regime-conditional evaluation +
-governance/ledger). That pair is what converts "backtest more strategies" from a liability into something
-safe, and it is the part of this whole design that most separates a modelling demo from quant research.
+**Deferred (unchanged):** the "priced-in" gate; the drift monitor; IPC services and cloud CI / scheduled
+pipeline (§6, §7); pricing extensions (commodity swaps, Asian / spread options — §9 of the external
+standard); dashboards; fundamental-event and volatility-risk-premium strategies (need data we lack); power
+specialization (no power data) — added only when a named edge or a real need justifies them.
+
+**High-value first slice: R9 + R12 + R13** (point-in-time state + replay + evidence audit) — that triple is
+what converts every gate verdict from rigorous-in-principle to rigorous-in-fact, and it is the part of this
+whole design that most separates a modelling demo from a commodities-desk research system.
 
 ## 14. Conventions (carried from §8; apply to every Research OS step)
 
 Byte-identical discipline · synthetic tests only · additive (don't touch working engine code paths) ·
 register new modules in `core/init.q` (no auto-discovery) · shell/process hygiene (`</dev/null`,
-`exit 0;`, foreground quick / background+WAIT full, no `mkdir`, no cleanup, no orphan q) · group-run
-during dev, full suite as the gate · q source cautions (no bare `/`, no shadowing, `exp neg`, `floor`
-percentile, inner lambdas) · update every affected README + `CHANGELOG.md` + this doc + bump
-`.qfdm.version` · never stage/commit without approval. Source of truth: `CLAUDE.md` +
-`.claude/skills/q-pricing/SKILL.md`.
+`exit 0;`, group-run via the read-only `test-runner` during dev / full suite from the MAIN THREAD as the
+gate, backgrounded + WAIT, no `mkdir`, no cleanup, no orphan q) · don't anchor on a target test count, set
+docs to the REAL count · q source cautions (no bare `/`, no shadowing — including the keyword `asof`, use
+`asOf`; `exp neg`, `floor` percentile, inner lambdas) · update every affected README + `CHANGELOG.md` +
+this doc + `CLAUDE.md` + bump `.qfdm.version` · never stage/commit without approval. Source of truth:
+`CLAUDE.md` + `.claude/skills/q-pricing/SKILL.md`.
+
+**Carried-over non-negotiables, evidence-layer additions:**
+
+1. **Point-in-time, enforced at one chokepoint.** The as-of accessor (`.state.asof`) is the only door to
+   history for foundation code; nothing reads raw partitions directly.
+2. **The gates are only as honest as the evidence.** No PnL reaches the gate cascade without passing the
+   deterministic evidence audit (R13). The audit is fail-safe: a contaminated run is rejected, not judged.
+3. **Trade actual contracts.** Roll rules are config-driven and as-of-only; the continuous-adjusted series
+   is a derived view for analytics, never the thing traded.
+4. **Replay is the promotion gate.** A strategy is not viable until it survives event-driven replay, the
+   evidence audit, and the full gate cascade — and a human signs off. Capital stages paper → small → scaled.

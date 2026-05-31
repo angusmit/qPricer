@@ -367,6 +367,10 @@
     "tests/factor/test_factor_pca.q";
     "tests/factor/test_factor_template.q");
 
+.test.stateFiles:(
+    "tests/state/test_asof_accessor.q";
+    "tests/state/test_market_state.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -491,6 +495,7 @@
     (`templates;  .test.templatesFiles);
     (`workflow;   .test.workflowFiles);
     (`factor;     .test.factorFiles);
+    (`state;      .test.stateFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---
