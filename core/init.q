@@ -106,6 +106,10 @@
 \l backtest/commodityStrategies.q
 / Portfolio (strategy allocation optimizer; consumes backtest returns)
 \l portfolio/portfolio.q
+/ Templates (Research OS R6: problem-template abstraction; composes signals/backtest/
+/ execution; registered as a `template` kind; independent of gov - loads before it)
+\l templates/template.q
+\l templates/relative_value.q
 / Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
 / + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
 \l gov/gov.q
@@ -117,4 +121,4 @@
 \l core/registry_populate.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.69";
+.qfdm.version:"0.70";

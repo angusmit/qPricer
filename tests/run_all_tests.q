@@ -351,6 +351,11 @@
     "tests/cards/test_cards_validation_status.q";
     "tests/cards/test_cards_audit.q");
 
+.test.templatesFiles:(
+    "tests/templates/test_template_registry.q";
+    "tests/templates/test_directional_template_faithful.q";
+    "tests/templates/test_relative_value.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -472,6 +477,7 @@
     (`gov;        .test.govFiles);
     (`registry;   .test.registryFiles);
     (`cards;      .test.cardsFiles);
+    (`templates;  .test.templatesFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.69 &nbsp;|&nbsp; **Tests:** 389 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.70 &nbsp;|&nbsp; **Tests:** 392 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -60,6 +60,7 @@ without colliding, with the test suite as the merge gate.
 | `apps/` | examples + demos | built |
 | `regime/` | **(NEW — Part II)** market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
 | `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
+| `templates/` | **(NEW — Part II)** problem templates (`.template`) — research-shape plug-in: directional (faithful) + relativeValue | **built (v0.70, R6)** |
 | `cards/` | **(NEW — Part II)** model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
 | `agents/` | **(NEW — Part II)** bounded research-agent prompt definitions | **to build (R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
@@ -436,9 +437,16 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   imported by nothing below it); never opens the HDB at import. Demo `apps/examples/model_card_show.q`. The
   knowledge plug-in that makes the system legible; the natural home Gate 0 / R6 / R7 read from. (A future
   refinement could wire gov Gate 0 to require "has a card with a populated failure-mode field".)
-* **R6 — Problem-template abstraction.** Generalise the strategy contract into a problem template; ship
-  one new template beyond directional (e.g. a relative-value or a control / deep-hedging stub) to prove
-  the abstraction. Capability + template plug-ins.
+* **R6 — Problem-template abstraction. ✅ DONE (v0.70).** `templates/` (`.template.*`): the `template` kind
+  on `.registry.*` (contract = the uniform `pnl`validation`meta output; conformance bites), with
+  **directionalSignal** as a faithful wrapper (delegates to the unchanged signal+backtest path — per-day PnL
+  byte-identical, proven by `test_directional_template_faithful`) and **relativeValue** as a genuinely
+  different shape (a crude calendar-spread mean-reversion with its OWN spread-stationarity gate
+  `.template.rv.stationarity` that rejects a random-walk spread before the universal gates run; edge source
+  structural). `templates/` composes signals/backtest/execution, is independent of `gov/` (the demo wires
+  template output → `.gov.runFull`). Demo `apps/examples/relative_value_template.q`. The precondition for
+  vol/optimal-execution/deep-hedging templates (a named deferral — not built here) and the shape R7's agents
+  instantiate.
 * **R7 — Agent workforce.** `agents/` prompt files for the six roles; wire to Claude Code orchestration
   later (worktrees / Agent Teams / Dynamic Workflows) with the suite + `test-runner` as the merge gate.
 

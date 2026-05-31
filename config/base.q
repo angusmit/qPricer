@@ -141,6 +141,12 @@
     `trainFrac`validateFrac!(0.6;0.2);
     0.25);
 
+/ --- templates layer: relativeValue problem template (templates/relative_value.q), R6 ---
+/ lookback/entryZ drive the causal mean-reversion z-score (fade extremes); notional scales
+/ the position; txnCostRate feeds the fill model; deferredIdx picks the deferred leg for the
+/ calendar spread; maxAr1 is the spread-stationarity bar (AR(1) coef below this = mean-reverting).
+.cfg.templates.rv:`lookback`entryZ`notional`txnCostRate`deferredIdx`maxAr1!(60;1.5;1f;0.0005;1;0.98);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
