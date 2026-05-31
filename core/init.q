@@ -113,6 +113,9 @@
 / Backtest (strategy engine + strategies)
 \l backtest/strategy.q
 \l backtest/commodityStrategies.q
+/ Replay (Research OS R12: the event-driven replay engine; composes state/curve/roll/execution +
+/ the signal path downward; a NEW path that reuses the UNCHANGED .exec.fill; opens nothing at import)
+\l backtest/replay.q
 / Portfolio (strategy allocation optimizer; consumes backtest returns)
 \l portfolio/portfolio.q
 / Factor decomposition (Research OS R8: curve PCA capability; reads data/ downward; loads
@@ -137,4 +140,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.76";
+.qfdm.version:"0.77";

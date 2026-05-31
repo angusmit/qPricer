@@ -253,7 +253,7 @@ For each q error, explain:
 
 ### q literal and comment syntax cautions
 
-These two cautions catch silently invalid q source that parses or runs without an obvious error and only manifests when a function is later called or proves to be missing.
+These cautions catch silently invalid q source that parses or runs without an obvious error and only manifests when a function is later called or proves to be missing. This list is **append-only and grows as new traps are found** — every milestone folds the lessons it hit back in here, so each trap is paid for once and never again.
 
 **1. Typed numeric vector literal rule**
 
@@ -315,7 +315,7 @@ Code review check: scan q source files for any line consisting solely of `/` (no
 
 **3. q is right-associative; parenthesise mixed-arity expressions**
 
-q evaluates expressions right-to-left with uniform precedence. `2*metricCount=count rows` parses as `2*(metricCount=count rows)`, not `(2*metricCount)=count rows`. Likewise `string foo,")"` parses as `string (foo,")")` rather than `(string foo),")"`. Always bracket explicitly when mixing comparison, arithmetic, or function-application operators on the same line, especially in test assertions and print-line concatenations.
+q evaluates expressions right-to-left with uniform precedence. `2*metricCount=count rows` parses as `2*(metricCount=count rows)`, not `(2*metricCount)=count rows`. Likewise `string foo,")"` parses as `string (foo,")")` rather than `(string foo),")"` — wrap each conversion in parens, `(string foo),")"`, in every print-line concatenation (a bare `string x,"y"` threw `'type` and crashed the R12 demo's print loop). And a second difference (butterfly/curvature) must be written `(near+far)-2*mid`, NOT `near-2*mid+far` — the latter parses as `near-(2*mid+far)` and bit the R10 curve engine's curvature. Always bracket explicitly when mixing comparison, arithmetic, or function-application operators on the same line, especially in test assertions and print-line concatenations.
 
 **4. `~` (match) is strict on type; `=` is not**
 
@@ -331,7 +331,7 @@ The result of `select … by key from t` is a keyed table. Direct column indexin
 
 **7. Avoid q built-ins as variable/column/namespace names**
 
-In addition to obvious cases (`value`, `count`, `select`, `key`, `type`, `string`, `first`, `last`, `sum`, `avg`, `min`, `max`, `exp`, `log`, `sqrt`), the keyword `rank` is also reserved and will trigger `'assign` errors when used as a table-literal column name. Prefer descriptive names like `offenderRank`, `breachRank`, `optionValue`, `tradeCount`. Function parameters named `value` can also surface as `'match` errors at the lambda-definition site — rename to `atomValue` etc.
+In addition to obvious cases (`value`, `count`, `select`, `key`, `type`, `string`, `first`, `last`, `sum`, `avg`, `min`, `max`, `exp`, `log`, `sqrt`, `asof`), the keyword `rank` is also reserved and will trigger `'assign` errors when used as a table-literal column name. Prefer descriptive names like `offenderRank`, `breachRank`, `optionValue`, `tradeCount`. Function parameters named `value` can also surface as `'match` errors at the lambda-definition site — rename to `atomValue` etc.
 
 **8. q lambdas allow at most 8 explicit parameters**
 
@@ -388,6 +388,14 @@ When a strategy's position evolves mid-path (legs created/retired), keep the leg
 **21. Inner lambdas can't see outer locals — inline or project tightly**
 
 When you build helpers inside a function (`corOne:{...}; rowBuilder:{[i;pnls] corOne[pnls i;] each pnls}` inside a parent lambda), the inner `rowBuilder` will fail with `'corOne` at call time because q lambdas don't capture outer locals (rule #5). Either inline the helper into the place that needs it (`{[i;...] {...}[...] each ...}[;captured] each ...`), or pass it explicitly in via a projection. Most natural for matrix-builder-style code: write the whole double `each` inline with projection-captured arguments.
+
+**22. `asof` is a built-in keyword, and a param sharing a column's name self-compares to always-true**
+
+Two related parameter-naming traps in date/commodity code (both repeatedly hit across R9–R12): (a) `asof` is the q **as-of-join** keyword — never name a parameter or local `asof`; use **`asOf`** (the R9–R12 accessor/door/replay all standardised on `asOf`). (b) Never give a parameter the SAME name as a table column it filters on inside qSQL: a function `{[commodity] select from futures where commodity=commodity}` makes `where commodity=commodity` compare the COLUMN to itself — **always true**, silently returning every row. Use a distinct param name (`comm`, not `commodity`); the same applies to any `where col=col` where `col` is also the param. These parse and run without error — the bug is a wrong (over-broad) result set.
+
+**23. A value immediately followed by `` `.ns.name `` parses the `.` as dot-apply, not a namespace path**
+
+`(c\`price) .cfg.regime\`flatThreshold` does NOT index `c\`price` and then read a config value — q reads the ` .` as the **Apply/index operator** and evaluates `.[c\`price; cfg.regime\`flatThreshold]` (apply the price vector at that index), usually surfacing as `'type`/`'index` or a silent wrong value. Bind the namespaced config to a local FIRST (`thr:.cfg.regime\`flatThreshold; ... use thr`), or fully parenthesise both operands. This bit the R10 curve engine reading `.cfg.regime` thresholds.
 
 ## q/kdb+ naming and namespace rules
 

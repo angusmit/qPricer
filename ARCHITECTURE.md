@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.76 &nbsp;|&nbsp; **Tests:** 405 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.77 &nbsp;|&nbsp; **Tests:** 407 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -61,8 +61,8 @@ without colliding, with the test suite as the merge gate.
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
 | `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf; **(NEW)** bucketed-curve PnL explain (`.risk.attribution`) | built; attribution **planned (R15)** |
 | `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` + `carry/` **planned (R14)** |
-| `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** extended for replay realism (participation cap vs as-of volume, roll-window penalty) | built; extension **planned (R12)** |
-| `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** alongside research mode, emitting an auditable run record | built; replay mode **planned (R12)** |
+| `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** additive realism functions for replay (`.exec.participationCap` vs as-of volume, `.exec.rollPenalty` on the rolled exposure) | built; realism extension **built (v0.77, R12)** |
+| `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** (`.backtest.replay.*`) alongside research mode, emitting an auditable run record | built; replay mode **built (v0.77, R12)** |
 | `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it | **planned (R13)** |
 | `portfolio/` | cross-strategy allocator (`.alloc`) | built |
 | `services/` | optional IPC gateway / HDB service / workers | **reserved (deferred)** |
@@ -417,16 +417,26 @@ analytics only — back-adjustment rewrites past levels at each roll, so it is n
 thing traded (exactly the common commodity-backtest error this prevents). Registered as a `roll` kind
 (conforms); carded (`card_rollEngine`). Demo `apps/examples/roll_discipline.q`.
 
-**(d) The event-driven replay engine + extended execution — `.backtest.replay.*`, `.exec.*` (R12).** The
-keystone. The loop is a deterministic **fold over the trading dates** — `(/)` accumulating a state record
-`(book; cash; pnl; log)` across dates, each step a pure function `step[state; asOf] -> state'` that calls
-the accessor, the signal/template, the (extended) execution model, and the PnL engine. Purity per step is
-what makes the run reproducible and auditable: the entire decision trail is the accumulated `log`, written
-as the `replayRuns` record (every data access via the accessor, every fill, every roll event, the position
-book, the per-step PnL components). Research mode reuses the *same* signal and cost functions vectorised
-over the panel, so a replay result can be diffed against the research result. Replay mode is the promotion
-gate (the external standard's "gate 8"). Execution extends `.exec` for participation-vs-as-of-volume and a
-roll-window penalty; frictionless default stays byte-identical.
+**(d) The event-driven replay engine + extended execution — `.backtest.replay.*`, `.exec.*` (R12) — DONE (v0.77).**
+The keystone. The loop is a deterministic **fold over the trading dates** — `step\[seed; rows]` accumulating a
+state record `(book; cash; pnl; runRecord)`, each step a pure function `step[state; row] -> state'` that builds
+the as-of slice (R9), decides the active contract **as of the prior date** (R11's `days_before_expiry` engine —
+the causally-honest convention that tracks the research `heldSeq`), re-derives the as-of return on that
+contract, generates the order (target − current + carry), fills via the **unchanged** `.exec.fill` (+ opt-in
+realism), and books PnL (price − cost − financing). Purity per step is what makes the run reproducible and
+auditable: the decision trail is the `runRecord` (`meta`steps`rollEvents`provenance — every fill, every roll
+event, the position book, the per-step PnL components, and the per-step as-of provenance cross-referencing
+R9's `.state.provLog`); persisted opt-in to the splayed, UNPARTITIONED `replayRuns`. The replay REUSES the
+causal signal→target (the unchanged research run — the R6 faithful-delegation precedent) and INDEPENDENTLY
+re-derives the as-of execution, so `.backtest.replay.faithfulness` is the **look-ahead detector**: a
+frictionless replay reproduces the research-mode PnL byte-for-byte on every date where the roll map names the
+same contract (real CRUDE: research `0.3175637` == replay `0.3175637`); a divergence there is look-ahead or a
+roll/fill bug (the trailing data-edge dates, where research holds a delisted contract, are reported separately,
+not hidden). Execution adds `.exec.participationCap` (cap a fill at a fraction of as-of volume) + `.exec.rollPenalty`
+(charge the rolled exposure on a roll date) — **NEW additive functions, NOT edits to `.exec.fill`**; the
+frictionless default (`.cfg.replay` all off/zero) keeps every canonical byte-identical and the §4
+`deltaPV==stepPnl` invariant intact. Replay mode is the promotion gate (the external standard's "gate 8").
+Demo `apps/examples/replay_engine.q`.
 
 **(e) The evidence audit — `.evidence.*` (R13).** A deterministic function `.evidence.audit[replayRun]` →
 a pass/fail report, run by the workflow *between the replay and the gates* (a hard precondition, like
@@ -547,11 +557,14 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   analytics-only back-adjusted view). Rules days_before_expiry (default, blend window) / volume_switch /
   fixed_calendar; oi_switch flagged unavailable (no OI in the HDB). Trade actual contracts; the continuous
   series is a derived view only. Registered (`roll` kind, conforms); carded. Demo `apps/examples/roll_discipline.q`.
-* **R12 — Event-driven replay engine + extended execution. ← NEXT.** The keystone. `backtest/` gains a replay mode
-  (a deterministic fold over dates emitting the auditable `replayRuns` record — book, fills, roll events,
-  per-step PnL); `.exec` extends for as-of participation + roll-window penalty. Replay is the promotion
-  gate. Frictionless default byte-identical.
-* **R13 — Evidence audit.** New `evidence/`: `.evidence.audit[replayRun]` — the deterministic pre-gate
+* **R12 — Event-driven replay engine + extended execution. ✅ DONE (v0.77).** The keystone. `backtest/replay.q`
+  (`.backtest.replay.*`): a deterministic fold over dates composing R9 (as-of door) + R11 (active contract, decided
+  as of the prior date) + the unchanged `.exec.fill`, emitting the auditable `replayRuns` record (book, fills, roll
+  events, per-step PnL components, as-of provenance). `.exec` gains the additive `.exec.participationCap` +
+  `.exec.rollPenalty` (NOT edits to `.exec.fill`). `.backtest.replay.faithfulness` is the look-ahead detector — a
+  frictionless replay reproduces research PnL byte-for-byte where the roll map agrees (CRUDE 0.3175637==0.3175637).
+  Frictionless default byte-identical; replay is the promotion gate. Demo `apps/examples/replay_engine.q`.
+* **R13 — Evidence audit. ← NEXT.** New `evidence/`: `.evidence.audit[replayRun]` — the deterministic pre-gate
   (no look-ahead, no expired/out-of-universe trade, roll respected, costs applied, book ties to fills, PnL
   ties to positions+moves, date-range containment cross-check). Wired as a hard precondition (FAIL →
   reject, gates never run), exactly like carded gating; `gov/` not modified. The Backtest-QA agent reasons

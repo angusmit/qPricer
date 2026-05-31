@@ -69,4 +69,29 @@
         filledQty;fillPrice;proportionalCost;slippageCost;fixedCost;totalCost)
  };
 
+/ ----------------------------------------------------------------------------
+/ Execution-realism extensions (v0.77, Research OS R12) - ADDITIVE, opt-in.
+/ These are NEW pure functions the replay engine (backtest/replay.q) composes; they
+/ do NOT modify .exec.fill. With the replay defaults (.cfg.replay all off/zero) they
+/ are no-ops, so a frictionless replay calls the UNCHANGED .exec.fill and reproduces
+/ research-mode PnL to tolerance (the canonicals stay byte-identical).
+/ ----------------------------------------------------------------------------
+
+/ Participation cap: split a SIGNED order into (filled; remainder) given the as-of bar
+/ volume and a participation rate (fraction of volume tradeable in a day). rate<=0 or a
+/ null/absent barVolume -> no cap (filled=order, remainder=0). Otherwise the absolute fill
+/ is capped at rate*barVolume and the remainder carries the sign. Pure / known-answer testable.
+.exec.participationCap:{[order;barVolume;rate]
+    noCap:(rate<=0f) or (null barVolume) or (null rate);
+    $[noCap;
+        `filled`remainder!(order;0f*order);
+        [cap:rate*barVolume; filled:(signum order)*(abs order)&cap; `filled`remainder!(filled;order-filled)]]
+ };
+
+/ Roll penalty: the extra adverse cost of ROLLING the held exposure on a roll date (R11's roll map
+/ flags it). The difference-method return treats a roll as costless (no trade), so the realistic roll
+/ cost is charged on the ROLLED EXPOSURE = |position value| * penaltyBps. isRoll 0b / penaltyBps 0f
+/ -> 0 (so the frictionless replay is byte-identical). Pure. The replay adds it to the step's cost.
+.exec.rollPenalty:{[rolledNotional;isRoll;penaltyBps] $[isRoll; (abs rolledNotional)*penaltyBps%1e4; 0f]};
+
 -1 "execution.q loaded - .exec.* daily fill-and-cost layer ready";

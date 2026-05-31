@@ -182,6 +182,18 @@
     `type`rollDays`W`priceSource`method!(`days_before_expiry;14;5;`settle;`difference);
     `type`rollDays`W`priceSource`method!(`days_before_expiry;10;5;`settle;`difference));
 
+/ --- replay layer: the event-driven replay engine (backtest/replay.q), Research OS R12 ---
+/ The realism levers for replay mode, ALL OFF / ZERO by default so a frictionless replay uses the
+/ UNCHANGED .exec.fill and reproduces research-mode PnL to tolerance (byte-identical canonicals).
+/ participationRate = cap a daily fill at this fraction of the as-of bar volume (<=0 -> no cap);
+/ remainderPolicy = what to do with the unfilled remainder under a cap (`carry to next day / `drop);
+/ rollPenaltyBps = extra adverse slippage (bps of traded notional) on a roll date (R11 flags it);
+/ financingRate = annualised carry on the held position value (0 -> none). rollW = the R11 roll
+/ window for the replay's active-contract rule (1 -> switch exactly at rollDays, tracking the
+/ research-mode heldSeq so the frictionless replay is faithful).
+.cfg.replay:`participationRate`remainderPolicy`rollPenaltyBps`financingRate`annualizationDays`rollW!(
+    0f;`drop;0f;0f;252f;1);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of

@@ -379,6 +379,10 @@
     "tests/roll/test_roll_active.q";
     "tests/roll/test_roll_events_continuous.q");
 
+.test.replayFiles:(
+    "tests/replay/test_replay_loop.q";
+    "tests/replay/test_replay_execution.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -506,6 +510,7 @@
     (`state;      .test.stateFiles);
     (`curve;      .test.curveFiles);
     (`roll;       .test.rollFiles);
+    (`replay;     .test.replayFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---
