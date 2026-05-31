@@ -171,6 +171,17 @@
 / (0 = keep all positive-price tenors).
 .cfg.curve:`deferredIdx`flatThreshold`minVolume!(.cfg.regime`deferredIdx; .cfg.regime`flatSlopeThreshold; 0f);
 
+/ --- roll layer: per-commodity roll rules (roll/roll.q), Research OS R11 ---
+/ One rule per commodity (+ a `default fallback): type (days_before_expiry [the robust default,
+/ needs expiry only] / volume_switch [as-of volume] / fixed_calendar [rollDays-th day of the
+/ expiry month] / oi_switch [recognised but UNAVAILABLE - no OI column]), rollDays (days before
+/ expiry to roll, or the calendar day), W (the roll-window length, in days, over which old->new
+/ blends + the trailing-volume window), priceSource, and the continuous back-adjust method.
+.cfg.rolls:`CRUDE`GAS`default!(
+    `type`rollDays`W`priceSource`method!(`days_before_expiry;10;5;`settle;`difference);
+    `type`rollDays`W`priceSource`method!(`days_before_expiry;14;5;`settle;`difference);
+    `type`rollDays`W`priceSource`method!(`days_before_expiry;10;5;`settle;`difference));
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
@@ -247,6 +258,14 @@
     "reads through R9's as-of door (point-in-time by construction); slope+classification match regime/'s convention; snapshots assume a deterministic curve";
     `na;
     "any (a derived-curve capability, regime-agnostic)";
+    `na;`;"qFDM evidence layer";2026.05.31);
+/ Research OS R11: roll discipline (an as-of roll-mapping capability, edge `na).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_rollEngine;`roll;`rollEngine;`v1;
+    "As-of-only active-contract roll rules + roll events + a (clearly-labeled, analytics-only) continuous back-adjusted view";
+    "roll decisions use ONLY as-of data (through R9's door); trade the active contracts, NEVER the continuous series (non-point-in-time); no open interest in the HDB";
+    `na;
+    "any (an as-of roll-mapping capability, regime-agnostic)";
     `na;`;"qFDM evidence layer";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---

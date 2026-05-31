@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.75 &nbsp;|&nbsp; **Tests:** 403 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.76 &nbsp;|&nbsp; **Tests:** 405 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -56,7 +56,7 @@ without colliding, with the test suite as the merge gate.
 | `data/` | Barchart parser (standalone) + the splayed HDB (`.data.hdb.*`) | built |
 | `state/` | **(NEW — Part II)** the as-of accessor (the single door to history) + the Market State object (`.state.*`) — point-in-time discipline made enforceable | **built (v0.74, R9)** |
 | `curve/` | **(NEW — Part II)** the curve engine (`.curve.*`) — clean per-date curve, spreads, roll yield, slope/curvature, contango/backwardation, curve shocks; immutable daily snapshots | **built (v0.75, R10)** |
-| `roll/` | **(NEW — Part II)** config-driven roll rules (`.roll.*`) — active-contract mapping + roll events; trade actual contracts | **planned (R11)** |
+| `roll/` | **(NEW — Part II)** config-driven roll rules (`.roll.*`) — as-of-only active-contract mapping + roll events + analytics-only continuous view; trade actual contracts | **built (v0.76, R11)** |
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
 | `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf; **(NEW)** bucketed-curve PnL explain (`.risk.attribution`) | built; attribution **planned (R15)** |
@@ -405,12 +405,17 @@ non-determinism). Its slope + classification use the **same convention/threshold
 (sourced from `.cfg.regime`, asserted by a test) so the two never disagree about the curve — the
 precondition for rebasing regime/ onto it later. (Roll mapping is R11; regime/ is not yet rebased.)
 
-**(c) Roll discipline — `.roll.*` (R11).** Roll rules live in `.cfg.rolls` (one entry per commodity:
-type/days/window/price-source — days-before-expiry / OI-switch / volume-switch / fixed-calendar /
-multi-day). `.roll.active[asOf;commodity]` maps to the active contract(s) **deterministically from as-of
-data only** and emits `rollEvents` rows when the active contract changes. The backtester trades the
-contract the roll map names; the continuous-adjusted series is a *derived view* for analytics only, never
-the thing traded — exactly the common commodity-backtest error this prevents.
+**(c) Roll discipline — `.roll.*` (R11) — DONE (v0.76).** Roll rules live in `.cfg.rolls` (one entry per
+commodity: type/days/window/price-source). `.roll.active[asOf;comm]` maps to the active contract(s)
+**deterministically from as-of data only** (through R9's door, so a future bar cannot change a past
+decision — asserted by a planted-future-spike test) and `.roll.events[comm;from;to]` emits `rollEvents`
+rows when the active contract changes. Rules: `days_before_expiry` (default, with a multi-day held→next
+blend window), `volume_switch`, `fixed_calendar`; `oi_switch` is DESIGNED but FLAGGED unavailable — the
+HDB carries volume + expiry but **no open interest**, so requesting it errors rather than fabricating OI.
+The backtester trades the contract the roll map names; `.roll.continuous[comm]` is a *derived view* for
+analytics only — back-adjustment rewrites past levels at each roll, so it is non-point-in-time, never the
+thing traded (exactly the common commodity-backtest error this prevents). Registered as a `roll` kind
+(conforms); carded (`card_rollEngine`). Demo `apps/examples/roll_discipline.q`.
 
 **(d) The event-driven replay engine + extended execution — `.backtest.replay.*`, `.exec.*` (R12).** The
 keystone. The loop is a deterministic **fold over the trading dates** — `(/)` accumulating a state record
@@ -537,9 +542,12 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   Its slope/classification match the regime layer's convention (sourced from `.cfg.regime`, asserted by a
   test) so the two never disagree — the precondition for rebasing regime/ onto it later (not done now).
   Carded, conformance-checked (`curve` kind). Demo `apps/examples/curve_engine.q`.
-* **R11 — Roll discipline. ← NEXT.** New `roll/`: `.cfg.rolls` + `.roll.active` (as-of-only active-contract
-  mapping) + `rollEvents`. Trade actual contracts; the continuous series is a derived view only.
-* **R12 — Event-driven replay engine + extended execution.** The keystone. `backtest/` gains a replay mode
+* **R11 — Roll discipline. ✅ DONE (v0.76).** New `roll/`: `.cfg.rolls` + `.roll.active` (as-of-only
+  active-contract mapping, through R9's door) + `.roll.events` (`rollEvents`) + `.roll.continuous` (the
+  analytics-only back-adjusted view). Rules days_before_expiry (default, blend window) / volume_switch /
+  fixed_calendar; oi_switch flagged unavailable (no OI in the HDB). Trade actual contracts; the continuous
+  series is a derived view only. Registered (`roll` kind, conforms); carded. Demo `apps/examples/roll_discipline.q`.
+* **R12 — Event-driven replay engine + extended execution. ← NEXT.** The keystone. `backtest/` gains a replay mode
   (a deterministic fold over dates emitting the auditable `replayRuns` record — book, fills, roll events,
   per-step PnL); `.exec` extends for as-of participation + roll-window penalty. Replay is the promotion
   gate. Frictionless default byte-identical.

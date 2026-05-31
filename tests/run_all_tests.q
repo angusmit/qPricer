@@ -375,6 +375,10 @@
     "tests/curve/test_curve_engine.q";
     "tests/curve/test_curve_snapshot.q");
 
+.test.rollFiles:(
+    "tests/roll/test_roll_active.q";
+    "tests/roll/test_roll_events_continuous.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -501,6 +505,7 @@
     (`factor;     .test.factorFiles);
     (`state;      .test.stateFiles);
     (`curve;      .test.curveFiles);
+    (`roll;       .test.rollFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

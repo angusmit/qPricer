@@ -101,6 +101,9 @@
 / Curve (Research OS R10: the curve engine; consumes the state/ door downward; computes the
 / rich derived curve + shocks + immutable snapshots; opens nothing at import; does NOT rewire regime/)
 \l curve/curve.q
+/ Roll (Research OS R11: as-of-only roll discipline; depends on state/ door; independent of
+/ curve/; reads downward only; opens nothing at import; does NOT rewire existing readers)
+\l roll/roll.q
 / Regime (Research OS R1: market-state measurement; depends on data + signals)
 \l regime/regime.q
 / Regime analogue library + risk memory (Research OS R4; depends on data + regime core)
@@ -134,4 +137,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.75";
+.qfdm.version:"0.76";
