@@ -121,6 +121,10 @@
 / Replay (Research OS R12: the event-driven replay engine; composes state/curve/roll/execution +
 / the signal path downward; a NEW path that reuses the UNCHANGED .exec.fill; opens nothing at import)
 \l backtest/replay.q
+/ Attribution (Research OS R15: PnL explain + bucketed curve risk; a HIGH layer ABOVE backtest/ -
+/ consumes a replay run record + reads curve/ (R10 shock basis + rollYield) + state/ downward;
+/ opens nothing at import; does NOT touch analytics/ or cards/)
+\l attribution/attribution.q
 / Portfolio (strategy allocation optimizer; consumes backtest returns)
 \l portfolio/portfolio.q
 / Factor decomposition (Research OS R8: curve PCA capability; reads data/ downward; loads
@@ -149,4 +153,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.79";
+.qfdm.version:"0.80";

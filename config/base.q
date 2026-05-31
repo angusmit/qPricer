@@ -215,6 +215,12 @@
 / so the costs-applied check does not false-fail it). The audit BITES: any check fail -> overall fail.
 .cfg.evidence:`reconcileTol`requireCosts!(1e-8; 1b);
 
+/ --- attribution layer: PnL explain + bucketed curve risk (attribution/attribution.q), R15 ---
+/ reconcileTol = the tolerance for the decomposition reconciliation (level+slope+curvature+carry+
+/ residual == the run's realized total; the residual is the PLUG that absorbs the unexplained curve
+/ move + costs). buckets = the tenor bucket edges (years) for the bucketed curve delta.
+.cfg.attribution:`reconcileTol`buckets!(1e-8; 0 0.25 0.5 1 2 5f);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
@@ -314,6 +320,14 @@
     "implied carry comes from the curve; convenience yield + cash-and-carry fair value depend on the ASSUMED r+storage (.cfg.carry, NOT market-observed) and are flagged; the inventory-tightness is a PROXY from the degree of backwardation (no real inventory data); cash-and-carry assumes storability";
     `riskPremium;
     "storable commodities (the convenience-yield / cash-and-carry interpretation assumes storability)";
+    `na;`;"qFDM evidence layer";2026.05.31);
+/ Research OS R15: PnL attribution (a decomposition capability, edge `na - it explains a run, not trades).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_pnlAttribution;`attribution;`pnlAttribution;`v1;
+    "Decompose a replay run's realized PnL into level/slope/curvature/carry/residual (R10 shock basis) + the bucketed curve risk - the quantitative 'name which edge'";
+    "the level/slope/curvature axes ARE R10's parallel/slope/butterfly shock operators (not reinvented); the residual is the PLUG (realized - the four) and absorbs the unexplained curve move + costs; the carry attribution depends on R10's rollYield; reconciles to the realized total by construction";
+    `na;
+    "any (a PnL-decomposition capability, regime-agnostic)";
     `na;`;"qFDM evidence layer";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---

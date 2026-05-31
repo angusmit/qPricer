@@ -1,0 +1,21 @@
+# attribution/ — PnL explain + bucketed curve risk (Research OS R15)
+
+## Purpose
+Turn "explain why this makes money" from prose into a **quantitative attribution**. Given a replay run record (R12) + the curve (R10), decompose the realized PnL into **level / slope / curvature / carry / residual**, and compute the **bucketed curve risk** on the positions. This is the quantitative form of §10's "name which of the three edges": mostly **carry** ⇒ a harvested risk premium; mostly **slope/curvature** ⇒ a structural relative-value normalisation; a large **residual** ⇒ unexplained — a red flag for noise / overfit.
+
+## Layering (the correction)
+A **NEW HIGH layer ABOVE `backtest/`** — it **consumes a replay run record** (which lives in `backtest/`), so it canNOT live in `analytics/` (analytics/ is *below* backtest/; that would be an illegal upward dependency). ARCHITECTURE §11.8(g)'s earlier "extends `analytics/`" is corrected to this. It reads `backtest/` (the run record — a data structure), `curve/` (R10's curve + the parallel/slope/butterfly shock operators + `rollYield`), and `state/` (R9) — all downward. Loads after the backtest block; opens nothing at import. **ADDITIVE** — does not touch the existing `analytics/` risk functions and does not rewire `cards/`. Registered as an R2 `attribution` capability (`pnlAttribution`, conforms); carded (R5).
+
+## Modules
+- `attribution.q` — `.attribution.*`: the PnL decomposition + the bucketed risk.
+
+## Key API
+- `.attribution.pnl[run]` → `` `level`slope`curvature`carry`residual`total`residualFraction`reconciled ``. Per step, the active contract's price change splits as `P_t(τ_t) − P_{t-1}(τ_{t-1})` = **carry** (the roll-down along the *current* curve as the contract ages, `P_t(τ_t) − P_t(τ_{t-1})`) + the **curve shift** at the fixed tenor (`P_t(τ_{t-1}) − P_{t-1}(τ_{t-1})`). The shift is projected onto R10's parallel/slope/butterfly shapes (normal equations) → **level/slope/curvature**; the part the basis does not span is the curve residual. `residual` is **defined** as `realizedStepPnL − (level+slope+curvature+carry)`, so the five **always reconcile** to the realized total (it also absorbs costs/financing). `residualFraction = |Σresidual| / |total|`.
+- `.attribution.risk[run]` → the bucketed curve **delta** per tenor (the end position's $ sensitivity to a unit move per maturity bucket), the **roll-down exposure** (position × the end curve's `rollYield`), and the **calendar-spread exposure** on the end-of-run position.
+
+## Notes (the careful-reviewer points)
+- **Reconciliation** — `level+slope+curvature+carry+residual == realized total` within `.cfg.attribution.reconcileTol` (like R13's `pnlTies`); the residual is the plug. The non-trivial tests are: a **pure parallel** move → `level` (residual ≈ 0); a **pure slope** move on a *deferred* position → `slope` dominates (R10's slope/curvature shocks pivot on the front, so a front-only position has ~0 slope/curvature exposure by construction); a **pure roll-down** on a tenor-static backwardated curve → `carry`; an **out-of-basis** (zigzag) move → a **high residual fraction**.
+- The residual lumps together everything the basis does not span (a basis-spread or inter-commodity move lands in residual) — a large residual is "unexplained", which may be noise **or** a real unmodelled factor, so interpret with care. The carry attribution depends on R10's `rollYield` definition. Inter-commodity basis exposure is out of scope for a single-commodity run.
+- The attribution **feeds the model card's economic-rationale with numbers** — but auto-populating a card from it is a *consumer* concern (R16's strategy card), so `cards/` is **not** rewired here; the capability is provided + documented.
+- Reserved-name discipline: `asOf` not `asof`, `comm` not `commodity`; builtins (`lsq`/`mmu`/`inv`/`sum`/`avg`/`first`/`last`/`bin`) not shadowed; the basis is derived **from** R10's shock operators (not reinvented). Mind the backtick-index precedence: `(t)\`price - px` parses as `t[\`price - px]` — write `((t)\`price)-px`.
+- Demo: `apps/examples/pnl_attribution.q` (real CRUDE: the level/slope/curvature/carry/residual split + the residual fraction + the bucketed risk; reconciles to the realized total).

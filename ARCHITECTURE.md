@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.79 &nbsp;|&nbsp; **Tests:** 412 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.80 &nbsp;|&nbsp; **Tests:** 413 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -59,10 +59,11 @@ without colliding, with the test suite as the merge gate.
 | `roll/` | **(NEW — Part II)** config-driven roll rules (`.roll.*`) — as-of-only active-contract mapping + roll events + analytics-only continuous view; trade actual contracts | **built (v0.76, R11)** |
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
-| `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf; **(NEW)** bucketed-curve PnL explain (`.risk.attribution`) | built; attribution **planned (R15)** |
+| `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf | built (PnL attribution is NOT here — it must consume a replay run record from `backtest/`, so it is a HIGH layer `attribution/` above `backtest/`, R15) |
 | `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` (`.season.*`) + `carry/` (`.carry.*`) **built (v0.79, R14)** |
 | `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** additive realism functions for replay (`.exec.participationCap` vs as-of volume, `.exec.rollPenalty` on the rolled exposure) | built; realism extension **built (v0.77, R12)** |
 | `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** (`.backtest.replay.*`) alongside research mode, emitting an auditable run record | built; replay mode **built (v0.77, R12)** |
+| `attribution/` | **(NEW — Part II)** PnL explain + bucketed curve risk (`.attribution.*`) — level/slope/curvature/carry/residual on a replay run record + the curve; a HIGH layer ABOVE `backtest/` | **built (v0.80, R15)** |
 | `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it; fail-safe `gatedRun` precondition | **built (v0.78, R13)** |
 | `portfolio/` | cross-strategy allocator (`.alloc`) | built |
 | `services/` | optional IPC gateway / HDB service / workers | **reserved (deferred)** |
@@ -475,12 +476,22 @@ they let every strategy *attribute* its return to carry / inventory / seasonalit
 `carry` kinds, conform); carded (R5). Demo `apps/examples/season_carry.q`. (Complements the existing
 `signals/` seasonality alpha-library.)
 
-**(g) PnL explain + bucketed curve risk — `.risk.attribution` (R15, extends `analytics/`).** Given a
-position book + the curve, return an attribution dict: PnL split into curve-level / slope / curvature /
-carry / residual via the curve-shock operators (b), and risk as bucketed deltas per tenor, plus
-calendar-spread / basis / roll-down exposures. This is the quantitative form of "name which of the three
-edges" (§10) — it feeds the model card's economic-rationale field with numbers, so "explain why this makes
-money" becomes an attribution, not prose.
+**(g) PnL explain + bucketed curve risk — `.attribution.*` (R15) — DONE (v0.80).** A NEW HIGH layer
+`attribution/` ABOVE `backtest/` — **NOT** "extends `analytics/`" (the earlier wording): the attribution
+CONSUMES a replay run record, which lives in `backtest/`, so placing it in `analytics/` (which sits *below*
+`backtest/`) would be an illegal upward dependency. It reads `backtest/` (the run record), `curve/` (R10's
+curve + the parallel/slope/butterfly shock operators + `rollYield`) and `state/` (R9), all downward.
+`.attribution.pnl[run]` splits the realized PnL into curve-**level / slope / curvature** (the curve SHIFT at
+the fixed tenor, projected onto R10's shock operators (b) by least squares — not a second basis) + **carry**
+(the roll-down along the current curve as the held contract ages) + **residual** (the PLUG = realized −
+(level+slope+curvature+carry), absorbing the unexplained curve move + costs), and reports the **residual
+fraction**; the five reconcile to the realized total by construction (like R13's `pnlTies`).
+`.attribution.risk[run]` returns the bucketed deltas per tenor + calendar-spread / roll-down exposures. This
+is the quantitative form of "name which of the three edges" (§10) — mostly carry ⇒ risk premium, mostly
+slope/curvature ⇒ structural normalisation, a large residual ⇒ unexplained (noise/overfit). It feeds the
+model card's economic-rationale field with numbers (a consumer concern — `cards/` is not rewired here), so
+"explain why this makes money" becomes an attribution, not prose. Registered (R2 `attribution` kind,
+conforms); carded (R5). Demo `apps/examples/pnl_attribution.q`.
 
 **(h) The first real research output — `factorRelativeValue`'s sibling, seasonally-adjusted calendar-spread
 mean-reversion (R16, a `template`).** Crude M1–M3 (or M2–M6) spread, faded against its *seasonally-adjusted*
@@ -594,9 +605,13 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   cash-and-carry fair value [assumption-dependent on `.cfg.carry` r+storage], carry signal, inventory-tightness
   proxy). Read R10's curve + R9's door downward; registered (`season`/`carry` kinds, conform); carded; distinct
   from `signals/` seasonality. The features R16 is built on. Demo `apps/examples/season_carry.q`.
-* **R15 — PnL explain + bucketed curve risk. ← NEXT.** `analytics/` gains `.risk.attribution`: PnL split into
-  curve/slope/curvature/carry/residual + bucketed deltas per tenor. The quantitative "name which edge."
-* **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion.** A new
+* **R15 — PnL explain + bucketed curve risk. ✅ DONE (v0.80).** New HIGH layer `attribution/` ABOVE `backtest/`
+  (NOT in `analytics/` — it consumes a replay run record): `.attribution.pnl` splits realized PnL into
+  level/slope/curvature (R10 shock basis, least-squares) + carry (roll-down) + residual (the plug; reconciles)
+  + the residual fraction; `.attribution.risk` gives bucketed deltas per tenor + roll-down/spread exposure.
+  The quantitative "name which edge" — a large residual = unexplained. Registered (`attribution` kind, conforms);
+  carded. Demo `apps/examples/pnl_attribution.q`.
+* **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion. ← NEXT.** A new
   `template`, run replay → evidence audit → gate cascade → regime skeptic → human. The first end-to-end
   exercise of the evidence layer on a plausible edge. Do NOT tune to pass.
 * **Then:** re-run the R8 `factorRelativeValue` on the realistic replay foundation — its first verdict that
