@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.74 &nbsp;|&nbsp; **Tests:** 401 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.75 &nbsp;|&nbsp; **Tests:** 403 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -55,7 +55,7 @@ without colliding, with the test suite as the merge gate.
 | `config/` | `.cfg` value files (`base.q` + optional `{env}.q` overrides) | built |
 | `data/` | Barchart parser (standalone) + the splayed HDB (`.data.hdb.*`) | built |
 | `state/` | **(NEW — Part II)** the as-of accessor (the single door to history) + the Market State object (`.state.*`) — point-in-time discipline made enforceable | **built (v0.74, R9)** |
-| `curve/` | **(NEW — Part II)** the curve engine (`.curve.*`) — clean per-date curve, spreads, roll yield, slope/curvature, contango/backwardation, curve shocks; immutable daily snapshots | **planned (R10)** |
+| `curve/` | **(NEW — Part II)** the curve engine (`.curve.*`) — clean per-date curve, spreads, roll yield, slope/curvature, contango/backwardation, curve shocks; immutable daily snapshots | **built (v0.75, R10)** |
 | `roll/` | **(NEW — Part II)** config-driven roll rules (`.roll.*`) — active-contract mapping + roll events; trade actual contracts | **planned (R11)** |
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
@@ -395,12 +395,15 @@ kills a whole class of look-ahead and roll bugs at the type level. R9 introduces
 the existing direct readers (additive, byte-identical); rebasing `regime/` and `backtest/` onto it is a
 later deferral.
 
-**(b) The curve engine — `.curve.*` (R10).** `build[asOf;commodity]` composes the accessor → liquidity
-filter → roll mapping → curve construction → spreads → derived features (roll yield, slope, curvature,
+**(b) The curve engine — `.curve.*` (R10) — DONE (v0.75).** `build[asOf;commodity]` composes the accessor →
+liquidity filter → curve construction → spreads → derived features (roll yield, slope, curvature,
 contango/backwardation classification, the parallel/slope/butterfly shock operators), returning the curve
-component of the Market State. Snapshots are written to a splayed `curveSnapshots` table partitioned by
-date and **never rewritten** (a new revision is a new row). This generalises the regime layer's slope/
-percentile derivation so the two never disagree about the curve.
+object. Snapshots are written to a **splayed, UNPARTITIONED** `curveSnapshots` table (the same storage
+decision as the HDB §3 — `p#` on `commodity`, `.Q.en` + `set`, NOT date-partitioned) and **never rewritten
+in place** (immutable: a re-snapshot is a no-op-if-matching, and a differing re-write errors — catching
+non-determinism). Its slope + classification use the **same convention/threshold as the regime layer**
+(sourced from `.cfg.regime`, asserted by a test) so the two never disagree about the curve — the
+precondition for rebasing regime/ onto it later. (Roll mapping is R11; regime/ is not yet rebased.)
 
 **(c) Roll discipline — `.roll.*` (R11).** Roll rules live in `.cfg.rolls` (one entry per commodity:
 type/days/window/price-source — days-before-expiry / OI-switch / volume-switch / fixed-calendar /
@@ -528,10 +531,13 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   readers (byte-identical). Unblocks R10–R16; R9 + R13 close the loop (the door prevents look-ahead by
   construction, the evidence audit proves it by reading the provenance). (Parameter `asOf`, never the keyword
   `asof`.) Demo `apps/examples/market_state_asof.q`.
-* **R10 — Curve engine. ← NEXT.** New `curve/`: `.curve.build` (clean per-date curve, spreads, roll yield,
-  slope/curvature, contango/backwardation, curve shocks) + immutable `curveSnapshots`. Generalises the
-  regime layer's curve derivation. Carded, conformance-checked.
-* **R11 — Roll discipline.** New `roll/`: `.cfg.rolls` + `.roll.active` (as-of-only active-contract
+* **R10 — Curve engine. ✅ DONE (v0.75).** New `curve/`: `.curve.build` (the rich as-of curve through R9's
+  door — spreads, roll yield, slope/curvature, contango/backwardation classification) + the
+  parallel/slope/butterfly `.curve.shock.*` operators + immutable, splayed/UNPARTITIONED `curveSnapshots`.
+  Its slope/classification match the regime layer's convention (sourced from `.cfg.regime`, asserted by a
+  test) so the two never disagree — the precondition for rebasing regime/ onto it later (not done now).
+  Carded, conformance-checked (`curve` kind). Demo `apps/examples/curve_engine.q`.
+* **R11 — Roll discipline. ← NEXT.** New `roll/`: `.cfg.rolls` + `.roll.active` (as-of-only active-contract
   mapping) + `rollEvents`. Trade actual contracts; the continuous series is a derived view only.
 * **R12 — Event-driven replay engine + extended execution.** The keystone. `backtest/` gains a replay mode
   (a deterministic fold over dates emitting the auditable `replayRuns` record — book, fills, roll events,

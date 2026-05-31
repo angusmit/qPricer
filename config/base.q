@@ -164,6 +164,13 @@
 / engine R10 + roll R11 will use it). The as-of accessor itself takes only date<=asOf rows.
 .cfg.state:`expiryStrictlyAfter`minVolume!(1b;0f);
 
+/ --- curve layer: the curve engine (curve/curve.q), Research OS R10 ---
+/ deferredIdx + flatThreshold are SOURCED FROM .cfg.regime so the curve engine's slope +
+/ backwardation/contango/flat classification cannot drift from regime/'s (the agreement
+/ precondition for a later rebase). minVolume = the liquidity floor for the tenor filter
+/ (0 = keep all positive-price tenors).
+.cfg.curve:`deferredIdx`flatThreshold`minVolume!(.cfg.regime`deferredIdx; .cfg.regime`flatSlopeThreshold; 0f);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
@@ -232,6 +239,14 @@
     "the HDB expiry field is correct; futures' simple date<=asOf path (no revisable data); the accessor is the only door (existing direct readers not yet rebased)";
     `na;
     "any (a point-in-time data accessor, regime-agnostic)";
+    `na;`;"qFDM evidence layer";2026.05.31);
+/ Research OS R10: the curve engine (a derived-curve capability, edge `na).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_curveEngine;`curve;`curveEngine;`v1;
+    "The curve engine: clean as-of curve + spreads + derived features (roll yield / slope / curvature / classification) + shocks + immutable snapshots";
+    "reads through R9's as-of door (point-in-time by construction); slope+classification match regime/'s convention; snapshots assume a deterministic curve";
+    `na;
+    "any (a derived-curve capability, regime-agnostic)";
     `na;`;"qFDM evidence layer";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---

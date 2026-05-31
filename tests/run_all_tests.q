@@ -371,6 +371,10 @@
     "tests/state/test_asof_accessor.q";
     "tests/state/test_market_state.q");
 
+.test.curveFiles:(
+    "tests/curve/test_curve_engine.q";
+    "tests/curve/test_curve_snapshot.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -496,6 +500,7 @@
     (`workflow;   .test.workflowFiles);
     (`factor;     .test.factorFiles);
     (`state;      .test.stateFiles);
+    (`curve;      .test.curveFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

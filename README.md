@@ -8,7 +8,7 @@ A kdb+/q pricing, calibration, risk, and backtest framework. The equity finite-d
 
 The repository is one monorepo organized into layers (dependencies flow downward only); see **[ARCHITECTURE.md](ARCHITECTURE.md)** and the per-layer `README.md`:
 
-`core` (math/RNG/stats + loader + config loader + the registry spine `.registry`) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `state` (point-in-time market state `.state` — the single as-of door) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `regime` (market-state engine `.regime` + analogue library/risk memory `.regime.analogue`) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `portfolio` (strategy allocator `.alloc`) · `gov` (research governance `.gov` — registry/ledger/deflated-Sharpe/gate cascade) · `factor` (curve factor decomposition `.factor` — PCA, the first capability on the spine) · `templates` (problem templates `.template` — research-shape plug-in) · `cards` (model cards `.cards` — knowledge plug-in: contract + edge + gov-derived validation + audit) · `workflow` (the bounded research loop `.workflow`) · `agents` (six bounded research-agent role prompts + orchestration contract) · `apps` (examples + demos). Reserved: `services`, `scripts` (partial). Load everything with `\l core/init.q`.
+`core` (math/RNG/stats + loader + config loader + the registry spine `.registry`) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `state` (point-in-time market state `.state` — the single as-of door) · `curve` (curve engine `.curve` — derived features + shocks + snapshots) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `regime` (market-state engine `.regime` + analogue library/risk memory `.regime.analogue`) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `portfolio` (strategy allocator `.alloc`) · `gov` (research governance `.gov` — registry/ledger/deflated-Sharpe/gate cascade) · `factor` (curve factor decomposition `.factor` — PCA, the first capability on the spine) · `templates` (problem templates `.template` — research-shape plug-in) · `cards` (model cards `.cards` — knowledge plug-in: contract + edge + gov-derived validation + audit) · `workflow` (the bounded research loop `.workflow`) · `agents` (six bounded research-agent role prompts + orchestration contract) · `apps` (examples + demos). Reserved: `services`, `scripts` (partial). Load everything with `\l core/init.q`.
 
 ## Feature Summary
 
@@ -26,7 +26,7 @@ The repository is one monorepo organized into layers (dependencies flow downward
 | Config | `.cfg` layer (`config/base.q` + `QPRICER_ENV` overrides) |
 | Portfolio | Strategy allocator (`.alloc`): equal-weight / inverse-vol / min-variance / risk-parity / max-Sharpe / mean-variance, long-only + cap + turnover constraints, causal walk-forward OOS comparison |
 | Regime | Market-state engine (`.regime`): per-(commodity,date) curve/vol/liquidity/roll/season fingerprint + regime-conditional performance breakdown |
-| Tests | 401 passing tests (`q tests/run_all_tests.q`) |
+| Tests | 403 passing tests (`q tests/run_all_tests.q`) |
 
 ### Not Yet Supported
 
@@ -89,6 +89,7 @@ q-fdm-option-pricer/
 ├── config/        # .cfg value files (base.q + optional {env}.q overrides)
 ├── data/          # parser (Barchart CSV) + splayed HDB (.data.hdb) + replay
 ├── state/         # point-in-time market state (.state) — the single as-of door to history + the Market State object
+├── curve/         # curve engine (.curve) — roll yield/slope/curvature/classification + shocks + immutable snapshots
 ├── models/        # BS/FDM core + all pricers (product..engine..commodity..exotics)
 ├── calibration/   # iv, surface, objective, calibrate-curve, Kalman MLE, model quality
 ├── analytics/     # risk / VaR / scenarios / limits / portfolio / reporting / perf

@@ -98,6 +98,9 @@
 / State (Research OS R9: the as-of accessor + Market State; the single door to history;
 / wraps data/ downward; loads before the consumers; opens no HDB at import)
 \l state/state.q
+/ Curve (Research OS R10: the curve engine; consumes the state/ door downward; computes the
+/ rich derived curve + shocks + immutable snapshots; opens nothing at import; does NOT rewire regime/)
+\l curve/curve.q
 / Regime (Research OS R1: market-state measurement; depends on data + signals)
 \l regime/regime.q
 / Regime analogue library + risk memory (Research OS R4; depends on data + regime core)
@@ -131,4 +134,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.74";
+.qfdm.version:"0.75";
