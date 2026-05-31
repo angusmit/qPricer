@@ -14,6 +14,9 @@
 / Core (math / RNG / stats / infra)
 \l core/utilities.q
 \l core/config.q
+/ Registry spine (Research OS R2: generic registry + per-kind contracts + conformance;
+/ depends on nothing above base q; capability layers below register into it)
+\l core/registry.q
 / Models (pricers + greeks) + pricing domain
 \l models/product.q
 \l models/market.q
@@ -106,6 +109,9 @@
 / Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
 / + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
 \l gov/gov.q
+/ Registry population (Research OS R2): register the existing capabilities into the
+/ spine (metadata only; runs after every capability layer exists). No compute change.
+\l core/registry_populate.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.67";
+.qfdm.version:"0.68";

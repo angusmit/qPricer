@@ -341,6 +341,11 @@
     "tests/gov/test_gov_holdout_oneshot.q";
     "tests/gov/test_gov_verdict_failsafe.q");
 
+.test.registryFiles:(
+    "tests/registry/test_registry_core.q";
+    "tests/registry/test_contracts_conform.q";
+    "tests/registry/test_existing_registered.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -460,6 +465,7 @@
     (`alloc;      .test.allocFiles);
     (`regime;     .test.regimeFiles);
     (`gov;        .test.govFiles);
+    (`registry;   .test.registryFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

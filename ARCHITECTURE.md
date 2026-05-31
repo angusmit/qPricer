@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.63 &nbsp;|&nbsp; **Tests:** 373 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.68 &nbsp;|&nbsp; **Tests:** 386 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -45,7 +45,7 @@ without colliding, with the test suite as the merge gate.
 
 | Layer | Responsibility | Status |
 |---|---|---|
-| `core/` | math, linear algebra, stats, RNG, the loader (`core/init.q`), the config loader (`core/cfg.q`), logging, IPC helpers | built |
+| `core/` | math, linear algebra, stats, RNG, the loader (`core/init.q`), the config loader (`core/cfg.q`), the registry spine (`core/registry.q`, `.registry`/`.contracts`), logging, IPC helpers | built |
 | `config/` | `.cfg` value files (`base.q` + optional `{env}.q` overrides) | built |
 | `data/` | Barchart parser (standalone) + the splayed HDB (`.data.hdb.*`) | built |
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
@@ -58,8 +58,8 @@ without colliding, with the test suite as the merge gate.
 | `services/` | optional IPC gateway / HDB service / workers | **reserved (deferred)** |
 | `scripts/` | `ingest_hdb.q` (+ reserved CI/pipeline) | partial |
 | `apps/` | examples + demos | built |
-| `regime/` | **(NEW — Part II)** market-state recognition + regime tagging | **to build (R1)** |
-| `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade | **built (v0.65, R3)** |
+| `regime/` | **(NEW — Part II)** market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
+| `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
 | `agents/` | **(NEW — Part II)** bounded research-agent prompt definitions | **to build (R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
 
@@ -390,9 +390,17 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   `.strategy.commodityBT.__perf`. Purely additive — the backtest engine is untouched (the breakdown is a
   composition over daily PnL + labels), so the suite stays **373/0**, plus new synthetic tests (~375).
   Unblocks R3, R4, R5.
-* **R2 — Contracts & registries.** Write `CONTRACTS.md`; generalise the existing `.strategy.register`
-  pattern to `.model.register` / `.signal.register` / `.calibrator.register` /
-  `.execution.fillModel.register`. Formalises the spine's docking interface. Thin, additive.
+* **R2 — Contracts & registries. ✅ DONE (v0.68).** `core/registry.q`: a GENERIC registry (`.registry.*`)
+  + four per-kind registries each carrying a versioned CONTRACT — `.model.register` / `.signal.register` /
+  `.calibrator.register` / `.execution.fillModel.register` (+ `get`/`list`/`conforms`) — and a conformance
+  check that CAN FAIL (`.registry.conforms` / `.contracts.verify[]`: manifest-vs-contract, rejects a
+  deficient/type-mismatched/wrong-version plug-in). `core/registry_populate.q` registers the four existing
+  capabilities (handles to the unchanged `.engine.priceOption` / `.strategy.path.commoditySignals` /
+  `.commodity.calibrateCurve` / `.exec.fill`), all passing verify; strategies keep their own
+  `.strategy.register` (not rebased). `docs/CONTRACTS.md`; demo `apps/examples/registry_inventory.q`.
+  Formalises the spine's docking interface — metadata only, no compute change, byte-identical. BOUNDED:
+  the mechanism + contracts + registering what exists + a conformance test, NOT a call-site migration. The
+  foundation R5/R6/R7 plug into.
 * **R3 — Governance. ✅ DONE (v0.65).** `gov/gov.q` (`.gov.*`): the `hypotheses` registry + the
   append-only `trials` ledger (the honest N), the **deflated-Sharpe** core (PSR/DSR, Bailey & López de
   Prado; `.gov.phiInv` Acklam inverse-normal added, `Phi` reuses `.validation.__normalCdf`), and the
