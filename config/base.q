@@ -150,6 +150,15 @@
 / calendar spread; maxAr1 is the spread-stationarity bar (AR(1) coef below this = mean-reverting).
 .cfg.templates.rv:`lookback`entryZ`notional`txnCostRate`deferredIdx`maxAr1!(60;1.5;1f;0.0005;1;0.98);
 
+/ --- R16 capstone: seasonally-adjusted crude calendar-spread mean-reversion (seasonalCalSpread) ---
+/ The PRE-REGISTERED parameters (FIXED, NOT swept - tuning the legs / z-window / thresholds is exactly
+/ where a calendar spread overfits, and the deflation + walk-forward + sealed holdout exist to punish
+/ it). deferredIdx = the deferred leg (2 -> M1-M3); minObs = the min same-calendar-month obs for the
+/ seasonal z; entryThreshold = |z| to enter (fade the seasonal extreme); maxHold = max days held; exit
+/ is on a z-cross-of-zero or maxHold. txnCostRate feeds the fill model; maxAr1 = the spread-stationarity bar.
+.cfg.strategy.seasonalCalSpread:`deferredIdx`minObs`entryThreshold`maxHold`txnCostRate`notional`maxAr1`rollBuffer!(
+    2;3;1.5;20;0.0005;1f;0.98;5);
+
 / --- factor layer: curve PCA (factor/factor.q), Research OS R8 ---
 / k = number of principal components (level/slope/curvature); tol/maxIter pin the deterministic
 / power iteration; nMaturities = the first-M tenor-ranked contracts forming the curve panel;
@@ -329,6 +338,15 @@
     `na;
     "any (a PnL-decomposition capability, regime-agnostic)";
     `na;`;"qFDM evidence layer";2026.05.31);
+/ Research OS R16 capstone: the seasonalCalendarSpread template (carded WITH a populated failure-mode
+/ field so it is gateable via .cards.gatedRun / .workflow.runReplay).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_seasonalCalSpread;`template;`seasonalCalSpread;`v1;
+    "Fade the crude calendar spread against its seasonally-adjusted same-calendar-month z-score (R14); trade the actual legs (R11/R10); the R16 capstone strategy";
+    "the spread mean-reverts to its seasonal norm (a stationarity gate bites if not); the seasonal pattern is causal (same-calendar-month up to asOf, R14); the parameters are PRE-REGISTERED in .cfg.strategy.seasonalCalSpread, NOT optimised to the gates";
+    `structural;
+    "crude in a stable seasonal-spread regime; breaks down in a structural dislocation (storage saturation / supply shock) where the spread stops mean-reverting";
+    `energyShock2022;`;"qFDM research";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and

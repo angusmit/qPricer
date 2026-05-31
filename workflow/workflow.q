@@ -70,4 +70,37 @@
     .workflow.__packet[hypoId;capName;1b;verdicts;"gated"]
  };
 
--1 "workflow.q loaded - .workflow.* bounded research loop ready (composes gov/cards/template/regime)";
+/ ── R16: the end-to-end REPLAY-mode bounded loop (.workflow.runReplay) ───────
+/ The composition R13 deferred ("assembled when the first strategy runs"): carded-gating (R5) -> the
+/ EVIDENCE AUDIT (R13) on a replay run record -> the gate cascade (R3b) + the regime skeptic -> the
+/ PnL attribution (R15) -> a human-escalation packet. It REUSES .evidence.gatedRun (which already chains
+/ audit -> on-PASS .gov.runFull / on-FAIL evidenceFailed) and adds the attribution; .workflow.run is
+/ UNCHANGED and gov/ is UNMODIFIED. BOUNDED BY CONSTRUCTION (the R7 discipline): no path marks tradeable
+/ without every gate passing, no deploy/allocate field, always defers to the human.
+/ proposal (a dict): hypoId, thesis, edgeSource, instruments, claimedRegimes, capName (the carded
+/ capability), runRecord (the replay run record - audited + attributed), runner (runner[from;to]->(date;
+/ pnl) for the gates), optional axis (default `curveState).
+.workflow.runReplay:{[proposal]
+    hypoId:proposal`hypoId; capName:proposal`capName;
+    axis:$[`axis in key proposal; proposal`axis; `curveState];
+    run:proposal`runRecord; runner:proposal`runner;
+    / RESEARCHER: pre-register (a-priori), idempotent.
+    .gov.register `hypoId`thesis`edgeSource`instruments`claimedRegimes`status!(
+        hypoId; proposal`thesis; proposal`edgeSource; proposal`instruments; proposal`claimedRegimes; `research);
+    / CURATOR: must be carded WITH a populated failure-mode field, else REFUSE (gates never run).
+    gr:.cards.gateReady capName;
+    if[not gr`ready;
+        p:.workflow.__packet[hypoId;capName;0b;()!();gr`reason];
+        :p,`mode`evidencePassed`attribution!(`replay;0b;()!())];
+    / VALIDATOR (replay-mode): evidence audit (R13) -> on PASS the gate cascade (.gov.runFull); on FAIL
+    / evidenceFailed (the gates NEVER run). The regime risk-memory skeptic is already attached by gov.
+    aud:.evidence.audit run;
+    verdicts:.evidence.gatedRun[hypoId;run;runner;axis];
+    / ATTRIBUTION (R15) on the replay run record - the "name which edge" numbers for the packet.
+    attribDict:.attribution.pnl run;
+    / LEAD: package + escalate to the human (the bounded packet + the replay extras).
+    p:.workflow.__packet[hypoId;capName;1b;verdicts;"replay-gated"];
+    p,`mode`evidencePassed`attribution!(`replay; aud`pass; attribDict)
+ };
+
+-1 "workflow.q loaded - .workflow.* bounded research loop ready (composes gov/cards/template/regime; + runReplay R16)";

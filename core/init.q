@@ -135,6 +135,9 @@
 \l templates/template.q
 \l templates/relative_value.q
 \l templates/factor_relative_value.q
+/ Seasonal calendar-spread template (Research OS R16 capstone: fade R14's seasonal same-month z of the
+/ crude calendar spread; trades the actual legs; emits an R12-shape run record; reuses .template.rv.*)
+\l templates/seasonal_calendar_spread.q
 / Evidence audit (Research OS R13: the deterministic pass/fail verifier on a replay run record +
 / the fail-safe precondition wrapper; ABOVE backtest/, BELOW gov/; reads the zone CONFIG not gov's
 / logic; gov UNMODIFIED; opens nothing at import)
@@ -153,4 +156,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.80";
+.qfdm.version:"0.81";

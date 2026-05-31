@@ -405,6 +405,10 @@ Two related parameter-naming traps in date/commodity code (both repeatedly hit a
 
 `someDate.mm` gives the month 1-12 for a date ATOM, but `dateVec.mm` raises `'.mm` on a date VECTOR. For a vector calendar-month (e.g. grouping by same calendar month), cast instead: `(\`month$dateVec) mod 12` (0-11, Jan=0 — equality is all that matters for same-month grouping). This bit the R14 seasonality layer building the same-calendar-month series. (Same atom-only caveat applies to `.dd`/`.month`/`.year` on vectors — prefer the `\`month$`/`\`date$` casts or `mod` arithmetic for vectorised temporal-part extraction.)
 
+**26. The test runner `value`s every test in ONE process — globals PERSIST across tests; isolate state a test depends on**
+
+`tests/run_all_tests.q` evaluates each test file in the SAME q process, so any GLOBAL a test sets leaks into every later test (in suite order). A test that relies on a LIBRARY default of a mutable global must RESET it at the top, or a prior group's leftovers silently flip its result (passes standalone, fails in the full suite — the worst kind). The repeat offenders: `.gov.hypoTbl`/`.gov.trialTbl` (reset via `.gov.hypoTbl:.gov.__emptyHypotheses[]` — and `.gov.register`'s upsert can `'type` on a type-incompatible leftover row, R13/R16), the cards store `modelCards` (the cards tests leave a synthetic one; restore the real store with `modelCards:.cfg.cards` so `.cards.gateReady` finds the real cards, R16), and `futures` (every commodity/replay/season test sets its own — assume nothing about it on entry). Also use UNIQUE hypoIds when registering. Rule: if a test reads a mutable global it did not itself set this run, reset it first.
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.

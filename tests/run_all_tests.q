@@ -361,7 +361,8 @@
 
 .test.workflowFiles:(
     "tests/workflow/test_workflow_loop.q";
-    "tests/workflow/test_workflow_bounded.q");
+    "tests/workflow/test_workflow_bounded.q";
+    "tests/workflow/test_workflow_runreplay.q");
 
 .test.factorFiles:(
     "tests/factor/test_factor_pca.q";
@@ -485,7 +486,8 @@
     "tests/strategy/test_walk_forward_run.q";
     "tests/strategy/test_deseasonalize_roundtrip.q";
     "tests/strategy/test_commodity_signals_deseasonalize.q";
-    "tests/strategy/test_cross_commodity.q");
+    "tests/strategy/test_cross_commodity.q";
+    "tests/strategy/test_seasonal_calendar_spread.q");
 
 / --- Combine all suites ---
 

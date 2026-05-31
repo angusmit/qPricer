@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.80 &nbsp;|&nbsp; **Tests:** 413 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.81 &nbsp;|&nbsp; **Tests:** 415 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q` &nbsp;|&nbsp; **Evidence-layer foundation R9–R16: COMPLETE**
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -30,8 +30,8 @@ regime/state machinery below therefore runs **retrospectively over history** for
   gates, deflated Sharpe, sealed holdout, model cards, bounded agents) is **built (R1–R8)**. The
   **evidence layer** it judges — point-in-time market state, a real curve engine, an event-driven replay
   engine, roll discipline, execution realism, an evidence audit, seasonality and carry, PnL explain — is
-  the **next frontier (R9–R16, planned)**, because *a rigorous judge is only as honest as the evidence it
-  is handed* (§11.8).
+  now also **built (R9–R16, COMPLETE)**, because *a rigorous judge is only as honest as the evidence it
+  is handed* (§11.8); R16 ran the first real strategy end-to-end through it.
 
 ---
 ---
@@ -200,7 +200,7 @@ The engine prices, calibrates, backtests, and costs. The Research OS is the laye
 an apparent edge is real**, and the structure that lets the whole thing grow to cover the entire
 commodities market without rework. This is where the hard questions — *how do quants find edge, and not
 just guess or overfit?* — become architecture. The **judge** half is built (§9–§13, R1–R8); the
-**evidence layer** it judges is the next frontier (§11.8, R9–R16).
+**evidence layer** it judges is now also built (§11.8, R9–R16, COMPLETE).
 
 ## 9. The integration principle: one frozen spine, unbounded plug-ins
 
@@ -373,7 +373,7 @@ construction: no path allocates / trades / marks tradeable without all gates; al
   reasons about what cannot (is this roll rule economically sensible? is the universe filter introducing
   survivorship?). Output: a backtest-QA report.
 
-### 11.8 The evidence layer — making the backtest realistic (R9–R16, planned)
+### 11.8 The evidence layer — making the backtest realistic (R9–R16, COMPLETE)
 
 **The thesis.** R1–R8 built a rigorous *judge*. A judge is only as honest as the evidence it is handed.
 This section is the *evidence-generator*: point-in-time market state, a real curve engine, an event-driven
@@ -493,15 +493,25 @@ model card's economic-rationale field with numbers (a consumer concern — `card
 "explain why this makes money" becomes an attribution, not prose. Registered (R2 `attribution` kind,
 conforms); carded (R5). Demo `apps/examples/pnl_attribution.q`.
 
-**(h) The first real research output — `factorRelativeValue`'s sibling, seasonally-adjusted calendar-spread
-mean-reversion (R16, a `template`).** Crude M1–M3 (or M2–M6) spread, faded against its *seasonally-adjusted*
-same-month z-score (R14), traded through actual contracts with roll discipline (R11), filled with realistic
-costs (R12), run through replay → evidence audit (R13) → the full gate cascade → the regime skeptic → the
-human. Edge: structural / risk-premium. It forces the whole evidence layer to be correct simultaneously,
-which is why the external standard recommends it as the first serious strategy and why it is the first time
-the foundation is exercised end-to-end on a plausible edge. *Do not tune the spread legs, the z-score
-window, or the thresholds to pass — that is where it would overfit, and the deflation/walk-forward/holdout
-cascade exists to punish it.*
+**(h) The first real research output — seasonally-adjusted calendar-spread mean-reversion (R16, a `template`)
+— DONE (v0.81). THE CAPSTONE; the foundation R9–R16 is COMPLETE.** `templates/seasonal_calendar_spread.q`
+(`.template.scs.*`, the `seasonalCalSpread` template): the crude M1–M3 spread, faded against its
+*seasonally-adjusted* same-calendar-month z-score (R14), traded through the actual legs with roll discipline
+(skip the expiring contract, R11/R10), filled with realistic costs, emitting an R12-shape **run record**;
+with its own spread-stationarity gate (reuse R6's AR(1)/OU — a random-walk spread is rejected before the
+universal gates). The end-to-end bounded loop `.workflow.runReplay` (the composition R13 deferred): carded
+gating (R5) → the evidence audit (R13) on the run record → the gate cascade (R3b) + the regime skeptic →
+the attribution (R15) → a human-escalation packet (BOUNDED — always escalateToHuman, no deploy/allocate
+field, never tradeable without every gate; `.workflow.run` is unchanged, `gov/` unmodified). On real CRUDE
+the verdict is HONEST and NOT tradeable: the evidence audit passes, then backwardation/contango **reject at
+cost** and the tempting flat bucket (in-sample Sharpe 2.6) is **deflated to research** (DSR 0.86 < 0.95) —
+the system refusing to be fooled by a small-sample slice. *The parameters are PRE-REGISTERED in
+`.cfg.strategy.seasonalCalSpread` and NOT tuned to pass — that is where a calendar spread overfits, and the
+deflation/walk-forward/holdout cascade exists to punish it.* Registered (R2 `template` kind, conforms);
+carded (R5, risk memory `energyShock2022`). Demo `apps/examples/seasonal_calendar_spread.q`. A not-tradeable
+verdict is the architecture working: it tells the truth instead of a flattering backtest. **With R16, the
+evidence-layer foundation (R9 door → R10 curve → R11 roll → R12 replay → R13 audit → R14 seasonality/carry →
+R15 attribution → R16 first strategy) is COMPLETE.**
 
 ## 12. The research workflow (the operational loop)
 
@@ -611,11 +621,16 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   + the residual fraction; `.attribution.risk` gives bucketed deltas per tenor + roll-down/spread exposure.
   The quantitative "name which edge" — a large residual = unexplained. Registered (`attribution` kind, conforms);
   carded. Demo `apps/examples/pnl_attribution.q`.
-* **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion. ← NEXT.** A new
-  `template`, run replay → evidence audit → gate cascade → regime skeptic → human. The first end-to-end
-  exercise of the evidence layer on a plausible edge. Do NOT tune to pass.
-* **Then:** re-run the R8 `factorRelativeValue` on the realistic replay foundation — its first verdict that
-  is judged on audited evidence rather than vectorised PnL.
+* **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion. ✅ DONE (v0.81)
+  — THE CAPSTONE; the foundation R9–R16 is COMPLETE.** New `seasonalCalSpread` template (fade R14's seasonal
+  same-month z, trade the actual legs, emit an R12-shape run record + a stationarity gate) + `.workflow.runReplay`
+  (carded → replay → evidence audit → gate cascade → regime skeptic → attribution → a bounded human-escalation
+  packet; `.workflow.run` unchanged, `gov/` unmodified). On real CRUDE the verdict is HONEST + not tradeable
+  (cost/deflation bite; the tempting flat bucket is deflated to research) — the architecture telling the truth.
+  Registered (`template` kind, conforms); carded. Demo `apps/examples/seasonal_calendar_spread.q`. Not tuned.
+* **← NEXT (post-foundation):** re-run the R8 `factorRelativeValue` on this realistic replay foundation (its
+  first verdict judged on audited evidence rather than vectorised PnL), then the deferred strategies + pricing
+  extensions below — all riding on a stack that is realistic end-to-end.
 
 **Deferred (unchanged):** the "priced-in" gate; the drift monitor; IPC services and cloud CI / scheduled
 pipeline (§6, §7); pricing extensions (commodity swaps, Asian / spread options — §9 of the external
