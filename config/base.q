@@ -141,6 +141,49 @@
     `trainFrac`validateFrac!(0.6;0.2);
     0.25);
 
+/ --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
+/ One structured card per KEY capability (the 4 R2-registered capabilities + the key
+/ strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
+/ riskPremium/structural/informational for signals/strategies, `na for pricers/fill models.
+/ govHypoId links the card to its gov-ledger record (` if not gated). riskMemoryKey links
+/ the regime library (`na if none). The full narrative is in docs/MODEL_CARDS.md.
+.cfg.cards:([]
+    cardId:`card_blackScholesFdm`card_commoditySignalPath`card_schwartz2Curve`card_dailyFillCost`card_gammaScalp`card_shortVariance`card_timeSeriesMomentum;
+    capabilityKind:`model`signal`calibrator`fillModel`strategy`strategy`strategy;
+    capabilityName:`blackScholesFdm`commoditySignalPath`schwartz2Curve`dailyFillCost`gammaScalp`shortVariance`timeSeriesMomentum;
+    version:`v1`v1`v1`v1`v1`v1`v1;
+    intendedUse:(
+        "Price European-vanilla options via Crank-Nicolson / explicit FDM (the engine's reference pricer)";
+        "Generate carry / momentum / Kalman / curve-residual signals from a forward-curve history";
+        "Calibrate a two-factor Schwartz-Smith forward curve to a market curve";
+        "Turn a target order into a simulated fill + explicit costs (participation cap + slippage)";
+        "Long-gamma delta-hedged option position harvesting realized-over-implied vol";
+        "Sell a delta-hedged ATM straddle to harvest the variance risk premium when IV is rich";
+        "Long/short the front by the sign of trailing curve momentum (trend following)");
+    assumptions:(
+        "lognormal diffusion; constant vol/rate over the grid; European exercise; no early-exercise/barrier+localvol combos";
+        ">=3 curve dates; curve history columns asofDate/tenor/price/contractYM/expiry; Kalman estimated train-only";
+        ">=3 positive-price curve points; lognormal domain; schwartz2 model family";
+        "daily settle prices only (no intraday/LOB); cost = proportional + slippage(bps of notional) + fixed";
+        "continuous delta hedging at the configured band; realized vol exceeds implied; liquid underlying";
+        "implied richer than the realized-vol forecast; straddle held to expiry; hedge slippage modest";
+        "trend persistence in the front; vol-targeted sizing; turnover survives realistic execution cost");
+    edgeSource:`na`riskPremium`na`na`riskPremium`riskPremium`riskPremium;
+    regimeApplicability:(
+        "any (a pricer, regime-agnostic)";
+        "trending regimes (backwardation / strong directional); weak in range-bound chop";
+        "any liquid forward curve (calibration utility, regime-agnostic)";
+        "any (an execution model, regime-agnostic)";
+        "high-realized-vol regimes; loses theta in calm/range-bound markets";
+        "calm / mean-reverting vol regimes; blows up in vol spikes (2020/2022 type)";
+        "supply-driven backwardation trends; whipsaws in OPEC-cut-defended ranges");
+    riskMemoryKey:`na`energyShock2022`na`na`na`na`energyShock2022;
+    govHypoId:(`;`mom_crude_ts;`;`;`;`;`mom_crude_ts);
+    owner:(
+        "qFDM core";"qFDM commodity desk";"qFDM commodity desk";"qFDM execution";
+        "qFDM vol desk";"qFDM vol desk";"qFDM commodity desk");
+    asOf:7#2026.05.31);
+
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
 / key order are verbatim from the prior function literals (1f%252f kept as the

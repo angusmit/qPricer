@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.68 &nbsp;|&nbsp; **Tests:** 386 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.69 &nbsp;|&nbsp; **Tests:** 389 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -60,6 +60,7 @@ without colliding, with the test suite as the merge gate.
 | `apps/` | examples + demos | built |
 | `regime/` | **(NEW — Part II)** market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
 | `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
+| `cards/` | **(NEW — Part II)** model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
 | `agents/` | **(NEW — Part II)** bounded research-agent prompt definitions | **to build (R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
 
@@ -424,8 +425,17 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   `regimes`) + the analogue-query function (`.regime.analogue.distance`/`.nearest`/`.forDate` — state-space
   distance, nearest-episode retrieval with risk memory). In-HDB windows only (no fabricated fingerprints);
   `regime/` stays LOW (no gov/backtest import). Knowledge plug-ins. Demo `apps/examples/regime_analogue_today.q`.
-* **R5 — Model Cards.** `docs/MODEL_CARDS.md` (one card per model/strategy) + a card registry the gates
-  read (Gate 0 = "has a card with a populated failure-mode field").
+* **R5 — Model Cards. ✅ DONE (v0.69).** `cards/cards.q` (`.cards.*`) + `docs/MODEL_CARDS.md` + the
+  `modelCards` table (curated in `.cfg.cards`, built by `scripts/build_model_cards.q`): a structured card
+  per capability synthesising the R2 contract + assumptions + the named edge source + regime applicability +
+  the linked R4 risk memory + a VALIDATION STATUS **derived** from the gov ledger (`.cards.validationStatus`
+  recomputes the deflated Sharpe via `.gov.deflatedSharpe` + reads the holdout outcome; `ungated` when
+  nothing is logged, `tradeable` only if the sealed holdout passed — never asserted). `.cards.audit[]` CAN
+  FAIL: it flags undocumented registered capabilities, cards missing a required section, signal/strategy
+  cards with no named edge, and orphan cards. A HIGH layer (reads registries + gov + regime library;
+  imported by nothing below it); never opens the HDB at import. Demo `apps/examples/model_card_show.q`. The
+  knowledge plug-in that makes the system legible; the natural home Gate 0 / R6 / R7 read from. (A future
+  refinement could wire gov Gate 0 to require "has a card with a populated failure-mode field".)
 * **R6 — Problem-template abstraction.** Generalise the strategy contract into a problem template; ship
   one new template beyond directional (e.g. a relative-value or a control / deep-hedging stub) to prove
   the abstraction. Capability + template plug-ins.

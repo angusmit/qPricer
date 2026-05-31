@@ -109,9 +109,12 @@
 / Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
 / + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
 \l gov/gov.q
+/ Cards (Research OS R5: model-card knowledge plug-in; reads registries + gov + regime
+/ library; a HIGH layer imported by nothing below it; never opens the HDB at import)
+\l cards/cards.q
 / Registry population (Research OS R2): register the existing capabilities into the
 / spine (metadata only; runs after every capability layer exists). No compute change.
 \l core/registry_populate.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.68";
+.qfdm.version:"0.69";
