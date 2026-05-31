@@ -106,4 +106,4 @@
 \l gov/gov.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.65";
+.qfdm.version:"0.66";

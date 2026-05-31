@@ -334,7 +334,10 @@
 .test.govFiles:(
     "tests/gov/test_gov_deflated_sharpe.q";
     "tests/gov/test_gov_ledger.q";
-    "tests/gov/test_gov_gates.q");
+    "tests/gov/test_gov_gates.q";
+    "tests/gov/test_gov_zones.q";
+    "tests/gov/test_gov_holdout_oneshot.q";
+    "tests/gov/test_gov_verdict_failsafe.q");
 
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";

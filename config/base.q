@@ -106,13 +106,19 @@
 / sub-config (slippageBps etc.) the wrapper/demo threads into the backtest so the
 / cascade judges NET returns (NOT the frictionless default). walkForward: Gate 3 causal
 / split scheme (reuses .strategy.commodityBT.__splits) + the OOS sign-stability floor.
-.cfg.gov:`costHurdleSharpe`dsrThreshold`validEdgeSources`annualizationDays`exec`walkForward!(
+/ R3b adds zones + holdoutSharpe: zones split each commodity's sorted dates into
+/ train/validate/holdout (holdout = the most-recent 1-trainFrac-validateFrac slice,
+/ out-of-sample in TIME); gates 0-3 see train+validate only. holdoutSharpe is the Gate 4
+/ net-annualised-Sharpe bar on the sealed holdout (one-shot).
+.cfg.gov:`costHurdleSharpe`dsrThreshold`validEdgeSources`annualizationDays`exec`walkForward`zones`holdoutSharpe!(
     0.25;
     0.95;
     `riskPremium`mispricing`info;
     252f;
     `slippageBps`fixedPerTrade!(2f;0f);
-    `scheme`trainSpan`testSpan`maxSplits`minFolds`oosSharpeFloor`minPassFraction!(`rolling;126;63;6;3;0f;0.6));
+    `scheme`trainSpan`testSpan`maxSplits`minFolds`oosSharpeFloor`minPassFraction!(`rolling;126;63;6;3;0f;0.6);
+    `trainFrac`validateFrac!(0.6;0.2);
+    0.25);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and

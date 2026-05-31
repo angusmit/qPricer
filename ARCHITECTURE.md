@@ -279,12 +279,15 @@ similar to what, and different because what.*
 
 ### 11.4 Governance — registry + trials ledger + gate cascade + drift monitor
 
-**Status: largely DONE (v0.65, R3).** `gov/gov.q` (`.gov.*`) ships the registry, the append-only trials
-ledger, the deflated-Sharpe core, and the thesis → cost → deflated-Sharpe → walk-forward gate cascade,
-with the non-optional `.gov.run` logging wrapper (the backtest engine is never edited). Deferred: the
-sealed-holdout zone + holdout gate (→ R3b), the "priced-in" gate (needs surface/positioning data the HDB
-lacks), and the drift monitor. The bullets below are the full target design; the *italic deferred* notes
-mark what is not yet built.
+**Status: DONE (v0.65 R3 + v0.66 R3b).** `gov/gov.q` (`.gov.*`) ships the registry, the append-only trials
+ledger, the deflated-Sharpe core, and the FULL fail-safe gate cascade thesis → cost → deflated-Sharpe →
+walk-forward → **sealed holdout** (R3b), with the non-optional `.gov.run` logging wrapper + the complete
+`.gov.runFull` orchestrator (the backtest engine is never edited). R3b added the three data zones
+(`.gov.zone.*`, gates 0-3 see train+validate only), the one-shot holdout gate (`.gov.holdoutGate` — one
+look per hypothesis, ever, recorded immutably), and fail-safe verdicts (a `tradeable` boolean; a gate
+failure is never tradeable). Deferred: the "priced-in" gate (needs surface/positioning data the HDB lacks),
+and the drift monitor. The bullets below are the full target design; the *italic deferred* notes mark what
+is not yet built.
 
 * **Hypothesis registry** (`.gov` / HDB table `hypotheses`): every idea pre-registered with its economic
   thesis, claimed edge source, instruments, and a-priori parameter ranges — *before* data.
@@ -295,8 +298,8 @@ mark what is not yet built.
 * **Gate cascade** (the promotion funnel): thesis → cost (net-of-`.exec`) → deflated Sharpe (penalised by
   the ledger's N) → walk-forward + stress (params/regimes/commodities) → priced-in → sealed holdout (one
   look). Most candidates die at cost and deflation — that is the system working.
-* **Sealed holdout zone** *(deferred → R3b)*: a data-segregation discipline over the HDB — train (open) /
-  validate (logged) / holdout (sealed, readable only by the final gate, once per strategy, recorded immutably).
+* **Sealed holdout zone** *(DONE — v0.66, R3b)*: a data-segregation discipline over the HDB — train (open) /
+  validate (logged) / holdout (sealed, read only by the one-shot Gate 4, once per hypothesis, recorded immutably).
 * **Drift monitor** *(deferred)*: promoted strategies watched for edge decay; demoted when they fade.
 
 ### 11.5 Model Cards
@@ -389,10 +392,16 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   evaluates, so the backtest ENGINE is never touched (byte-identical). Reuses `.strategy.commodityBT.__splits`
   (causal walk-forward, as `.alloc.compare` does) + `__perf`. Demo `apps/examples/gov_gate_momentum.q`
   kills the tempting contango/flat momentum slices on cost + deflation + the post-hoc penalty.
-  **Deferred to R3b / later (not built):** the **sealed-holdout zone + one-shot holdout gate** → R3b
-  (data-zone segregation over the HDB deserves its own bounded step; the walk-forward gate provides the
-  OOS rigor for now); the **"what's PRICED IN" gate** → later (a faithful version needs options-surface /
-  positioning data the HDB does not have — deliberately not faked with a stub).
+* **R3b — Sealed holdout + fail-safe verdicts. ✅ DONE (v0.66).** Completes the cascade: the three data
+  zones (`.gov.zone.*` — train/validate/holdout by `.cfg.gov.zones`; gates 0-3 see `trainValidate` only,
+  holdout is the most-recent slice), the ONE-SHOT holdout gate (`.gov.holdout.read` the sole reader;
+  `.gov.holdoutGate` records the look immutably — one look per hypothesis, ever; a second call returns the
+  recorded verdict), and `.gov.runFull` (restrict → gates 0-3 per bucket → holdout only if a bucket earns
+  it). Fail-safe verdict: a `tradeable` boolean (true IFF every gate passed); a gate FAILURE → `reject`/
+  `research`, NEVER tradeable — fixing the R3 hole where a deflation-failed slice wore `regimeConditional`.
+  Gov-side date slicing only; no engine/backtest/regime edits (byte-identical). **Deferred → later (not
+  built):** the **"what's PRICED IN" gate** (a faithful version needs options-surface / positioning data
+  the HDB does not have — deliberately not faked with a stub).
 * **R4 — Regime / Analogue Library + risk memory.** `docs/REGIME_LIBRARY.md` + backing tables + the
   analogue-query function (state-space distance, nearest-regime retrieval). Knowledge plug-ins.
 * **R5 — Model Cards.** `docs/MODEL_CARDS.md` (one card per model/strategy) + a card registry the gates

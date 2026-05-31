@@ -10,10 +10,15 @@ CLAUDE.md (`</dev/null` on every q call, foreground for quick runs, background +
 suite, no mkdir, no cleanup, scratch under scratch/, no orphan q).
 
 ## Which run
-- Specific group (development): `q tests/run_group.q <group> -q </dev/null` (foreground).
-- Full suite (pre-commit gate / byte-identity / on request): `q tests/run_all_tests.q </dev/null` —
-  it takes ~7-15 min, so background it to a file under scratch/ and WAIT for completion before reading.
-- Default to the group run unless asked for the full suite or to verify byte-identity.
+- Specific group (development): `q tests/run_group.q <group> -q </dev/null` (foreground). This is the
+  subagent's job — it finishes inside one turn and you report the verdict.
+- Full suite (pre-commit gate / byte-identity): run from the **MAIN THREAD**, NOT a subagent. A subagent's
+  backgrounded job is killed when its turn ends (observed in R3: the captured output froze mid-run and the
+  q process was gone), so the main thread launches `q tests/run_all_tests.q </dev/null` backgrounded to a
+  file under scratch/ (harness-tracked) and WAITs for the completion notification (~8-15 min) before
+  reading. If you (the subagent) are nonetheless asked to run the full suite, run it FOREGROUND in a single
+  Bash call and wait for it to return — do not background-and-return, or the run dies.
+- Default to the group run.
 
 ## Byte-identical verification (always, on a full run)
 Confirm the pass/fail count, then grep the captured output to confirm each PINNED canonical number is EXACT:

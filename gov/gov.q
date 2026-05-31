@@ -112,7 +112,8 @@
 / Typed empty tables (so a fresh process / the test suite works with no HDB).
 .gov.__emptyHypotheses:{[]
     ([] hypoId:`symbol$(); thesis:(); edgeSource:`symbol$(); instruments:();
-        claimedRegimes:(); preRegisteredAt:`timestamp$(); status:`symbol$())
+        claimedRegimes:(); preRegisteredAt:`timestamp$(); status:`symbol$();
+        holdoutUsedAt:`timestamp$(); holdoutVerdict:`symbol$(); holdoutNetSharpe:`float$(); holdoutDsr:`float$())
  };
 .gov.__emptyTrials:{[]
     ([] trialId:`symbol$(); hypoId:`symbol$(); runAt:`timestamp$(); dataZone:`symbol$();
@@ -136,14 +137,15 @@
 .gov.register:{[hypo]
     .gov.init[];
     hid:hypo`hypoId;
-    row:`hypoId`thesis`edgeSource`instruments`claimedRegimes`preRegisteredAt`status!(
+    row:`hypoId`thesis`edgeSource`instruments`claimedRegimes`preRegisteredAt`status`holdoutUsedAt`holdoutVerdict`holdoutNetSharpe`holdoutDsr!(
         hid;
         $[`thesis in key hypo; hypo`thesis; ""];
         $[`edgeSource in key hypo; hypo`edgeSource; `];
         $[`instruments in key hypo; (),hypo`instruments; `symbol$()];
         $[`claimedRegimes in key hypo; (),hypo`claimedRegimes; `symbol$()];
         $[`preRegisteredAt in key hypo; hypo`preRegisteredAt; .z.p];
-        $[`status in key hypo; hypo`status; `proposed]);
+        $[`status in key hypo; hypo`status; `proposed];
+        0Np; `; 0Nf; 0Nf);
     .gov.hypoTbl:(delete from .gov.hypoTbl where hypoId=hid) upsert row;
     hid
  };
@@ -214,10 +216,14 @@
 
 / ── the gate cascade ─────────────────────────────────────────────────────────
 
-/ Build a verdict record (the cascade's output).
+/ Build a verdict record (the cascade's output). FAIL-SAFE: `tradeable` is true IFF
+/ every gate evaluated here passed (failedGate=`none) - a downstream consumer must
+/ read `tradeable`, never infer promotability from the verdict label string. (The
+/ FULL fail-safe guarantee - tradeable requires the holdout gate too - is enforced
+/ by .gov.runFull, which only confirms tradeable when the one-shot holdout also passes.)
 .gov.__verdict:{[passed;failedGate;reason;netSharpe;dsr;postHoc;verdict]
-    `passedGates`failedGate`reason`netSharpe`dsr`postHoc`verdict!(
-        passed;failedGate;reason;netSharpe;dsr;postHoc;verdict)
+    `passedGates`failedGate`reason`netSharpe`dsr`postHoc`verdict`tradeable!(
+        passed;failedGate;reason;netSharpe;dsr;postHoc;verdict;`none~failedGate)
  };
 
 / Walk-forward OOS stability: reuse __splits for causal index windows, score each
@@ -246,8 +252,12 @@
 /   nTrials (N from the ledger), varSR (variance of the family's per-period Sharpes),
 /   cfg (.cfg.gov or an override).
 / Returns a verdict record: passedGates, failedGate, reason, netSharpe (annualised),
-/ dsr, postHoc (bucket not in claimedRegimes -> data-snooped warning), verdict in
-/ `reject`/`research`/`regimeConditional`/`pass`.
+/ dsr, postHoc (bucket not in claimedRegimes -> data-snooped warning), verdict, and
+/ `tradeable`. FAIL-SAFE mapping: a gate FAILURE is NEVER tradeable - Gate 0 -> `reject`
+/ (no registered mechanism), Gate 1 cost -> `reject` (no edge after costs), Gate 2/3
+/ -> `research` (plausible thesis, failed statistical/OOS evidence). Only an ALL-PASS
+/ disposition is tradeable: `pass`, or `regimeConditional` (edge lives in a non-claimed
+/ regime). This evaluator covers gates 0-3; .gov.runFull adds the one-shot holdout (Gate 4).
 .gov.evaluate:{[ev]
     hypo:ev`hypo; rets:ev`rets; bucket:ev`bucket;
     nTrials:ev`nTrials; varSR:ev`varSR; cfg:ev`cfg;
@@ -274,7 +284,7 @@
     if[dsr < cfg`dsrThreshold;
         :.gov.__verdict[passed;`deflatedSharpe;
             "DSR ",(.gov.__fmt dsr)," < ",(.gov.__fmt cfg`dsrThreshold)," (n=",(string mo`n),", N=",(string nTrials),$[postHoc;"; POST-HOC slice";""],")";
-            netSharpe;dsr;postHoc;$[postHoc;`regimeConditional;`research]]];
+            netSharpe;dsr;postHoc;`research]];
     passed,:`deflatedSharpe;
     / --- Gate 3: walk-forward OOS stability across folds ---
     wf:.gov.__walkForward[rets;cfg];
@@ -284,8 +294,9 @@
             "OOS unstable: folds=",(string wf`nFolds)," passFraction=",.gov.__fmt wf`passFraction;
             netSharpe;dsr;postHoc;`research]];
     passed,:`walkForward;
-    / --- all gates passed ---
-    .gov.__verdict[passed;`none;"all gates passed";netSharpe;dsr;postHoc;`pass]
+    / --- all gates (0-3) passed -> a tradeable disposition (pass, or regimeConditional
+    / when the edge lives in a non-claimed regime). NEVER reached on a gate failure. ---
+    .gov.__verdict[passed;`none;"all gates passed";netSharpe;dsr;postHoc;$[postHoc;`regimeConditional;`pass]]
  };
 
 / Compact float formatter for reason strings (nulls -> "n/a").
@@ -332,9 +343,121 @@
     {[hypo;axis;cfg;nTrials;varSR;bd]
         v:.gov.evaluate `hypo`rets`bucket`axis`nTrials`varSR`cfg!(
             hypo;bd`rets;bd`bucket;axis;nTrials;varSR;cfg);
-        `bucket`nObs`verdict`failedGate`netSharpe`dsr`postHoc`reason!(
-            bd`bucket;count bd`rets;v`verdict;v`failedGate;v`netSharpe;v`dsr;v`postHoc;v`reason)
+        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`reason!(
+            bd`bucket;count bd`rets;v`verdict;v`failedGate;v`tradeable;v`netSharpe;v`dsr;v`postHoc;v`reason)
         }[hypo;axis;cfg;nTrials;varSR] each bdata
+ };
+
+/ ── R3b: the three data zones (gates 0-3 see train+validate ONLY) ────────────
+
+/ Split a SORTED date vector into train / validate / holdout by the .cfg.gov.zones
+/ fractions; holdout is the MOST-RECENT slice (out-of-sample in TIME - the honest
+/ holdout). Returns a dict of zone -> (from;to) date pair; `trainValidate covers the
+/ first two zones (where all exploration + gates 0-3 operate). Pure (no HDB) - testable
+/ on a synthetic date vector. floor (not `long$) for the cut indices (rounding trap).
+.gov.zone.boundaries:{[dates]
+    z:.cfg.gov`zones;
+    d:asc distinct dates;
+    n:count d;
+    nTrain:floor n*z`trainFrac;
+    nVal:floor n*z`validateFrac;
+    nTV:nTrain+nVal;
+    `train`validate`holdout`trainValidate!(
+        (d 0; d nTrain-1);
+        (d nTrain; d nTV-1);
+        (d nTV; d n-1);
+        (d 0; d nTV-1))
+ };
+
+/ The [from;to] date range for a commodity's zone (train/validate/holdout/trainValidate),
+/ from the HDB's distinct dates. Gates 0-3 + ALL exploration use `trainValidate ONLY.
+.gov.zone.range:{[commodity;zone] (.gov.zone.boundaries .data.hdb.dates commodity) zone};
+
+/ ── R3b: the sealed holdout - the ONLY reader of the holdout range ───────────
+
+/ The SOLE access path to the holdout date range (an API-level seal: keep holdout
+/ access in one place, called ONLY by .gov.holdoutGate; everything else restricts to
+/ `trainValidate). Returns the holdout (from;to).
+.gov.holdout.read:{[commodity] .gov.zone.range[commodity;`holdout]};
+
+/ Gate 4 - the ONE-SHOT holdout test. Runs the strategy over the SEALED holdout range
+/ via runner[from;to] -> NET daily PnL, scores net Sharpe + DSR there, and checks the
+/ holdout Sharpe bar (.cfg.gov.holdoutSharpe). ONE LOOK PER HYPOTHESIS, EVER: it records
+/ the look (holdoutUsedAt timestamp + result) on the hypothesis and appends a ledger row
+/ with dataZone=`holdout; a SECOND call returns the RECORDED verdict WITHOUT recomputing
+/ or re-reading the holdout (the seal). The commodity comes from the hypothesis instruments.
+.gov.holdoutGate:{[hid;runner]
+    .gov.init[];
+    cfg:.cfg.gov;
+    annDays:cfg`annualizationDays;
+    hypo:.gov.hypo hid;
+    / ONE-SHOT seal: already looked -> return the recorded verdict, no recompute / no read.
+    if[not null hypo`holdoutUsedAt;
+        :`passed`netSharpe`dsr`reason`fresh!(
+            (hypo`holdoutVerdict)=`pass; hypo`holdoutNetSharpe; hypo`holdoutDsr;
+            "RECORDED holdout look at ",(string hypo`holdoutUsedAt)," (one look per hypothesis - not recomputed)"; 0b)];
+    commodity:first (),hypo`instruments;
+    range:.gov.holdout.read[commodity];
+    pnlByDate:runner . range;
+    rets:pnlByDate`pnl;
+    perf:.strategy.commodityBT.__perf[rets;annDays;1f];
+    netSharpe:perf`sharpe;
+    mo:.gov.__moments rets;
+    fam:.gov.trials hid;
+    nTrials:count fam;
+    perPeriod:(fam`netSharpe)%sqrt annDays;
+    varSR:$[1<count perPeriod; var perPeriod; 0f];
+    dsr:.gov.deflatedSharpe[mo`srPP;mo`n;mo`skew;mo`kurt;nTrials;varSR];
+    passed:netSharpe>=cfg`holdoutSharpe;
+    ts:.z.p;
+    hv:$[passed;`pass;`fail];
+    / record the immutable one-shot look + append the holdout trial (dataZone=`holdout).
+    .gov.hypoTbl:update holdoutUsedAt:ts, holdoutVerdict:hv, holdoutNetSharpe:netSharpe, holdoutDsr:dsr from .gov.hypoTbl where hypoId=hid;
+    .gov.logTrial `hypoId`runAt`dataZone`dateFrom`dateTo`nObs`netSharpe`skew`kurtosis`maxDD`hitRate`paramsJson!(
+        hid;ts;`holdout;range 0;range 1;mo`n;netSharpe;mo`skew;mo`kurt;perf`maxDrawdown;perf`hitRate;"{}");
+    `passed`netSharpe`dsr`reason`fresh!(
+        passed;netSharpe;dsr;
+        "holdout net Sharpe ",(.gov.__fmt netSharpe)," vs bar ",(.gov.__fmt cfg`holdoutSharpe)," (",(string mo`n)," obs, ONE-SHOT look recorded)"; 1b)
+ };
+
+/ ── R3b: the full fail-safe cascade orchestrator ─────────────────────────────
+
+/ The COMPLETE 5-gate cascade. runner[from;to] is the strategy run restricted to a date
+/ range (the seam that lets gov control which dates the strategy EVER sees), returning a
+/ (date;pnl) table of NET daily PnL. axis is the regime axis (e.g. `curveState).
+/ (a) restrict to trainValidate; (b) run gates 0-3 per regime bucket on the trainValidate
+/ returns (logs the trials, N grows); (c) ONLY if at least one bucket cleared gates 0-3
+/ does the hypothesis EARN a look -> the one-shot holdout gate; the buckets that failed
+/ 0-3 NEVER reach the holdout (the seal protects it from unearned looks). (d) final
+/ FAIL-SAFE verdict per bucket: tradeable IFF (gates 0-3 cleared AND holdout passed);
+/ a cleared-but-holdout-failed bucket is downgraded to `research`.
+.gov.runFull:{[hid;runner;axis]
+    .gov.init[];
+    cfg:.cfg.gov;
+    hypo:.gov.hypo hid;
+    commodity:first (),hypo`instruments;
+    / (a) trainValidate range + returns; (b) gates 0-3 per bucket (reuses .gov.run).
+    tvRange:.gov.zone.range[commodity;`trainValidate];
+    tvPnl:runner . tvRange;
+    labs:.regime.series[commodity;tvPnl`date];
+    bucketVerdicts:.gov.run[hid;tvPnl;labs;axis];
+    / (c) earn the holdout look only if some bucket cleared gates 0-3.
+    cleared:select from bucketVerdicts where failedGate=`none;
+    holdoutRes:$[0<count cleared;
+        .gov.holdoutGate[hid;runner];
+        `passed`netSharpe`dsr`reason`fresh!(0b;0n;0n;"holdout NOT earned (no bucket cleared gates 0-3) - the seal protects it";0b)];
+    / (d) final fail-safe verdict per bucket.
+    {[holdoutRes;v]
+        cleared03:`none~v`failedGate;
+        finalTradeable:cleared03 and holdoutRes`passed;
+        finalVerdict:$[not cleared03; v`verdict;
+                       not holdoutRes`passed; `research;
+                       v`postHoc; `regimeConditional;
+                       `pass];
+        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`holdoutPassed`reason!(
+            v`bucket;v`nObs;finalVerdict;v`failedGate;finalTradeable;v`netSharpe;v`dsr;v`postHoc;holdoutRes`passed;
+            $[cleared03; "gates 0-3 cleared; ",holdoutRes`reason; v`reason])
+        }[holdoutRes] each bucketVerdicts
  };
 
 .gov.init[];
