@@ -8,7 +8,7 @@ A kdb+/q pricing, calibration, risk, and backtest framework. The equity finite-d
 
 The repository is one monorepo organized into layers (dependencies flow downward only); see **[ARCHITECTURE.md](ARCHITECTURE.md)** and the per-layer `README.md`:
 
-`core` (math/RNG/stats + loader + config loader) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `portfolio` (strategy allocator `.alloc`) · `apps` (examples + demos). Reserved: `services`, `scripts` (partial). Load everything with `\l core/init.q`.
+`core` (math/RNG/stats + loader + config loader) · `config` (`.cfg` value files) · `data` (parser + splayed HDB) · `models` (BS/FDM core + commodity + stochastic-vol/jump + exotics) · `calibration` (IV/surface/curve/Kalman) · `analytics` (risk/VaR/scenarios/limits/portfolio/reporting) · `signals` (seasonality) · `regime` (market-state engine `.regime`) · `execution` (daily fill-and-cost) · `backtest` (strategy engine + commodity suite + walk-forward) · `portfolio` (strategy allocator `.alloc`) · `apps` (examples + demos). Reserved: `services`, `scripts` (partial). Load everything with `\l core/init.q`.
 
 ## Feature Summary
 
@@ -25,7 +25,8 @@ The repository is one monorepo organized into layers (dependencies flow downward
 | Execution | Daily fill-and-cost simulation (slippage, participation cap, cost attribution), gross-vs-net Sharpe |
 | Config | `.cfg` layer (`config/base.q` + `QPRICER_ENV` overrides) |
 | Portfolio | Strategy allocator (`.alloc`): equal-weight / inverse-vol / min-variance / risk-parity / max-Sharpe / mean-variance, long-only + cap + turnover constraints, causal walk-forward OOS comparison |
-| Tests | 372 passing tests (`q tests/run_all_tests.q`) |
+| Regime | Market-state engine (`.regime`): per-(commodity,date) curve/vol/liquidity/roll/season fingerprint + regime-conditional performance breakdown |
+| Tests | 375 passing tests (`q tests/run_all_tests.q`) |
 
 ### Not Yet Supported
 
@@ -90,6 +91,7 @@ q-fdm-option-pricer/
 ├── calibration/   # iv, surface, objective, calibrate-curve, Kalman MLE, model quality
 ├── analytics/     # risk / VaR / scenarios / limits / portfolio / reporting / perf
 ├── signals/       # seasonality
+├── regime/        # market-state engine (.regime) — regime fingerprint + by-regime breakdown
 ├── execution/     # daily fill-and-cost simulation (.exec) — commodity BT wired
 ├── backtest/      # strategy engine + commodity strategy suite + walk-forward
 ├── portfolio/     # strategy allocator (.alloc) — risk-parity / min-var / etc., OOS compare

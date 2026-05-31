@@ -90,6 +90,15 @@
 .cfg.alloc:`longOnly`fullyInvested`weightCap`turnoverPenalty`riskAversion`shrinkage`rpMaxIter`annualizationDays!(
     1b;1b;1f;0f;1f;0f;300;252f);
 
+/ --- regime layer: Market State Engine thresholds (regime/regime.q) ---
+/ deferredIdx = which tenor is the 'deferred' leg for the curve slope (5 -> the 6th
+/ contract, ~CL6). flatSlopeThreshold: |relative slope| below this is `flat. volLookback:
+/ realized-vol window (days). pctLookback: rolling-percentile window. rollNearDays: front
+/ days-to-expiry <= this is `near. low/high + thin/deep percentile cutoffs for vol/liquidity.
+/ seasonPos/NegThreshold + seasonCfg drive the seasonal-phase bucket via signals/seasonality.
+.cfg.regime:`deferredIdx`flatSlopeThreshold`volLookback`pctLookback`rollNearDays`lowPctThreshold`highPctThreshold`thinPctThreshold`deepPctThreshold`seasonPosThreshold`seasonNegThreshold`seasonCfg`annualizationDays!(
+    5;0.005;21;252;10;0.33;0.67;0.33;0.67;0.01;-0.01;`amplitude`phaseYears!(0.03;0f);252f);
+
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
 / key order are verbatim from the prior function literals (1f%252f kept as the

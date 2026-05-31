@@ -92,6 +92,8 @@
 \l data/parser.q
 \l data/hdb.q
 \l data/backtest.q
+/ Regime (Research OS R1: market-state measurement; depends on data + signals)
+\l regime/regime.q
 / Execution (daily fill-and-cost simulation; used by the commodity backtest)
 \l execution/execution.q
 / Backtest (strategy engine + strategies)
@@ -101,4 +103,4 @@
 \l portfolio/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.63";
+.qfdm.version:"0.64";
