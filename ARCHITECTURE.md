@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.81 &nbsp;|&nbsp; **Tests:** 415 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q` &nbsp;|&nbsp; **Evidence-layer foundation R9–R16: COMPLETE**
+**Version:** 0.82 &nbsp;|&nbsp; **Tests:** 416 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q` &nbsp;|&nbsp; **Evidence-layer foundation R9–R16: COMPLETE** (R17: validated on a real prior strategy)
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -628,9 +628,21 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   packet; `.workflow.run` unchanged, `gov/` unmodified). On real CRUDE the verdict is HONEST + not tradeable
   (cost/deflation bite; the tempting flat bucket is deflated to research) — the architecture telling the truth.
   Registered (`template` kind, conforms); carded. Demo `apps/examples/seasonal_calendar_spread.q`. Not tuned.
-* **← NEXT (post-foundation):** re-run the R8 `factorRelativeValue` on this realistic replay foundation (its
-  first verdict judged on audited evidence rather than vectorised PnL), then the deferred strategies + pricing
-  extensions below — all riding on a stack that is realistic end-to-end.
+* **R17 — Post-foundation: re-run R8 `factorRelativeValue` on the realistic foundation. ✅ DONE (v0.82).**
+  The first proof the foundation generalises beyond R16's capstone. A thin replay-mode runner
+  (`templates/factor_rv_replay.q`, `.template.factorRvReplay.*`) REUSES R8's signal CAUSALLY — `.factor.pca`
+  on a TRAILING `lookback` window of as-of curve changes (the only look-ahead in R8 was its full-sample PCA;
+  the fix is a causal window, never the full sample) + R8's exact residual-fade rule — trades the ACTUAL
+  contract at the `residualMaturity` rank (live, forward-rolling), books NET PnL via `.exec.fill`, and emits an
+  R12-shape run record run through `.workflow.runReplay`. PRE-REGISTERED params (R8's, NOT tuned), R8's card +
+  gates REUSED, R8's template/gates/demo/tests + `.workflow.runReplay` + `gov/` byte-for-byte UNCHANGED (not
+  registered as a new capability; no new card). On real CRUDE the verdict CONFIRMS R8's no-edge finding
+  (backwardation/contango reject at cost; the flat bucket deflated to research, DSR 0.61<0.95; anyTradeable=0,
+  evidence audit passed, escalated to the human), and the attribution (R15) explains WHY: residual fraction
+  0.95 — the PnL is unexplained idiosyncratic residual, not the structural slope/curvature the thesis claims.
+  Demo `apps/examples/factor_rv_replay.q`. Not tuned — a confirmed no-edge verdict is the system working.
+* **← NEXT (post-foundation):** the deferred strategies + pricing extensions below, all riding on a stack
+  that is realistic end-to-end — added only when a named edge or a real need justifies them.
 
 **Deferred (unchanged):** the "priced-in" gate; the drift monitor; IPC services and cloud CI / scheduled
 pipeline (§6, §7); pricing extensions (commodity swaps, Asian / spread options — §9 of the external

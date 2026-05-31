@@ -392,6 +392,7 @@
 .test.seasonFiles:(enlist "tests/season/test_seasonality.q");
 .test.carryFiles:(enlist "tests/carry/test_carry.q");
 .test.attributionFiles:(enlist "tests/attribution/test_attribution.q");
+.test.factorReplayFiles:(enlist "tests/factor_replay/test_factor_rv_replay.q");
 
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
@@ -526,6 +527,7 @@
     (`season;     .test.seasonFiles);
     (`carry;      .test.carryFiles);
     (`attribution; .test.attributionFiles);
+    (`factorReplay; .test.factorReplayFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

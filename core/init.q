@@ -138,6 +138,9 @@
 / Seasonal calendar-spread template (Research OS R16 capstone: fade R14's seasonal same-month z of the
 / crude calendar spread; trades the actual legs; emits an R12-shape run record; reuses .template.rv.*)
 \l templates/seasonal_calendar_spread.q
+/ Replay-mode factor relative-value runner (Post-foundation R17: re-run R8's factorRelativeValue signal
+/ CAUSALLY through the realistic foundation - actual contracts + R12 run record; reuses R8's card + gates)
+\l templates/factor_rv_replay.q
 / Evidence audit (Research OS R13: the deterministic pass/fail verifier on a replay run record +
 / the fail-safe precondition wrapper; ABOVE backtest/, BELOW gov/; reads the zone CONFIG not gov's
 / logic; gov UNMODIFIED; opens nothing at import)
@@ -156,4 +159,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.81";
+.qfdm.version:"0.82";
