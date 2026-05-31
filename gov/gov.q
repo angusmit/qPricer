@@ -314,12 +314,30 @@
         `bucket`rets`dateFrom`dateTo!(b;sub`pnl;min sub`date;max sub`date)}[m] each buckets
  };
 
+/ Connective wiring (v0.71): the REGIME RISK-MEMORY SKEPTIC. For a (commodity, dates)
+/ context, surface the nearest historical episodes' failure modes by reaching DOWNWARD
+/ into regime/ (.regime.analogue.forDate + the regime library, R4). Returns a one-line
+/ note (empty if there is no context / no HDB / no library loaded). INFORMATIONAL ONLY:
+/ it changes NO gate pass/fail and NO existing verdict field - it is attached as an extra
+/ `riskMemory annotation. gov -> regime is a legal DOWNWARD read (regime/ is LOW); gov
+/ never imports cards/. Graceful: any failure (no HDB / no episodes) yields "".
+.gov.__riskMemoryNote:{[commodity;dates]
+    r:.[{[c;dts]
+            if[(null c) or 0=count dts; :()];
+            .regime.analogue.forDate[c; max dts; .cfg.gov`skepticN]};
+        (commodity;dates);
+        {[e] ()}];
+    $[0=count r; "";
+        "resembles ","; " sv {[row] (string row`label),(" (d=",(.gov.__fmt row`distance),"): "),row`riskMemory} each r]
+ };
+
 / THE non-optional path. Logs a trial per regime bucket FIRST (so the ledger's N
 / reflects the multiple-testing count - one trial per slice tried), THEN evaluates
 / each bucket against the now-updated ledger. The backtest ENGINE is untouched -
 / logging is enforced by routing all research through .gov.run, not by an engine hook.
 / Returns one verdict record per bucket (a table). pnlByDate has columns date, pnl
 / (NET daily PnL); regimeLabels is a .regime.series table; axis is e.g. `curveState.
+/ Each verdict carries an informational `riskMemory annotation (the regime skeptic).
 .gov.run:{[hypoId;pnlByDate;regimeLabels;axis]
     .gov.init[];
     cfg:.cfg.gov;
@@ -340,12 +358,14 @@
     nTrials:count fam;
     perPeriod:(fam`netSharpe)%sqrt annDays;
     varSR:$[1<count perPeriod; var perPeriod; 0f];
-    {[hypo;axis;cfg;nTrials;varSR;bd]
+    / the regime risk-memory skeptic note (informational; same for every bucket of the run).
+    note:.gov.__riskMemoryNote[first (),hypo`instruments; pnlByDate`date];
+    {[hypo;axis;cfg;nTrials;varSR;note;bd]
         v:.gov.evaluate `hypo`rets`bucket`axis`nTrials`varSR`cfg!(
             hypo;bd`rets;bd`bucket;axis;nTrials;varSR;cfg);
-        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`reason!(
-            bd`bucket;count bd`rets;v`verdict;v`failedGate;v`tradeable;v`netSharpe;v`dsr;v`postHoc;v`reason)
-        }[hypo;axis;cfg;nTrials;varSR] each bdata
+        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`reason`riskMemory!(
+            bd`bucket;count bd`rets;v`verdict;v`failedGate;v`tradeable;v`netSharpe;v`dsr;v`postHoc;v`reason;note)
+        }[hypo;axis;cfg;nTrials;varSR;note] each bdata
  };
 
 / ── R3b: the three data zones (gates 0-3 see train+validate ONLY) ────────────
@@ -454,9 +474,9 @@
                        not holdoutRes`passed; `research;
                        v`postHoc; `regimeConditional;
                        `pass];
-        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`holdoutPassed`reason!(
+        `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`holdoutPassed`reason`riskMemory!(
             v`bucket;v`nObs;finalVerdict;v`failedGate;finalTradeable;v`netSharpe;v`dsr;v`postHoc;holdoutRes`passed;
-            $[cleared03; "gates 0-3 cleared; ",holdoutRes`reason; v`reason])
+            $[cleared03; "gates 0-3 cleared; ",holdoutRes`reason; v`reason]; v`riskMemory)
         }[holdoutRes] each bucketVerdicts
  };
 

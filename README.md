@@ -26,7 +26,7 @@ The repository is one monorepo organized into layers (dependencies flow downward
 | Config | `.cfg` layer (`config/base.q` + `QPRICER_ENV` overrides) |
 | Portfolio | Strategy allocator (`.alloc`): equal-weight / inverse-vol / min-variance / risk-parity / max-Sharpe / mean-variance, long-only + cap + turnover constraints, causal walk-forward OOS comparison |
 | Regime | Market-state engine (`.regime`): per-(commodity,date) curve/vol/liquidity/roll/season fingerprint + regime-conditional performance breakdown |
-| Tests | 392 passing tests (`q tests/run_all_tests.q`) |
+| Tests | 395 passing tests (`q tests/run_all_tests.q`) |
 
 ### Not Yet Supported
 

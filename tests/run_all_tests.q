@@ -339,7 +339,8 @@
     "tests/gov/test_gov_gates.q";
     "tests/gov/test_gov_zones.q";
     "tests/gov/test_gov_holdout_oneshot.q";
-    "tests/gov/test_gov_verdict_failsafe.q");
+    "tests/gov/test_gov_verdict_failsafe.q";
+    "tests/gov/test_gov_skeptic_annotation.q");
 
 .test.registryFiles:(
     "tests/registry/test_registry_core.q";
@@ -349,7 +350,9 @@
 .test.cardsFiles:(
     "tests/cards/test_cards_core.q";
     "tests/cards/test_cards_validation_status.q";
-    "tests/cards/test_cards_audit.q");
+    "tests/cards/test_cards_audit.q";
+    "tests/cards/test_cards_gated_run.q";
+    "tests/cards/test_cards_audit_dynamic.q");
 
 .test.templatesFiles:(
     "tests/templates/test_template_registry.q";

@@ -95,10 +95,13 @@
 
 / ── the audit (the honesty check that CAN FAIL) ──────────────────────────────
 
-/ The registered capabilities across every kind (the R2 registries + the strategy registry).
+/ The registered capabilities across every kind. DYNAMIC (v0.71): it walks ALL kinds in
+/ the R2 registry (`.registry.kinds[]`) - so a NEW kind (e.g. the R6 `template` kind, or
+/ any future kind) can never be silently missed by the coverage audit - plus the separate
+/ strategy registry. A new plug-in kind is visible to the audit the moment it is registered.
 .cards.__registered:{[]
-    `model`signal`calibrator`fillModel`strategy!(
-        .model.list[]; .signal.list[]; .calibrator.list[]; .execution.fillModel.list[]; .strategy.registeredStrategies[])
+    rk:.registry.kinds[];
+    (rk!{.registry.list x} each rk),(enlist `strategy)!enlist .strategy.registeredStrategies[]
  };
 
 / PURE audit: cross-check a registered-capabilities map (kind -> names) and a card set.
@@ -128,6 +131,35 @@
 
 / Audit the live cards against the live registries.
 .cards.audit:{[] .cards.__auditAgainst[.cards.__registered[]; .cards.cards[]]};
+
+/ ── connective wiring (v0.71): carded gating ────────────────────────────────
+
+/ Is a capability ready to be gated? -> `ready`reason. Ready iff a model card EXISTS for it
+/ AND its failure-mode / risk-memory field is populated (riskMemoryKey is a real link, not
+/ `na / empty - it resolves to the regime library's documented failure modes). Honest gate:
+/ you cannot gate a capability you have not documented the failure modes of.
+.cards.gateReady:{[capName]
+    cs:select from .cards.cards[] where capabilityName=capName;
+    if[0=count cs; :`ready`reason!(0b;"no model card for ",string capName)];
+    rk:(first cs)`riskMemoryKey;
+    populated:(not null rk) and not rk=`na;
+    $[populated;
+        `ready`reason!(1b;"carded with a populated failure-mode (risk-memory) link: ",string rk);
+        `ready`reason!(0b;"card has no populated failure-mode field (riskMemoryKey is `na / empty)")]
+ };
+
+/ Carded gating ENTRY: realises "Gate 0 requires a card with a populated failure-mode field"
+/ at the BOUNDARY (cards -> gov is a legal DOWNWARD call; gov never imports cards). Prechecks
+/ .cards.gateReady; if NOT ready it REFUSES - returns an `undocumented verdict (tradeable=0b)
+/ and does NOT run the gates / does NOT touch the holdout. If ready it delegates to
+/ .gov.runFull and returns its verdict (now carrying the regime risk-memory annotation).
+.cards.gatedRun:{[hypoId;capName;runner;axis]
+    gr:.cards.gateReady capName;
+    if[not gr`ready;
+        :enlist `bucket`nObs`verdict`failedGate`tradeable`netSharpe`dsr`postHoc`holdoutPassed`reason`riskMemory!(
+            `all;0;`undocumented;`card;0b;0n;0n;0b;0b;("REFUSED before gating: ",gr`reason);"")];
+    .gov.runFull[hypoId;runner;axis]
+ };
 
 / ── HDB persistence (touches real gitignored data; build script / demo only) ─
 

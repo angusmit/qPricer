@@ -121,4 +121,4 @@
 \l core/registry_populate.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.70";
+.qfdm.version:"0.71";

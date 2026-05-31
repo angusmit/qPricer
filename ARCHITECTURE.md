@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.70 &nbsp;|&nbsp; **Tests:** 392 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.71 &nbsp;|&nbsp; **Tests:** 395 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -299,6 +299,17 @@ look per hypothesis, ever, recorded immutably), and fail-safe verdicts (a `trade
 failure is never tradeable). Deferred: the "priced-in" gate (needs surface/positioning data the HDB lacks),
 and the drift monitor. The bullets below are the full target design; the *italic deferred* notes mark what
 is not yet built.
+
+**Connective wiring (v0.71, cycle-free).** Three additive wires now make the layers inform each other
+without breaking the one-directional rule: (A) **carded gating** — `.cards.gatedRun` (in `cards/`, ABOVE
+gov) refuses to gate a capability whose model card has no populated failure-mode field, then delegates to
+`.gov.runFull` (realising "Gate 0 requires a card" at the cards→gov boundary; gov is NOT modified — a
+literal in-gov Gate 0 would need splitting the card store into low DATA vs high LOGIC, *deferred*); (B) the
+**regime risk-memory skeptic** — `.gov.run`/`.gov.runFull` attach an informational `riskMemory` annotation
+read DOWNWARD from `regime/` (`.regime.analogue` + the R4 library), changing no gate pass/fail; (C) the
+**complete audit** — `.cards.audit[]` walks `.registry.kinds[]` dynamically so a new plug-in kind (the R6
+`template` kind, or any later one) can't be silently missed. No edge points upward; `gov/` still does not
+import `cards/`. Demo `apps/examples/carded_gated_research.q`.
 
 * **Hypothesis registry** (`.gov` / HDB table `hypotheses`): every idea pre-registered with its economic
   thesis, claimed edge source, instruments, and a-priori parameter ranges — *before* data.

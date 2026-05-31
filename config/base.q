@@ -140,6 +140,9 @@
     `scheme`trainSpan`testSpan`maxSplits`minFolds`oosSharpeFloor`minPassFraction!(`rolling;126;63;6;3;0f;0.6);
     `trainFrac`validateFrac!(0.6;0.2);
     0.25);
+/ v0.71 connective wiring: how many nearest historical episodes the regime risk-memory
+/ skeptic surfaces on each verdict (informational annotation; changes no gate pass/fail).
+.cfg.gov[`skepticN]:2;
 
 / --- templates layer: relativeValue problem template (templates/relative_value.q), R6 ---
 / lookback/entryZ drive the causal mean-reversion z-score (fade extremes); notional scales
