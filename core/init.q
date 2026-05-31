@@ -101,6 +101,9 @@
 \l backtest/commodityStrategies.q
 / Portfolio (strategy allocation optimizer; consumes backtest returns)
 \l portfolio/portfolio.q
+/ Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
+/ + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
+\l gov/gov.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.64";
+.qfdm.version:"0.65";

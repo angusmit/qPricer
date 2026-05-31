@@ -99,6 +99,21 @@
 .cfg.regime:`deferredIdx`flatSlopeThreshold`volLookback`pctLookback`rollNearDays`lowPctThreshold`highPctThreshold`thinPctThreshold`deepPctThreshold`seasonPosThreshold`seasonNegThreshold`seasonCfg`annualizationDays!(
     5;0.005;21;252;10;0.33;0.67;0.33;0.67;0.01;-0.01;`amplitude`phaseYears!(0.03;0f);252f);
 
+/ --- governance layer: research-governance gates (gov/gov.q) ---
+/ Research OS R3. costHurdleSharpe: Gate 1 net-of-execution annualised-Sharpe floor.
+/ dsrThreshold: Gate 2 deflated-Sharpe pass bar (Bailey & Lopez de Prado standard 0.95).
+/ validEdgeSources: the edgeSource enum Gate 0 accepts. exec: a REALISTIC .exec cost
+/ sub-config (slippageBps etc.) the wrapper/demo threads into the backtest so the
+/ cascade judges NET returns (NOT the frictionless default). walkForward: Gate 3 causal
+/ split scheme (reuses .strategy.commodityBT.__splits) + the OOS sign-stability floor.
+.cfg.gov:`costHurdleSharpe`dsrThreshold`validEdgeSources`annualizationDays`exec`walkForward!(
+    0.25;
+    0.95;
+    `riskPremium`mispricing`info;
+    252f;
+    `slippageBps`fixedPerTrade!(2f;0f);
+    `scheme`trainSpan`testSpan`maxSplits`minFolds`oosSharpeFloor`minPassFraction!(`rolling;126;63;6;3;0f;0.6));
+
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
 / key order are verbatim from the prior function literals (1f%252f kept as the

@@ -59,7 +59,7 @@ without colliding, with the test suite as the merge gate.
 | `scripts/` | `ingest_hdb.q` (+ reserved CI/pipeline) | partial |
 | `apps/` | examples + demos | built |
 | `regime/` | **(NEW — Part II)** market-state recognition + regime tagging | **to build (R1)** |
-| `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, gate cascade | **to build (R3)** |
+| `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade | **built (v0.65, R3)** |
 | `agents/` | **(NEW — Part II)** bounded research-agent prompt definitions | **to build (R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
 
@@ -279,6 +279,13 @@ similar to what, and different because what.*
 
 ### 11.4 Governance — registry + trials ledger + gate cascade + drift monitor
 
+**Status: largely DONE (v0.65, R3).** `gov/gov.q` (`.gov.*`) ships the registry, the append-only trials
+ledger, the deflated-Sharpe core, and the thesis → cost → deflated-Sharpe → walk-forward gate cascade,
+with the non-optional `.gov.run` logging wrapper (the backtest engine is never edited). Deferred: the
+sealed-holdout zone + holdout gate (→ R3b), the "priced-in" gate (needs surface/positioning data the HDB
+lacks), and the drift monitor. The bullets below are the full target design; the *italic deferred* notes
+mark what is not yet built.
+
 * **Hypothesis registry** (`.gov` / HDB table `hypotheses`): every idea pre-registered with its economic
   thesis, claimed edge source, instruments, and a-priori parameter ranges — *before* data.
 * **Trials ledger** (HDB table `trials`): the engine writes **every** backtest run automatically (the
@@ -288,9 +295,9 @@ similar to what, and different because what.*
 * **Gate cascade** (the promotion funnel): thesis → cost (net-of-`.exec`) → deflated Sharpe (penalised by
   the ledger's N) → walk-forward + stress (params/regimes/commodities) → priced-in → sealed holdout (one
   look). Most candidates die at cost and deflation — that is the system working.
-* **Sealed holdout zone**: a data-segregation discipline over the HDB — train (open) / validate (logged) /
-  holdout (sealed, readable only by the final gate, once per strategy, recorded immutably).
-* **Drift monitor**: promoted strategies watched for edge decay; demoted when they fade.
+* **Sealed holdout zone** *(deferred → R3b)*: a data-segregation discipline over the HDB — train (open) /
+  validate (logged) / holdout (sealed, readable only by the final gate, once per strategy, recorded immutably).
+* **Drift monitor** *(deferred)*: promoted strategies watched for edge decay; demoted when they fade.
 
 ### 11.5 Model Cards
 
@@ -374,10 +381,18 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
 * **R2 — Contracts & registries.** Write `CONTRACTS.md`; generalise the existing `.strategy.register`
   pattern to `.model.register` / `.signal.register` / `.calibrator.register` /
   `.execution.fillModel.register`. Formalises the spine's docking interface. Thin, additive.
-* **R3 — Governance.** `gov/` layer: `hypotheses` + `trials` tables, the **ledger write-path** (every
-  backtest logs automatically), the **sealed holdout zone** (data segregation over the HDB), and the
-  **gate cascade** (thesis → cost → deflated Sharpe → walk-forward → priced-in → holdout). The
-  anti-overfitting core. Reuses `.alloc`'s causal walk-forward + `__perf`.
+* **R3 — Governance. ✅ DONE (v0.65).** `gov/gov.q` (`.gov.*`): the `hypotheses` registry + the
+  append-only `trials` ledger (the honest N), the **deflated-Sharpe** core (PSR/DSR, Bailey & López de
+  Prado; `.gov.phiInv` Acklam inverse-normal added, `Phi` reuses `.validation.__normalCdf`), and the
+  ordered **gate cascade** (thesis → cost → deflated Sharpe → walk-forward; stop-at-first-failure, +
+  post-hoc flag). The **non-optional** logging wrapper `.gov.run` logs a trial per regime bucket THEN
+  evaluates, so the backtest ENGINE is never touched (byte-identical). Reuses `.strategy.commodityBT.__splits`
+  (causal walk-forward, as `.alloc.compare` does) + `__perf`. Demo `apps/examples/gov_gate_momentum.q`
+  kills the tempting contango/flat momentum slices on cost + deflation + the post-hoc penalty.
+  **Deferred to R3b / later (not built):** the **sealed-holdout zone + one-shot holdout gate** → R3b
+  (data-zone segregation over the HDB deserves its own bounded step; the walk-forward gate provides the
+  OOS rigor for now); the **"what's PRICED IN" gate** → later (a faithful version needs options-surface /
+  positioning data the HDB does not have — deliberately not faked with a stub).
 * **R4 — Regime / Analogue Library + risk memory.** `docs/REGIME_LIBRARY.md` + backing tables + the
   analogue-query function (state-space distance, nearest-regime retrieval). Knowledge plug-ins.
 * **R5 — Model Cards.** `docs/MODEL_CARDS.md` (one card per model/strategy) + a card registry the gates

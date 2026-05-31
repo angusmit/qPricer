@@ -331,6 +331,11 @@
     "tests/regime/test_regime_label.q";
     "tests/regime/test_regime_breakdown.q");
 
+.test.govFiles:(
+    "tests/gov/test_gov_deflated_sharpe.q";
+    "tests/gov/test_gov_ledger.q";
+    "tests/gov/test_gov_gates.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -449,6 +454,7 @@
     (`execution;  .test.executionFiles);
     (`alloc;      .test.allocFiles);
     (`regime;     .test.regimeFiles);
+    (`gov;        .test.govFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---
