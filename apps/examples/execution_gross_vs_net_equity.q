@@ -30,4 +30,21 @@ show report;
 -1 "";
 -1 "gammaScalp gross totalPnl=",(string rows[0]`totalPnl),"  ->  net @20bps=",string rows[3]`totalPnl;
 -1 "(Delta-hedge turnover is frequent, so hedge slippage compounds across rebalances - the honest net-of-execution view.)";
+
+/ --- v0.63 (step 4c): OPTION-LEG slippage on an option-heavy strategy (iron_condor,
+/ held outright -> the cost is the 4-leg option spread, typically the dominant cost). ---
+icBase:@[.strategy.defaultConfig `ironCondor;(`stepYears;`financingRate;`txnCostRate);:;(1f%252f;0f;0.0005)];
+icStats:{[icBase;trade;path;m;fdm;bps]
+    cfg:icBase,(enlist `exec)!enlist (enlist `slippageBps)!enlist bps;
+    s:(.strategy.runAndSummarize[`ironCondor;trade;path;m;fdm;cfg])`summary;
+    `totalPnl`netCredit!((s`totalPnl);s`netCredit)}[icBase;trade;pathTbl;bsModel;fdmCfg];
+icRows:icStats each bpsLevels;
+icReport:([] optionSpreadBps:bpsLevels; totalPnl:icRows[;`totalPnl]);
+-1 "";
+-1 "iron-condor GROSS vs NET by OPTION-LEG (premium) slippage (slippageBps=0 is GROSS):";
+show icReport;
+-1 "";
+-1 "ironCondor gross totalPnl=",(string icRows[0]`totalPnl),"  ->  net @20bps=",string icRows[3]`totalPnl;
+-1 "(Option bid-ask is premium-scaled and the dominant execution cost for option structures -";
+-1 " even a modest option-spread bps erodes the condor's net edge faster than hedge slippage alone.)";
 exit 0;

@@ -12,6 +12,8 @@ data/barchart/aapl/options_history/*.csv
 /data/barchart/RB/*.csv
 /data/barchart/HO/*.csv
 /data/barchart/*/Day_*.csv
+# Belt-and-braces: ANY CSV under ANY data/barchart product folder (Day_/Hour_/any tag) is real user data.
+/data/barchart/**/*.csv
 
 # Splayed HDB (v0.59) - built from CSVs by scripts/ingest_hdb.q; never committed.
 /data/hdb/

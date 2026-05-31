@@ -101,4 +101,4 @@
 \l portfolio/portfolio.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.62";
+.qfdm.version:"0.63";

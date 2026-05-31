@@ -197,6 +197,16 @@
 / __hedgeInit/__hedgeStep can resolve it (absent -> frictionless default -> byte-identical).
 .strategy.__withExec:{[hedgeInputs;stratCfg] $[`exec in key stratCfg; hedgeInputs,(enlist `exec)!enlist stratCfg`exec; hedgeInputs]};
 
+/ Route a discrete OPTION-LEG (or futures-leg / inline-hedge) trade cost through .exec.fill
+/ (v0.63, step 4c). `notional` is the SIGNED dollar amount traded (qty*premium, >=0 here);
+/ refPrice=1 because it is already priced, so proportionalRate*|notional| reproduces the
+/ legacy per-leg cost rate*notional EXACTLY (default frictionless -> byte-identical), and
+/ slippage = |notional|*slippageBps/1e4 is the premium-scaled option bid-ask. Discrete legs
+/ fill fully (no bar volume in ctx -> participation cap never binds).
+.strategy.__legCost:{[notional;stratCfg]
+    (.exec.fill[notional;`refPrice`currentPos!(1f;0f);.exec.__resolve stratCfg])`totalCost
+ };
+
 / Routed through .exec.fill (v0.61): the hedge order is the dollar NOTIONAL traded
 / (hedgeTrade*spot) with refPrice=1, so the generic proportional cost
 / (rate*|notional|) reproduces the legacy price-scaled cost |hedgeTrade|*spot*rate
@@ -778,10 +788,10 @@
     netDelta:netPos`delta;
     netGamma:netPos`gamma;
     netTheta:netPos`theta;
-    legEntryTxnCost:sum (legs`units)*(abs legs`entryPrice)*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[sum (legs`units)*(abs legs`entryPrice);stratCfg];
     hedgeDeltaOn:stratCfg`hedgeDelta;
     hedgeInit:$[hedgeDeltaOn;
-        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        .strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);stratCfg];
         `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
     initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
@@ -821,7 +831,7 @@
 
     txnCostRate:stratCfg`txnCostRate;
     settlements:$[0<count expiringLegs; sum (expiringLegs`side)*(expiringLegs`units)*expiringLegs`unitPrice; 0f];
-    rollTxnCloseCost:$[0<count expiringLegs; sum (expiringLegs`units)*(abs expiringLegs`unitPrice)*txnCostRate; 0f];
+    rollTxnCloseCost:$[0<count expiringLegs; .strategy.__legCost[sum (expiringLegs`units)*(abs expiringLegs`unitPrice);stratCfg]; 0f];
 
     units:trade`notional;
     longCal:(stratCfg`spreadType)=`longCalendar;
@@ -846,7 +856,7 @@
         ()];
     newEntryTbl:$[0<count newEntryRows; .strategy.__rowDictsToTable newEntryRows; .strategy.calendarRoll.__emptyLegTable[]];
     newEntryCost:$[0<count newEntryTbl; sum (newEntryTbl`side)*(newEntryTbl`units)*newEntryTbl`entryPrice; 0f];
-    rollTxnOpenCost:$[0<count newEntryTbl; sum (newEntryTbl`units)*(abs newEntryTbl`entryPrice)*txnCostRate; 0f];
+    rollTxnOpenCost:$[0<count newEntryTbl; .strategy.__legCost[sum (newEntryTbl`units)*(abs newEntryTbl`entryPrice);stratCfg]; 0f];
     rollTxnCost:rollTxnCloseCost+rollTxnOpenCost;
     rollCashFlow:(settlements-newEntryCost)-rollTxnCost;
 
@@ -874,8 +884,8 @@
         .strategy.__hedgeStep[
             `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
                 cashPrev;prevHedgePos;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-                spot;newPositionValue;netDelta;marketStep`stepIndex;stepYears;txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+            .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stepYears;txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
         `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
             cashPrev+(financingRate*cashPrev)*stepYears;
             0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stepYears;0f)];
@@ -1070,9 +1080,9 @@
     netDelta:notional*(callSide*callMark`unitDelta)+putSide*putMark`unitDelta;
     netGamma:notional*(callSide*callMark`unitGamma)+putSide*putMark`unitGamma;
     netTheta:notional*(callSide*callMark`unitTheta)+putSide*putMark`unitTheta;
-    legEntryTxnCost:notional*((abs callPrice)+abs putPrice)*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[notional*((abs callPrice)+abs putPrice);stratCfg];
     hedgeInit:$[stratCfg`hedgeDelta;
-        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        .strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);stratCfg];
         `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
     initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
@@ -1117,8 +1127,8 @@
         .strategy.__hedgeStep[
             `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
                 cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+            .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
         `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
             cashPrev+(financingRate*cashPrev)*stratCfg`stepYears;0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stratCfg`stepYears;0f)];
     positionPnl:newPositionValue-state`prevPositionValue;
@@ -1241,9 +1251,9 @@
     positionDelta:optionUnits*markA`unitDelta;
     positionGamma:optionUnits*markA`unitGamma;
     positionTheta:optionUnits*markA`unitTheta;
-    legEntryTxnCost:(abs optionUnits)*priceA0*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[(abs optionUnits)*priceA0;stratCfg];
     hedgeInit:$[stratCfg`hedgeDelta;
-        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+        .strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
         `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
     initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
@@ -1280,8 +1290,8 @@
         .strategy.__hedgeStep[
             `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
                 cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-                spot;newPositionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+            .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
         `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
             cashPrev+(financingRate*cashPrev)*stratCfg`stepYears;0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stratCfg`stepYears;0f)];
     positionPnl:newPositionValue-state`prevPositionValue;
@@ -1405,9 +1415,9 @@
     netGamma:bookGamma+vegaHedgeUnits*hedgeOptMark`unitGamma;
     netTheta:bookTheta+vegaHedgeUnits*hedgeOptMark`unitTheta;
     residualVega:bookVega+vegaHedgeUnits*hedgeOptMark`unitVega;
-    bookEntryTxnCost:(abs bookValue)*stratCfg`txnCostRate;
-    vegaEntryTxnCost:(abs vegaHedgeValue)*stratCfg`txnCostRate;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+    bookEntryTxnCost:.strategy.__legCost[abs bookValue;stratCfg];
+    vegaEntryTxnCost:.strategy.__legCost[abs vegaHedgeValue;stratCfg];
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);stratCfg];
     initialTxnCost:(bookEntryTxnCost+vegaEntryTxnCost)+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
     initialCash:(((neg positionValue)-bookEntryTxnCost)-vegaEntryTxnCost)+hedgeInit`cashAdj;
@@ -1444,7 +1454,7 @@
     bookPnl:notional*(bookPrice-prevBookPrice);
     vegaHedgePnl:prevVegaHedgeUnits*(hedgeOptPrice-prevHedgeOptPrice);
     vegaTradeCash:neg vegaUnitsChange*hedgeOptPrice;
-    vegaTradeTxn:(abs vegaUnitsChange*hedgeOptPrice)*stratCfg`txnCostRate;
+    vegaTradeTxn:.strategy.__legCost[abs vegaUnitsChange*hedgeOptPrice;stratCfg];
     newVegaHedgeValue:newVegaHedgeUnits*hedgeOptPrice;
     newPositionValue:bookValue+newVegaHedgeValue;
     netDelta:bookDelta+newVegaHedgeUnits*hedgeOptMark`unitDelta;
@@ -1456,8 +1466,8 @@
     hedgeUpdate:.strategy.__hedgeStep[
         `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
             cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-        `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-            spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+        .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+            spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
     hedgeTxnCost:hedgeUpdate`txnCost;
     totalTxnCost:hedgeTxnCost+vegaTradeTxn;
     newCash:(hedgeUpdate`cash)+vegaTradeCash-vegaTradeTxn;
@@ -1697,7 +1707,7 @@
     positionGamma:notional*callGamma+putGamma;
     positionTheta:notional*callTheta+putTheta;
     premiumPaid:notional*callPrice+putPrice;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialCash:(neg premiumPaid)+hedgeInit`cashAdj;
     initialStepPnl:neg hedgeInit`txnCost;
     rowEmit:.strategy.longVol.__rowEmitCols!(
@@ -1727,8 +1737,8 @@
     positionGamma:notional*(first callGreeks`gamma)+first putGreeks`gamma;
     positionTheta:notional*(first callGreeks`theta)+first putGreeks`theta;
     hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;positionValue;positionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
     newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
     spotMove:spot-state`prevSpot;
     theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
@@ -1837,7 +1847,7 @@
     netDelta:underlyingUnits+(putUnits*putMark`unitDelta)-callUnits*callMark`unitDelta;
     netGamma:(putUnits*putMark`unitGamma)-callUnits*callMark`unitGamma;
     netTheta:(putUnits*putMark`unitTheta)-callUnits*callMark`unitTheta;
-    legTxnCost:(((abs underlyingValue)+abs putValue)+abs callValue)*stratCfg`txnCostRate;
+    legTxnCost:.strategy.__legCost[((abs underlyingValue)+abs putValue)+abs callValue;stratCfg];
     initialStepPnl:neg legTxnCost;
     initialCash:(neg positionValue)-legTxnCost;
     rowEmit:.strategy.collarTailHedge.__rowEmitCols!(
@@ -1958,9 +1968,9 @@
     netDelta:(longUnits*longMark`unitDelta)-shortUnits*shortMark`unitDelta;
     netGamma:(longUnits*longMark`unitGamma)-shortUnits*shortMark`unitGamma;
     netTheta:(longUnits*longMark`unitTheta)-shortUnits*shortMark`unitTheta;
-    legEntryTxnCost:((longUnits*longPrice)+shortUnits*shortPrice)*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[(longUnits*longPrice)+shortUnits*shortPrice;stratCfg];
     hedgeInit:$[stratCfg`hedgeDelta;
-        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        .strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);stratCfg];
         `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
     initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
@@ -1998,8 +2008,8 @@
         .strategy.__hedgeStep[
             `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
                 cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+            .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
         `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
             cashPrev+(financingRate*cashPrev)*stratCfg`stepYears;0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stratCfg`stepYears;0f)];
     positionPnl:newPositionValue-state`prevPositionValue;
@@ -2125,9 +2135,9 @@
     netGamma:notional*((lpMark`unitGamma)+(lcMark`unitGamma)-(spMark`unitGamma)+scMark`unitGamma);
     netTheta:notional*((lpMark`unitTheta)+(lcMark`unitTheta)-(spMark`unitTheta)+scMark`unitTheta);
     grossPremium:notional*((shortPutPrice+shortCallPrice)+longPutPrice+longCallPrice);
-    legEntryTxnCost:grossPremium*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[grossPremium;stratCfg];
     hedgeInit:$[stratCfg`hedgeDelta;
-        .strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);
+        .strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;netDelta;stratCfg`txnCostRate);stratCfg];
         `hedgePosition`hedgeTrade`txnCost`cashAdj!(0f;0f;0f;0f)];
     initialTxnCost:legEntryTxnCost+hedgeInit`txnCost;
     initialStepPnl:neg initialTxnCost;
@@ -2171,8 +2181,8 @@
         .strategy.__hedgeStep[
             `cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue!(
                 cashPrev;state`hedgePosition;state`hedgedDelta;state`numRebalances;state`prevSpot;state`prevPositionValue);
-            `spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand)];
+            .strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+                spot;newPositionValue;netDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg]];
         `cash`hedgePosition`hedgedDelta`numRebalances`hedgeTrade`txnCost`financingPnl`hedgePnl!(
             cashPrev+(financingRate*cashPrev)*stratCfg`stepYears;0f;0f;state`numRebalances;0f;0f;(financingRate*cashPrev)*stratCfg`stepYears;0f)];
     positionPnl:newPositionValue-state`prevPositionValue;
@@ -2302,7 +2312,7 @@
     positionDelta:notional*deltaVal;
     positionGamma:notional*gammaVal;
     positionTheta:notional*thetaVal;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialStepPnl:neg hedgeInit`txnCost;
     initialCash:(neg positionValue)+hedgeInit`cashAdj;
     absHedgeTradeAtEntry:abs hedgeInit`hedgeTrade;
@@ -2345,7 +2355,7 @@
         newPositionValue:notional*rebate;
         prevHedgePos:state`hedgePosition;
         hedgeTrade:neg prevHedgePos;
-        txnCostVal:(abs hedgeTrade)*spot*stratCfg`txnCostRate;
+        txnCostVal:.strategy.__legCost[(abs hedgeTrade)*spot;stratCfg];
         financingPnl:(financingRate*cashPrev)*stepYears;
         positionPnl:newPositionValue-state`prevPositionValue;
         hedgePnl:prevHedgePos*(spot-state`prevSpot);
@@ -2377,8 +2387,8 @@
     newPositionGamma:notional*gammaVal;
     newPositionTheta:notional*thetaVal;
     hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-        spot;newPositionValue;newPositionDelta;marketStep`stepIndex;stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;newPositionValue;newPositionDelta;marketStep`stepIndex;stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
     newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
     spotMove:spot-state`prevSpot;
     theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
@@ -2511,7 +2521,7 @@
     positionDelta:optionUnits*deltaVal;
     positionGamma:optionUnits*gammaVal;
     positionTheta:optionUnits*thetaVal;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialCash:(neg positionValue)+hedgeInit`cashAdj;
     initialStepPnl:neg hedgeInit`txnCost;
     rowEmit:.strategy.jumpPremium.__rowEmitCols!(
@@ -2540,8 +2550,8 @@
     newPositionGamma:optionUnits*gammaVal;
     newPositionTheta:optionUnits*thetaVal;
     hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-    stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-        spot;newPositionValue;newPositionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+    stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+        spot;newPositionValue;newPositionDelta;marketStep`stepIndex;stratCfg`stepYears;stratCfg`txnCostRate;stratCfg`financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
     newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
     spotMove:spot-state`prevSpot;
     theoreticalGammaPnl:(0.5*state`prevPositionGamma)*spotMove*spotMove;
@@ -2764,7 +2774,7 @@
     / Per-name hedge book (table). Hedge each constituent leg's delta.
     hedgePositions:neg netConstituentDeltas;
     hedgeTradesInit:hedgePositions;
-    txnCostInit:sum (abs hedgeTradesInit)*perNameSpots0*stratCfg`txnCostRate;
+    txnCostInit:.strategy.__legCost[sum (abs hedgeTradesInit)*perNameSpots0;stratCfg];
     legEntryCash:neg positionValue;
     hedgeEntryCash:neg (sum hedgePositions*perNameSpots0)+txnCostInit;
     initialCash:legEntryCash+hedgeEntryCash;
@@ -2860,7 +2870,7 @@
         shouldRebalance:$[rebalanceMode=`interval; intervalTrigger; bandTrigger];
         newHedgePos:$[shouldRebalance; neg legPositionDelta; prevRow`hedgePosition];
         hedgeTrade:newHedgePos-prevRow`hedgePosition;
-        txnCostLeg:(abs hedgeTrade)*nmSpot*txnCostRate;
+        txnCostLeg:.strategy.__legCost[(abs hedgeTrade)*nmSpot;stratCfg];
         newHedgedDelta:$[shouldRebalance; legPositionDelta; prevRow`hedgedDelta];
         rebalanceIncrement:$[shouldRebalance&0<>hedgeTrade; 1; 0];
         numReb:(prevRow`numRebalances)+rebalanceIncrement;
@@ -3108,7 +3118,7 @@
     callDelta:callMark`delta;
     positionValue:notional*callValue;
     positionDelta:notional*callDelta;
-    hedgeInit:.strategy.__hedgeInit `spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);
+    hedgeInit:.strategy.__hedgeInit .strategy.__withExec[`spot`positionDelta`txnCostRate!(spot;positionDelta;stratCfg`txnCostRate);stratCfg];
     initialCash:(neg positionValue)+hedgeInit`cashAdj;
     initialStepPnl:neg hedgeInit`txnCost;
     rowEmit:.strategy.powerSpikeCapture.__rowEmitCols!(
@@ -3145,7 +3155,7 @@
         / Open hedge against the new position
         newHedgePos:neg newPositionDelta;
         hedgeTrade:newHedgePos;
-        txnCostOpen:((abs hedgeTrade)*spot+notional*callValue)*stratCfg`txnCostRate;
+        txnCostOpen:.strategy.__legCost[(abs hedgeTrade)*spot+notional*callValue;stratCfg];
         legCashOpen:neg ((newHedgePos*spot)+notional*callValue);
         newCash:((cashPrev+financingPnl)+legCashOpen)-txnCostOpen;
         / On opening from flat, position-value jump is offset by cash outflow:
@@ -3169,8 +3179,8 @@
         newPositionValue:notional*callValue;
         newPositionDelta:notional*callDelta;
         hedgeState:`cash`hedgePosition`hedgedDelta`numRebalances`prevSpot`prevPositionValue#state;
-        stepInputs:`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
-            spot;newPositionValue;newPositionDelta;stepIndex;stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);
+        stepInputs:.strategy.__withExec[`spot`positionValue`positionDelta`stepIndex`stepYears`txnCostRate`financingRate`rebalanceMode`rebalanceInterval`deltaBand!(
+            spot;newPositionValue;newPositionDelta;stepIndex;stepYears;stratCfg`txnCostRate;financingRate;stratCfg`rebalanceMode;stratCfg`rebalanceInterval;stratCfg`deltaBand);stratCfg];
         newHedge:.strategy.__hedgeStep[hedgeState;stepInputs];
         cumulativePnl:(state`cumulativePnl)+newHedge`stepPnl;
         rowEmit:.strategy.powerSpikeCapture.__rowEmitCols!(
@@ -3268,7 +3278,7 @@
     / At entry: each leg's mark = current - entry = 0
     positionValue:0f;
     spreadValueEntry:farEntry-nearEntry;
-    legEntryTxnCost:((abs notional*nearEntry)+(abs notional*farEntry))*stratCfg`txnCostRate;
+    legEntryTxnCost:.strategy.__legCost[(abs notional*nearEntry)+(abs notional*farEntry);stratCfg];
     initialStepPnl:neg legEntryTxnCost;
     initialCash:neg legEntryTxnCost;  / futures positions have zero cash flow at entry; only txn costs
     rowEmit:.strategy.commodityCalendar.__rowEmitCols!(
@@ -3309,8 +3319,8 @@
         / Open a new near at new tenor = (state`rollTriggerTenor will be used for next length)
         nextNearTenor:state`rollTriggerTenor;
         newNearEntry:.strategy.commodityCalendar.__priceAtTenor[bundle;stepIndex;nextNearTenor];
-        rollTxnCost+:(abs nearLegRow`units)*nearSettlePrice*txnCostRate;
-        rollTxnCost+:(abs notional)*newNearEntry*txnCostRate;
+        rollTxnCost+:.strategy.__legCost[(abs nearLegRow`units)*nearSettlePrice;stratCfg];
+        rollTxnCost+:.strategy.__legCost[(abs notional)*newNearEntry;stratCfg];
         legBook:update entryPrice:newNearEntry, tenor:nextNearTenor from legBook where name=`near;
         nearEntryEff:newNearEntry;
         rollEventsCount:1];
@@ -3543,8 +3553,8 @@
     h1:$[hedgeEnabled;neg delta1;0f];
     h2:$[hedgeEnabled;neg delta2;0f];
     txnRate:stratCfg`txnCostRate;
-    optTxn:(abs optValue)*txnRate;
-    hedgeTxn:(((abs h1)*f1)+(abs h2)*f2)*txnRate;
+    optTxn:.strategy.__legCost[abs optValue;stratCfg];
+    hedgeTxn:.strategy.__legCost[((abs h1)*f1)+(abs h2)*f2;stratCfg];
     txnEntry:optTxn+hedgeTxn;
     cash0:(neg optValue)-txnEntry;
     initialStepPnl:neg txnEntry;
@@ -3588,7 +3598,7 @@
     trade1:newH1-prevH1;
     trade2:newH2-prevH2;
     txnRate:stratCfg`txnCostRate;
-    txnCost:(((abs trade1)*f1)+(abs trade2)*f2)*txnRate;
+    txnCost:.strategy.__legCost[((abs trade1)*f1)+(abs trade2)*f2;stratCfg];
     newHedgedDelta1:$[shouldRebalance;delta1N;state`hedgedDelta1];
     newHedgedDelta2:$[shouldRebalance;delta2N;state`hedgedDelta2];
     rebInc:$[shouldRebalance and ((0<>trade1) or 0<>trade2);1;0];
