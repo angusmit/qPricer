@@ -359,6 +359,10 @@
     "tests/templates/test_directional_template_faithful.q";
     "tests/templates/test_relative_value.q");
 
+.test.workflowFiles:(
+    "tests/workflow/test_workflow_loop.q";
+    "tests/workflow/test_workflow_bounded.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -481,6 +485,7 @@
     (`registry;   .test.registryFiles);
     (`cards;      .test.cardsFiles);
     (`templates;  .test.templatesFiles);
+    (`workflow;   .test.workflowFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.71 &nbsp;|&nbsp; **Tests:** 395 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.72 &nbsp;|&nbsp; **Tests:** 397 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -62,7 +62,8 @@ without colliding, with the test suite as the merge gate.
 | `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
 | `templates/` | **(NEW — Part II)** problem templates (`.template`) — research-shape plug-in: directional (faithful) + relativeValue | **built (v0.70, R6)** |
 | `cards/` | **(NEW — Part II)** model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
-| `agents/` | **(NEW — Part II)** bounded research-agent prompt definitions | **to build (R7)** |
+| `workflow/` | **(NEW — Part II)** the bounded research loop (`.workflow`) — composes gov/cards/template/regime; escalates to the human | **built (v0.72, R7)** |
+| `agents/` | **(NEW — Part II)** six bounded research-agent role prompts + `ORCHESTRATION.md` (docs; not loaded) | **built (v0.72, R7)** |
 | `tests/` | flat suite, each test starts `\l core/init.q` | built |
 
 The loader (`core/init.q`) loads layers bottom-up in a **fixed, explicit order — there is no
@@ -357,6 +358,13 @@ is a *capability* plug-in (a Python sidecar) registering through the contract; t
 
 ### 11.7 Agent workforce — bounded, with Claude Code orchestration
 
+**Status: DONE (v0.72, R7).** Shipped as six role prompt docs (`agents/*.md`) + `agents/ORCHESTRATION.md`
+(the loop + the hard invariants) + a single-process executable loop `workflow/workflow.q` (`.workflow.run`)
+that composes the built functions; the multi-agent orchestration is the named deferral. The roles below map
+to the shipped files: Rationale/Proposer → `researcher`, History/Regime + Model/card → `curator`,
+Validation → `validator`, Skeptic → `skeptic`, Ledger → `logger`, plus `lead` (the orchestrator / merge-gate
+enforcer / human-escalation).
+
 Six bounded roles, mapped to the discipline: **Rationale/Proposer** (economic mechanism + edge source) →
 **History/Regime** (analogues + risk memory) → **Model** (pick template, fill the card) → **Validation**
 (controlled tests, regime-conditional, every run logged) → **Skeptic** (attacks throughout: look-ahead,
@@ -458,8 +466,14 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   template output → `.gov.runFull`). Demo `apps/examples/relative_value_template.q`. The precondition for
   vol/optimal-execution/deep-hedging templates (a named deferral — not built here) and the shape R7's agents
   instantiate.
-* **R7 — Agent workforce.** `agents/` prompt files for the six roles; wire to Claude Code orchestration
-  later (worktrees / Agent Teams / Dynamic Workflows) with the suite + `test-runner` as the merge gate.
+* **R7 — Agent workforce. ✅ DONE (v0.72).** Six bounded role prompt docs (`agents/{researcher,validator,
+  skeptic,logger,curator,lead}.md` + `agents/ORCHESTRATION.md`, not loaded by init) + a thin executable loop
+  `workflow/workflow.q` (`.workflow.run`) that COMPOSES `.gov`/`.cards`/`.template`/`.regime` into the
+  single-process loop (researcher → curator → validator → skeptic → logger → lead) and returns a
+  human-escalation packet. BOUNDED by construction: no path allocates / trades / marks tradeable without all
+  gates passing; the packet always defers to the human (`apps/examples/research_loop.q`). The merge gate is
+  the full suite + `test-runner`. **Deferred:** the multi-agent orchestration (worktrees / Agent Teams /
+  Dynamic Workflows) parallelises this same loop behind the same merge gate. **R1–R7 complete.**
 
 **Deferred (unchanged):** IPC services and cloud CI / scheduled pipeline — until production onboarding or
 adequate hardware (§6, §7).

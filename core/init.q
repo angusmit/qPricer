@@ -119,6 +119,9 @@
 / Registry population (Research OS R2): register the existing capabilities into the
 / spine (metadata only; runs after every capability layer exists). No compute change.
 \l core/registry_populate.q
+/ Workflow (Research OS R7: the single-process bounded research loop; composes
+/ gov/cards/template/regime downward; the top functional layer; opens no HDB at import)
+\l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.71";
+.qfdm.version:"0.72";
