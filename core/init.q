@@ -126,6 +126,10 @@
 \l templates/template.q
 \l templates/relative_value.q
 \l templates/factor_relative_value.q
+/ Evidence audit (Research OS R13: the deterministic pass/fail verifier on a replay run record +
+/ the fail-safe precondition wrapper; ABOVE backtest/, BELOW gov/; reads the zone CONFIG not gov's
+/ logic; gov UNMODIFIED; opens nothing at import)
+\l evidence/evidence.q
 / Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
 / + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
 \l gov/gov.q
@@ -140,4 +144,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.77";
+.qfdm.version:"0.78";

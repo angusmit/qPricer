@@ -194,6 +194,13 @@
 .cfg.replay:`participationRate`remainderPolicy`rollPenaltyBps`financingRate`annualizationDays`rollW!(
     0f;`drop;0f;0f;252f;1);
 
+/ --- evidence layer: the deterministic evidence audit (evidence/evidence.q), Research OS R13 ---
+/ reconcileTol = the absolute tolerance for the PnL-ties + book-ties reconciliation checks (the
+/ replay folds floating-point sequentially, so allow a few ULPs). requireCosts = require a positive
+/ transaction cost on a run that has fills (set 0b only for a genuinely zero-cost / frictionless run,
+/ so the costs-applied check does not false-fail it). The audit BITES: any check fail -> overall fail.
+.cfg.evidence:`reconcileTol`requireCosts!(1e-8; 1b);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of

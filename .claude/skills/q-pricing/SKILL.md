@@ -397,6 +397,10 @@ Two related parameter-naming traps in date/commodity code (both repeatedly hit a
 
 `(c\`price) .cfg.regime\`flatThreshold` does NOT index `c\`price` and then read a config value — q reads the ` .` as the **Apply/index operator** and evaluates `.[c\`price; cfg.regime\`flatThreshold]` (apply the price vector at that index), usually surfacing as `'type`/`'index` or a silent wrong value. Bind the namespaced config to a local FIRST (`thr:.cfg.regime\`flatThreshold; ... use thr`), or fully parenthesise both operands. This bit the R10 curve engine reading `.cfg.regime` thresholds.
 
+**24. qSQL (`select`/`exec`/`update`) on a LOCAL table inside a lambda throws `'assign`**
+
+`{[run] steps:run\`steps; fills:select from steps where filledQty<>0f; …}` raises `'assign` at PARSE time: q's qSQL templates resolve the table name against the GLOBAL namespace, not a function-local, so a local table is not a valid target. Two fixes: (a) plain vector ops — `mask:0f<>steps\`filledQty; fillQ:(steps\`activeContract) where mask` (filter columns, not the table); or (b) the functional form `?[steps;enlist(<>;\`filledQty;0f);0b;()]`. This bit the R13 evidence audit (and its test harness) repeatedly — prefer column/`where`-mask extraction over `select … from <local>` inside any helper lambda. (Also recurring: a backtick-INDEX followed by a join, `dict\`reason,")"`, parses as `dict[\`reason,")"]` — the `,` binds the symbol to the string BEFORE the index; parenthesise the index: `(dict\`reason),")"`.)
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.

@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.77 &nbsp;|&nbsp; **Tests:** 407 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.78 &nbsp;|&nbsp; **Tests:** 410 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -63,7 +63,7 @@ without colliding, with the test suite as the merge gate.
 | `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` + `carry/` **planned (R14)** |
 | `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** additive realism functions for replay (`.exec.participationCap` vs as-of volume, `.exec.rollPenalty` on the rolled exposure) | built; realism extension **built (v0.77, R12)** |
 | `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** (`.backtest.replay.*`) alongside research mode, emitting an auditable run record | built; replay mode **built (v0.77, R12)** |
-| `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it | **planned (R13)** |
+| `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it; fail-safe `gatedRun` precondition | **built (v0.78, R13)** |
 | `portfolio/` | cross-strategy allocator (`.alloc`) | built |
 | `services/` | optional IPC gateway / HDB service / workers | **reserved (deferred)** |
 | `scripts/` | `ingest_hdb.q` (+ reserved CI/pipeline) | partial |
@@ -438,15 +438,24 @@ frictionless default (`.cfg.replay` all off/zero) keeps every canonical byte-ide
 `deltaPV==stepPnl` invariant intact. Replay mode is the promotion gate (the external standard's "gate 8").
 Demo `apps/examples/replay_engine.q`.
 
-**(e) The evidence audit — `.evidence.*` (R13).** A deterministic function `.evidence.audit[replayRun]` →
-a pass/fail report, run by the workflow *between the replay and the gates* (a hard precondition, like
-carded gating: FAIL → reject, gates never run). It bites on: no datum used outside the accessor's as-of
-provenance (subsumes most look-ahead checks once R9 is the only door); no expired/out-of-universe contract
-traded; roll rule respected; costs applied; fills present; **position book ties to fills**; **PnL ties to
-positions and market moves**; risk report present; and a cross-check that the run's date range stayed
-inside train+validate (the holdout *seal* itself stays in governance, §11.4 — the audit verifies, it does
-not re-implement). The accessor *prevents* by construction; the audit *verifies* by reading provenance —
-a closed loop. The Backtest-QA agent (§11.7) reasons about what the rule-based audit cannot encode.
+**(e) The evidence audit — `.evidence.*` (R13) — DONE (v0.78).** The deterministic function
+`.evidence.audit[run]` → `` `pass`checks`reason `` — a pure pass/fail verifier of an R12 replay run record,
+run *between the replay and the gates* (a hard precondition, like carded gating: FAIL → reject, gates never
+run). Eight checks, each derivable from the run record (+ state/config), and **each one BITES** (a synthetic
+test feeds a deliberately-contaminated run per check and confirms the audit catches it): **lookAhead** (no
+as-of slice saw data dated after its `asOf` — `provDateTo<=asOf`; R9 prevents, the audit verifies);
+**universe** (every fill's contract live, expiry`>`asOf); **rollRespected** (the recorded `rollEvents` are
+exactly the active-contract transitions — no fabricated/missing roll — and every roll is forward);
+**costsApplied** (a run with fills carries a positive txn cost unless `requireCosts` off); **fillsPresent**
+(no position change without a fill); **bookTies** (the book = cumulative fills); **pnlTies** (`stepPnl ≈
+positionPnl − totalCost − financingCost` within `.cfg.evidence.reconcileTol`); **containment** (the run's
+dates ⊆ train+validate per `.cfg.gov.zones` — a light cross-check; the holdout *seal* stays in governance,
+§11.4 — the audit verifies, it does not re-implement). The fail-safe wrapper `.evidence.gatedRun[hypoId;run;
+runner;axis]` mirrors `.cards.gatedRun`: on PASS delegate to `.gov.runFull`; on FAIL return `evidenceFailed`
+(`tradeable=0b`) and the gates NEVER run — gov is UNMODIFIED and `.workflow.run` (R7) is UNCHANGED. The
+accessor *prevents* by construction; the audit *verifies* by reading the recorded provenance — a closed
+loop. INFRASTRUCTURE (a gate) — not an R2 capability, not carded. Demo `apps/examples/evidence_audit.q`. The
+Backtest-QA agent (§11.7) later reasons about what the rule-based audit cannot encode.
 
 **(f) Seasonality + carry — `.season.*`, `.carry.*` (R14).** Small capabilities reading the curve engine's
 output and returning features merged into the Market State's `features` dict. Seasonality: same-month and
@@ -564,12 +573,14 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   `.exec.rollPenalty` (NOT edits to `.exec.fill`). `.backtest.replay.faithfulness` is the look-ahead detector — a
   frictionless replay reproduces research PnL byte-for-byte where the roll map agrees (CRUDE 0.3175637==0.3175637).
   Frictionless default byte-identical; replay is the promotion gate. Demo `apps/examples/replay_engine.q`.
-* **R13 — Evidence audit. ← NEXT.** New `evidence/`: `.evidence.audit[replayRun]` — the deterministic pre-gate
-  (no look-ahead, no expired/out-of-universe trade, roll respected, costs applied, book ties to fills, PnL
-  ties to positions+moves, date-range containment cross-check). Wired as a hard precondition (FAIL →
-  reject, gates never run), exactly like carded gating; `gov/` not modified. The Backtest-QA agent reasons
-  about what the rule-based audit cannot encode.
-* **R14 — Seasonality + carry.** New `season/` + `carry/`: same-month z-scores + carry signal + implied
+* **R13 — Evidence audit. ✅ DONE (v0.78).** New `evidence/`: `.evidence.audit[run]` — the deterministic
+  pre-gate (8 checks: look-ahead, universe, roll-respected, costs-applied, fills-present, book-ties,
+  PnL-ties, date-range containment), and EACH check BITES (one contaminated run per check in the tests).
+  Wired as a hard precondition via `.evidence.gatedRun` (FAIL → `evidenceFailed`, gates never run), exactly
+  like carded gating; `gov/` UNMODIFIED, `.workflow.run` UNCHANGED. Infrastructure (not an R2 capability,
+  not carded). Demo `apps/examples/evidence_audit.q`. The Backtest-QA agent later reasons about what the
+  rule-based audit cannot encode.
+* **R14 — Seasonality + carry. ← NEXT.** New `season/` + `carry/`: same-month z-scores + carry signal + implied
   convenience yield, merged into the Market State features. The features R16 is built on.
 * **R15 — PnL explain + bucketed curve risk.** `analytics/` gains `.risk.attribution`: PnL split into
   curve/slope/curvature/carry/residual + bucketed deltas per tenor. The quantitative "name which edge."

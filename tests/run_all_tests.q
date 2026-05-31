@@ -383,6 +383,11 @@
     "tests/replay/test_replay_loop.q";
     "tests/replay/test_replay_execution.q");
 
+.test.evidenceFiles:(
+    "tests/evidence/test_audit_passes.q";
+    "tests/evidence/test_audit_bites.q";
+    "tests/evidence/test_gated_run.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -511,6 +516,7 @@
     (`curve;      .test.curveFiles);
     (`roll;       .test.rollFiles);
     (`replay;     .test.replayFiles);
+    (`evidence;   .test.evidenceFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---
