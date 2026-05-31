@@ -171,6 +171,20 @@
 / (0 = keep all positive-price tenors).
 .cfg.curve:`deferredIdx`flatThreshold`minVolume!(.cfg.regime`deferredIdx; .cfg.regime`flatSlopeThreshold; 0f);
 
+/ --- season layer: curve/spread seasonality (season/season.q), Research OS R14 ---
+/ deferredIdx = the deferred leg of the seasonal front-deferred spread (2 -> M1-M3, the calendar
+/ spread R16 fades). minObs = the minimum SAME-CALENDAR-MONTH historical observations required for a
+/ z-score; below it the z is null + lowConfidence (thin same-month history early in the data is noisy).
+/ The seasonal stats are CAUSAL (same-calendar-month up to asOf, through R9's door) - never full-sample.
+.cfg.season:`deferredIdx`minObs!(2;3);
+
+/ --- carry layer: carry / storage economics (carry/carry.q), Research OS R14 ---
+/ riskFreeRate (r) + storageCost are ASSUMED (config, NOT market-observed) - the convenience-yield +
+/ cash-and-carry outputs are assumption-dependent and flagged as such. The implied carry comes from the
+/ curve (we have it); the inventory-tightness is a PROXY from the degree of backwardation (no real
+/ inventory data). carry reuses .cfg.curve.deferredIdx (the CL1-CLk leg) so impliedCarry == -rollYield.
+.cfg.carry:`riskFreeRate`storageCost!(0.04;0.02);
+
 / --- roll layer: per-commodity roll rules (roll/roll.q), Research OS R11 ---
 / One rule per commodity (+ a `default fallback): type (days_before_expiry [the robust default,
 / needs expiry only] / volume_switch [as-of volume] / fixed_calendar [rollDays-th day of the
@@ -285,6 +299,21 @@
     "roll decisions use ONLY as-of data (through R9's door); trade the active contracts, NEVER the continuous series (non-point-in-time); no open interest in the HDB";
     `na;
     "any (an as-of roll-mapping capability, regime-agnostic)";
+    `na;`;"qFDM evidence layer";2026.05.31);
+/ Research OS R14: seasonality + carry FEATURE capabilities (the signals R16 is built on).
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_curveSeasonality;`season;`curveSeasonality;`v1;
+    "Causal curve/spread seasonality: same-calendar-month + same-contract-month z, seasonal factor, deseasonalised level, seasonal slope - the signal R16's calendar-spread mean-reversion fades";
+    "the same-month stat is CAUSAL (same-calendar-month up to asOf, through R9's door) - never full-sample; thin same-month history early in the data is noisy (mitigated by min-N -> null/low-confidence); seasonal patterns break in structural shifts; the causal trailing stats use less data than full-sample";
+    `structural;
+    "commodities with a genuine seasonal curve (gas/power strongly, crude weakly); breaks down in structural shifts";
+    `na;`;"qFDM evidence layer";2026.05.31);
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_carryEconomics;`carry;`carryEconomics;`v1;
+    "Carry/storage economics from the curve: implied carry, convenience yield + cash-and-carry fair value (assumption-dependent), carry signal, inventory-tightness proxy";
+    "implied carry comes from the curve; convenience yield + cash-and-carry fair value depend on the ASSUMED r+storage (.cfg.carry, NOT market-observed) and are flagged; the inventory-tightness is a PROXY from the degree of backwardation (no real inventory data); cash-and-carry assumes storability";
+    `riskPremium;
+    "storable commodities (the convenience-yield / cash-and-carry interpretation assumes storability)";
     `na;`;"qFDM evidence layer";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---

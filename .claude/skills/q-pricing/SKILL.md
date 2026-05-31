@@ -401,6 +401,10 @@ Two related parameter-naming traps in date/commodity code (both repeatedly hit a
 
 `{[run] steps:run\`steps; fills:select from steps where filledQty<>0f; …}` raises `'assign` at PARSE time: q's qSQL templates resolve the table name against the GLOBAL namespace, not a function-local, so a local table is not a valid target. Two fixes: (a) plain vector ops — `mask:0f<>steps\`filledQty; fillQ:(steps\`activeContract) where mask` (filter columns, not the table); or (b) the functional form `?[steps;enlist(<>;\`filledQty;0f);0b;()]`. This bit the R13 evidence audit (and its test harness) repeatedly — prefer column/`where`-mask extraction over `select … from <local>` inside any helper lambda. (Also recurring: a backtick-INDEX followed by a join, `dict\`reason,")"`, parses as `dict[\`reason,")"]` — the `,` binds the symbol to the string BEFORE the index; parenthesise the index: `(dict\`reason),")"`.)
 
+**25. The `.mm` / `.dd` / `.month` dot-accessors are ATOM-ONLY — they error on a temporal VECTOR**
+
+`someDate.mm` gives the month 1-12 for a date ATOM, but `dateVec.mm` raises `'.mm` on a date VECTOR. For a vector calendar-month (e.g. grouping by same calendar month), cast instead: `(\`month$dateVec) mod 12` (0-11, Jan=0 — equality is all that matters for same-month grouping). This bit the R14 seasonality layer building the same-calendar-month series. (Same atom-only caveat applies to `.dd`/`.month`/`.year` on vectors — prefer the `\`month$`/`\`date$` casts or `mod` arithmetic for vectorised temporal-part extraction.)
+
 ## q/kdb+ naming and namespace rules
 
 When reviewing or writing q code, enforce clear naming and namespace hygiene.

@@ -104,6 +104,11 @@
 / Roll (Research OS R11: as-of-only roll discipline; depends on state/ door; independent of
 / curve/; reads downward only; opens nothing at import; does NOT rewire existing readers)
 \l roll/roll.q
+/ Season + Carry (Research OS R14: evidence-layer FEATURE capabilities; read curve/ (R10) + state/
+/ (R9) downward; CAUSAL same-month seasonality + curve carry economics; open nothing at import;
+/ do NOT rewire .state.build or touch signals/ seasonality; independent of each other)
+\l season/season.q
+\l carry/carry.q
 / Regime (Research OS R1: market-state measurement; depends on data + signals)
 \l regime/regime.q
 / Regime analogue library + risk memory (Research OS R4; depends on data + regime core)
@@ -144,4 +149,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.78";
+.qfdm.version:"0.79";

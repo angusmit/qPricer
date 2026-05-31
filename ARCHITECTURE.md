@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.78 &nbsp;|&nbsp; **Tests:** 410 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.79 &nbsp;|&nbsp; **Tests:** 412 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -60,7 +60,7 @@ without colliding, with the test suite as the merge gate.
 | `models/` | BS/FDM core + all pricers + pricing domain + `assetclass` routing registry | built |
 | `calibration/` | iv, surface, objective, calibrate-curve, Kalman MLE, model quality | built |
 | `analytics/` | risk / VaR / scenarios / limits / portfolio / reporting / perf; **(NEW)** bucketed-curve PnL explain (`.risk.attribution`) | built; attribution **planned (R15)** |
-| `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` + `carry/` **planned (R14)** |
+| `signals/` | seasonality (alpha-signal library); **(NEW)** commodity curve seasonality + carry feed the Market State | built; `season/` (`.season.*`) + `carry/` (`.carry.*`) **built (v0.79, R14)** |
 | `execution/` | daily fill / slippage / cost simulation (`.exec`); **(NEW)** additive realism functions for replay (`.exec.participationCap` vs as-of volume, `.exec.rollPenalty` on the rolled exposure) | built; realism extension **built (v0.77, R12)** |
 | `backtest/` | strategy engine + commodity suite + walk-forward; **(NEW)** event-driven **replay mode** (`.backtest.replay.*`) alongside research mode, emitting an auditable run record | built; replay mode **built (v0.77, R12)** |
 | `evidence/` | **(NEW — Part II)** the deterministic evidence audit (`.evidence.*`) — bites on a replay run record before the gates see it; fail-safe `gatedRun` precondition | **built (v0.78, R13)** |
@@ -457,15 +457,23 @@ accessor *prevents* by construction; the audit *verifies* by reading the recorde
 loop. INFRASTRUCTURE (a gate) — not an R2 capability, not carded. Demo `apps/examples/evidence_audit.q`. The
 Backtest-QA agent (§11.7) later reasons about what the rule-based audit cannot encode.
 
-**(f) Seasonality + carry — `.season.*`, `.carry.*` (R14).** Small capabilities reading the curve engine's
-output and returning features merged into the Market State's `features` dict. Seasonality: same-month and
-same-contract-month z-scores, seasonal factors, deseasonalised spread, seasonal curve slope (a same-month
-z-score is a group-by over historical same-calendar-month spreads from the accessor — better than a naive
-all-months z-score for commodities). Carry: implied carry `ln(F/S)/T`, implied convenience yield,
-cash-and-carry fair value, a carry signal (realised roll yield − estimated cost-of-carry), an
-inventory-tightness proxy. These are the features the first real strategy (R16) is built on, and they force
-every strategy to *attribute* its return to carry / inventory / normalisation / supply shock / seasonal
-demand. (Complements the existing `signals/` seasonality alpha-library.)
+**(f) Seasonality + carry — `.season.*`, `.carry.*` (R14) — DONE (v0.79).** Small capabilities reading the
+curve engine's output (+ R9's as-of history) and returning feature dicts (merging them into the Market
+State's `features` dict is a later deferral — consumers compose them, same precedent as R10 not rewiring
+`.state.build`). **Seasonality** (`.season.features`): same-calendar-month + same-contract-month z-scores,
+seasonal factor, deseasonalised level, seasonal slope. The same-month z is **CAUSAL** — a group-by over
+historical same-calendar-month spreads UP TO `asOf` through R9's door, **never full-sample** (a full-sample
+seasonal stat is look-ahead — proven by a planted-future-obs test); below a minimum same-month N
+(`.cfg.season`) it returns null + low-confidence. Distinct from the `signals/` seasonality alpha-library.
+**Carry** (`.carry.features`): implied carry (`ln(Ffront/Fdeferred)/T`, positive in backwardation — reuses
+R10's `rollYield`), convenience yield `(r+storage)−impliedCarry` + cash-and-carry fair value
+`Ffront·exp((r+storage)·T)` (both **assumption-dependent** on the `.cfg.carry` `r`+storage, NOT
+market-observed — flagged), a carry signal (roll yield net of the cost of carry), and an inventory-tightness
+**proxy** from the degree of backwardation (no real inventory data — never fabricated). These are the
+features the first real strategy (R16) is built on (the same-month z is R16's calendar-spread signal), and
+they let every strategy *attribute* its return to carry / inventory / seasonality. Registered (R2 `season` +
+`carry` kinds, conform); carded (R5). Demo `apps/examples/season_carry.q`. (Complements the existing
+`signals/` seasonality alpha-library.)
 
 **(g) PnL explain + bucketed curve risk — `.risk.attribution` (R15, extends `analytics/`).** Given a
 position book + the curve, return an attribution dict: PnL split into curve-level / slope / curvature /
@@ -580,9 +588,13 @@ Same discipline as Part I: each step is additive, keeps the suite green and byte
   like carded gating; `gov/` UNMODIFIED, `.workflow.run` UNCHANGED. Infrastructure (not an R2 capability,
   not carded). Demo `apps/examples/evidence_audit.q`. The Backtest-QA agent later reasons about what the
   rule-based audit cannot encode.
-* **R14 — Seasonality + carry. ← NEXT.** New `season/` + `carry/`: same-month z-scores + carry signal + implied
-  convenience yield, merged into the Market State features. The features R16 is built on.
-* **R15 — PnL explain + bucketed curve risk.** `analytics/` gains `.risk.attribution`: PnL split into
+* **R14 — Seasonality + carry. ✅ DONE (v0.79).** New `season/` (`.season.features` — CAUSAL same-calendar-month
+  + same-contract-month z, seasonal factor, deseasonalised level, seasonal slope; min-N gated; the look-ahead
+  detector is a planted-future-obs test) + `carry/` (`.carry.features` — implied carry, convenience yield +
+  cash-and-carry fair value [assumption-dependent on `.cfg.carry` r+storage], carry signal, inventory-tightness
+  proxy). Read R10's curve + R9's door downward; registered (`season`/`carry` kinds, conform); carded; distinct
+  from `signals/` seasonality. The features R16 is built on. Demo `apps/examples/season_carry.q`.
+* **R15 — PnL explain + bucketed curve risk. ← NEXT.** `analytics/` gains `.risk.attribution`: PnL split into
   curve/slope/curvature/carry/residual + bucketed deltas per tenor. The quantitative "name which edge."
 * **R16 — First real research output: seasonally-adjusted crude calendar-spread mean-reversion.** A new
   `template`, run replay → evidence audit → gate cascade → regime skeptic → human. The first end-to-end

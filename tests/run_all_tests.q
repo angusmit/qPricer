@@ -388,6 +388,9 @@
     "tests/evidence/test_audit_bites.q";
     "tests/evidence/test_gated_run.q");
 
+.test.seasonFiles:(enlist "tests/season/test_seasonality.q");
+.test.carryFiles:(enlist "tests/carry/test_carry.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -517,6 +520,8 @@
     (`roll;       .test.rollFiles);
     (`replay;     .test.replayFiles);
     (`evidence;   .test.evidenceFiles);
+    (`season;     .test.seasonFiles);
+    (`carry;      .test.carryFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---
