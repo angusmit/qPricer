@@ -329,7 +329,9 @@
 
 .test.regimeFiles:(
     "tests/regime/test_regime_label.q";
-    "tests/regime/test_regime_breakdown.q");
+    "tests/regime/test_regime_breakdown.q";
+    "tests/regime/test_regime_analogue_distance.q";
+    "tests/regime/test_regime_analogue_nearest.q");
 
 .test.govFiles:(
     "tests/gov/test_gov_deflated_sharpe.q";

@@ -269,6 +269,15 @@ engine cold and reproducible is the guardrail against the agent failure mode of 
 
 ### 11.3 Regime / Analogue Library + risk memory — explicit, versioned artifacts
 
+**Status: DONE (v0.67, R4).** `regime/analogue.q` (`.regime.analogue.*` / `.regime.library.*`): the splayed
+`regimeEpisodes` table (named crude episodes with a COMPUTED dominant fingerprint from the `regimes` table)
++ `docs/REGIME_LIBRARY.md` (the curated drivers + written risk memory), and the analogue engine
+(`.regime.analogue.distance` weighted-Euclidean+categorical-penalty / `.nearest` / `.forDate`). Honest data
+scope: matching runs ONLY on in-HDB windows (crude ≈ 2018.12→2026) with real fingerprints; out-of-data
+lessons (2008, 2014-16) are narrative-only in `REGIME_LIBRARY.md`. `regime/` stays LOW (no gov/backtest
+import; gov may consult the analogue downward). Built by `scripts/build_regime_library.q`; demo
+`apps/examples/regime_analogue_today.q`. (The drift monitor in §11.4 remains future work.)
+
 A curated, versioned corpus of labelled historical regimes (crude 2008 / 2014–16 / 2020 negative-WTI /
 2022 energy shock; gas winter spikes / shoulder-season collapse / the March-April "widow-maker"; power
 heatwave spikes / negative prices). Each entry carries date range, curve/vol/liquidity state, drivers,
@@ -402,8 +411,11 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   Gov-side date slicing only; no engine/backtest/regime edits (byte-identical). **Deferred → later (not
   built):** the **"what's PRICED IN" gate** (a faithful version needs options-surface / positioning data
   the HDB does not have — deliberately not faked with a stub).
-* **R4 — Regime / Analogue Library + risk memory.** `docs/REGIME_LIBRARY.md` + backing tables + the
-  analogue-query function (state-space distance, nearest-regime retrieval). Knowledge plug-ins.
+* **R4 — Regime / Analogue Library + risk memory. ✅ DONE (v0.67).** `docs/REGIME_LIBRARY.md` + the
+  `regimeEpisodes` table (`regime/analogue.q`, `.regime.library.*`, dominant fingerprints computed from
+  `regimes`) + the analogue-query function (`.regime.analogue.distance`/`.nearest`/`.forDate` — state-space
+  distance, nearest-episode retrieval with risk memory). In-HDB windows only (no fabricated fingerprints);
+  `regime/` stays LOW (no gov/backtest import). Knowledge plug-ins. Demo `apps/examples/regime_analogue_today.q`.
 * **R5 — Model Cards.** `docs/MODEL_CARDS.md` (one card per model/strategy) + a card registry the gates
   read (Gate 0 = "has a card with a populated failure-mode field").
 * **R6 — Problem-template abstraction.** Generalise the strategy contract into a problem template; ship

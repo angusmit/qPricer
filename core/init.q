@@ -94,6 +94,8 @@
 \l data/backtest.q
 / Regime (Research OS R1: market-state measurement; depends on data + signals)
 \l regime/regime.q
+/ Regime analogue library + risk memory (Research OS R4; depends on data + regime core)
+\l regime/analogue.q
 / Execution (daily fill-and-cost simulation; used by the commodity backtest)
 \l execution/execution.q
 / Backtest (strategy engine + strategies)
@@ -106,4 +108,4 @@
 \l gov/gov.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.66";
+.qfdm.version:"0.67";

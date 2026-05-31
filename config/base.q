@@ -96,8 +96,29 @@
 / realized-vol window (days). pctLookback: rolling-percentile window. rollNearDays: front
 / days-to-expiry <= this is `near. low/high + thin/deep percentile cutoffs for vol/liquidity.
 / seasonPos/NegThreshold + seasonCfg drive the seasonal-phase bucket via signals/seasonality.
-.cfg.regime:`deferredIdx`flatSlopeThreshold`volLookback`pctLookback`rollNearDays`lowPctThreshold`highPctThreshold`thinPctThreshold`deepPctThreshold`seasonPosThreshold`seasonNegThreshold`seasonCfg`annualizationDays!(
-    5;0.005;21;252;10;0.33;0.67;0.33;0.67;0.01;-0.01;`amplitude`phaseYears!(0.03;0f);252f);
+/ R4 adds `analogue (the analogue-distance weights: weighted Euclidean over the three
+/ percentile axes + a per-mismatch categorical penalty over the discrete states) and
+/ `episodes (below). The analogue distance/ranking are pure; the episode spec is curated.
+.cfg.regime:`deferredIdx`flatSlopeThreshold`volLookback`pctLookback`rollNearDays`lowPctThreshold`highPctThreshold`thinPctThreshold`deepPctThreshold`seasonPosThreshold`seasonNegThreshold`seasonCfg`annualizationDays`analogue!(
+    5;0.005;21;252;10;0.33;0.67;0.33;0.67;0.01;-0.01;`amplitude`phaseYears!(0.03;0f);252f;
+    `wSlope`wVol`wVolume`catPenalty!(1f;1f;1f;0.5));
+
+/ Curated regime-episode spec (Research OS R4). ONLY in-HDB-coverage crude windows
+/ (~2018.12 -> 2026) - out-of-data lessons (2008, 2014-16) live in docs/REGIME_LIBRARY.md
+/ as narrative, never as fabricated fingerprints. driversKey -> the doc section; riskMemory
+/ is a one-line summary (the full failure-mode writeup is in REGIME_LIBRARY.md).
+/ scripts/build_regime_library.q computes each episode's dominant fingerprint from `regimes`.
+.cfg.regime[`episodes]:([]
+    episodeId:`crude_2020_covid`crude_2022_energyShock`crude_2023_rangebound;
+    commodity:`CRUDE`CRUDE`CRUDE;
+    dateFrom:2020.02.20 2022.02.24 2023.05.01;
+    dateTo:2020.06.30 2022.08.31 2023.12.31;
+    label:`crude_2020_covid`crude_2022_energyShock`crude_2023_rangebound;
+    driversKey:`covid2020`energyShock2022`opecCuts2023;
+    riskMemory:(
+        "demand collapse + storage saturation: long flat-price and short-vol blew up, WTI printed negative 2020-04-20, calendar spreads dislocated to super-contango, liquidity vanished";
+        "Russia/Ukraine supply shock: sharp backwardation + a vol spike, short-vol and mean-reversion shorts ran over, late momentum chasers round-tripped";
+        "range-bound chop under OPEC+ cuts: trend/momentum whipsawed, breakouts faded, only modest carry paid"));
 
 / --- governance layer: research-governance gates (gov/gov.q) ---
 / Research OS R3. costHurdleSharpe: Gate 1 net-of-execution annualised-Sharpe floor.
