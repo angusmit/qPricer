@@ -106,10 +106,14 @@
 \l backtest/commodityStrategies.q
 / Portfolio (strategy allocation optimizer; consumes backtest returns)
 \l portfolio/portfolio.q
+/ Factor decomposition (Research OS R8: curve PCA capability; reads data/ downward; loads
+/ before templates/ which compose it; registered as a `factor` kind; opens no HDB at import)
+\l factor/factor.q
 / Templates (Research OS R6: problem-template abstraction; composes signals/backtest/
 / execution; registered as a `template` kind; independent of gov - loads before it)
 \l templates/template.q
 \l templates/relative_value.q
+\l templates/factor_relative_value.q
 / Governance (Research OS R3: hypothesis registry + trials ledger + deflated-Sharpe
 / + gate cascade; HIGH layer - may import backtest/regime; never opens HDB at import)
 \l gov/gov.q
@@ -124,4 +128,4 @@
 \l workflow/workflow.q
 
 .qfdm.loaded:1b;
-.qfdm.version:"0.72";
+.qfdm.version:"0.73";

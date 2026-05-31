@@ -76,6 +76,12 @@ whipsaws in OPEC-cut-defended ranges; round-trips late entries after a supply-sh
 supply-driven backwardation trends. **Governance:** gated under hypothesis `mom_crude_ts` — per R3b the
 regime slices fail deflation/cost, so its derived status is `inResearch` / not tradeable, never `validated`.
 
+### `curvePCA` — factor / capability  ·  edge: `na`  (Research OS R8)
+PCA of the curve-change panel into level/slope/curvature + residuals (`.factor.pca`), by deterministic power iteration + Hotelling deflation (q has no built-in eig). **Assumptions:** k factors capture the structure; the loadings are stable over the window; deterministic by a fixed init / tol / sign convention. **Failure modes:** **factor instability across regimes** (the loadings rotate when the curve dislocates — see `crude_2020_covid`); **k-selection overfitting** (too many PCs fit noise); **lookback-window sensitivity** (the covariance, hence the loadings, drift with the window). An analytical capability (regime-agnostic itself); the *use* of its residuals for trading is what carries regime risk.
+
+### `factorRelativeValue` — template  ·  edge: `structural`  ·  risk memory: `covid2020`  (Research OS R8)
+Fade the curve's cumulative residual from its k-factor PCA shape — factor-structure reversion (`.template.factorRv.*`), composing `curvePCA` + the RV mean-reversion engine + the fill model. **Assumptions:** the factor structure is stable across the window; the traded residual mean-reverts (rather than being microstructure noise); **k and the lookback are NOT tuned to the gates**. **Failure modes:** the factor structure **breaks down when the curve dislocates** (storage saturation 2020 / supply shock 2022) — exactly when a residual-reversion trade is most exposed; the residual may be microstructure (untradeable after costs), which the cost + deflation gates are there to expose. **Template-specific gates** (run before the universal gates): factor stability + residual stationarity. **Governance:** gated under `rv_factor_crude`; whatever the deflation / walk-forward / holdout cascade returns is the honest verdict — k and the lookback are deliberately left untuned so the gates can do their job.
+
 ---
 
 *To add a card: extend `.cfg.cards` (matching the `modelCards` schema; `capabilityName` must match the

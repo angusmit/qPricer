@@ -1,6 +1,6 @@
 # qFDM / qPricer — Architecture & Engineering Design
 
-**Version:** 0.72 &nbsp;|&nbsp; **Tests:** 397 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
+**Version:** 0.73 &nbsp;|&nbsp; **Tests:** 399 / 0 green &nbsp;|&nbsp; **Loader:** `\l core/init.q`
 
 **What this document is.** The target-state design *and* the incremental build plan. The codebase
 migrates toward it behind the test suite — **every step keeps the full suite green and byte-identical;
@@ -60,7 +60,8 @@ without colliding, with the test suite as the merge gate.
 | `apps/` | examples + demos | built |
 | `regime/` | **(NEW — Part II)** market-state recognition + regime tagging + analogue library/risk memory | **built (v0.64 R1 / v0.67 R4)** |
 | `gov/` | **(NEW — Part II)** hypothesis registry, trials ledger, deflated Sharpe, gate cascade + sealed holdout | **built (v0.65 R3 / v0.66 R3b)** |
-| `templates/` | **(NEW — Part II)** problem templates (`.template`) — research-shape plug-in: directional (faithful) + relativeValue | **built (v0.70, R6)** |
+| `factor/` | **(NEW — Part II)** curve factor decomposition (`.factor`) — PCA level/slope/curvature; the first capability on the spine | **built (v0.73, R8)** |
+| `templates/` | **(NEW — Part II)** problem templates (`.template`) — directional (faithful) + relativeValue + factorRelativeValue | **built (v0.70 R6 / v0.73 R8)** |
 | `cards/` | **(NEW — Part II)** model cards (`.cards`) — knowledge plug-in: contract + edge + gov-derived validation + audit | **built (v0.69, R5)** |
 | `workflow/` | **(NEW — Part II)** the bounded research loop (`.workflow`) — composes gov/cards/template/regime; escalates to the human | **built (v0.72, R7)** |
 | `agents/` | **(NEW — Part II)** six bounded research-agent role prompts + `ORCHESTRATION.md` (docs; not loaded) | **built (v0.72, R7)** |
@@ -474,6 +475,20 @@ order is chosen for lowest risk and highest unblocking, not ambition.**
   gates passing; the packet always defers to the human (`apps/examples/research_loop.q`). The merge gate is
   the full suite + `test-runner`. **Deferred:** the multi-agent orchestration (worktrees / Agent Teams /
   Dynamic Workflows) parallelises this same loop behind the same merge gate. **R1–R7 complete.**
+
+* **R8 — Factor decomposition (PCA). ✅ DONE (v0.73).** The **FIRST research shape built ON the completed
+  spine** — not new infrastructure, but the realisation of the problem-template abstraction's "PCA /
+  stochastic control / deep hedging all plug in" promise, for the first one. A new analytical CAPABILITY
+  (`factor/factor.q`, `.factor.*`: PCA of the curve into level/slope/curvature + residuals by deterministic
+  power iteration + Hotelling deflation — q has no built-in eig — with a pinned init/tol + a front-positive
+  sign convention, so it is byte-identical and known-answer testable) plus a new problem TEMPLATE
+  (`factorRelativeValue`: fade the curve's cumulative residual from its k-factor shape, with its own
+  factor-stability + residual-stationarity gates), both plugged into the finished spine — registered via R2,
+  carded via R5 (with real failure modes), gated through R3/R3b, regime-aware via the R4 skeptic, run through
+  the R7 bounded workflow. Its own overfitting risk (the choice of k and the lookback) is exactly what the
+  deflation + walk-forward + holdout cascade exists to catch, so it doubles as a stress-test of the gates.
+  Demo `apps/examples/factor_relative_value.q`. The template the stochastic-control / deep-hedging work will
+  follow: a new capability + a new problem-template, the same contracts, cards, gates, and bounded workflow.
 
 **Deferred (unchanged):** IPC services and cloud CI / scheduled pipeline — until production onboarding or
 adequate hardware (§6, §7).

@@ -363,6 +363,10 @@
     "tests/workflow/test_workflow_loop.q";
     "tests/workflow/test_workflow_bounded.q");
 
+.test.factorFiles:(
+    "tests/factor/test_factor_pca.q";
+    "tests/factor/test_factor_template.q");
+
 .test.executionFiles:(
     "tests/execution/test_exec_fill.q";
     "tests/execution/test_exec_commodity_bt_legacy.q";
@@ -486,6 +490,7 @@
     (`cards;      .test.cardsFiles);
     (`templates;  .test.templatesFiles);
     (`workflow;   .test.workflowFiles);
+    (`factor;     .test.factorFiles);
     (`strategy;   .test.strategyFiles));
 
 / --- Runner with timing ---

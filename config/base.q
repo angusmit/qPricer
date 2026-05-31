@@ -150,6 +150,14 @@
 / calendar spread; maxAr1 is the spread-stationarity bar (AR(1) coef below this = mean-reverting).
 .cfg.templates.rv:`lookback`entryZ`notional`txnCostRate`deferredIdx`maxAr1!(60;1.5;1f;0.0005;1;0.98);
 
+/ --- factor layer: curve PCA (factor/factor.q), Research OS R8 ---
+/ k = number of principal components (level/slope/curvature); tol/maxIter pin the deterministic
+/ power iteration; nMaturities = the first-M tenor-ranked contracts forming the curve panel;
+/ minLoadingStability = the factor-stability gate bar (cosine of first- vs second-half top loading);
+/ residualMaturity = the 0-based maturity whose cumulative residual the factorRelativeValue template trades.
+/ Do NOT tune k or the lookback to pass the gates - that is exactly where factor PCA overfits.
+.cfg.factor:`k`tol`maxIter`nMaturities`minLoadingStability`residualMaturity!(3;1e-10;1000;5;0.9;2);
+
 / --- cards layer: curated model cards (cards/cards.q), Research OS R5 ---
 / One structured card per KEY capability (the 4 R2-registered capabilities + the key
 / strategies). capabilityName MATCHES the R2/strategy registry name. edgeSource is one of
@@ -192,6 +200,25 @@
         "qFDM core";"qFDM commodity desk";"qFDM commodity desk";"qFDM execution";
         "qFDM vol desk";"qFDM vol desk";"qFDM commodity desk");
     asOf:7#2026.05.31);
+
+/ Research OS R8: cards for the first capability/template added on the spine. curvePCA is a
+/ `factor capability (edge `na); factorRelativeValue is the template (edge `structural), carded
+/ WITH a populated failure-mode link (riskMemoryKey covid2020 - the regime where the curve's
+/ factor structure most violently broke) so it is gateable via .cards.gatedRun.
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_curvePCA;`factor;`curvePCA;`v1;
+    "PCA of the curve-change panel into level/slope/curvature + residuals (deterministic power iteration)";
+    "k factors capture the structure; loadings stable over the window; deterministic (fixed init/tol/sign)";
+    `na;
+    "any liquid forward curve (an analytical capability, regime-agnostic)";
+    `na;`;"qFDM quant research";2026.05.31);
+.cfg.cards:.cfg.cards upsert `cardId`capabilityKind`capabilityName`version`intendedUse`assumptions`edgeSource`regimeApplicability`riskMemoryKey`govHypoId`owner`asOf!(
+    `card_factorRelativeValue;`template;`factorRelativeValue;`v1;
+    "Fade the curve's cumulative residual from its k-factor PCA shape (factor-structure reversion)";
+    "factor structure stable across the window; the residual mean-reverts (not microstructure); k + lookback NOT tuned to the gates";
+    `structural;
+    "stable-factor-structure regimes; breaks down when the curve dislocates (storage saturation / supply shock)";
+    `covid2020;`rv_factor_crude;"qFDM quant research";2026.05.31);
 
 / --- backtest layer: per-strategy default configs (backtest/strategy.q) ---
 / Each .strategy.<name>.defaultConfig returns its dict below. Values, TYPES and
